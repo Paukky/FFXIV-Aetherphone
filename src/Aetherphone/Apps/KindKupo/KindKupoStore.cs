@@ -11,12 +11,9 @@ namespace Aetherphone.Apps.KindKupo;
 // used for holding api call function and store is a container that persists within the app.
 internal sealed class KindKupoStore : IDisposable
 {
-    private readonly RealtimeSignalBus signals;
     private readonly AethernetSession session;
-    private readonly NotificationService notifications;
     private readonly KupoClient client;
     private readonly StoreWork work = new("KindKupo");
-    private volatile UserDto? user;
 
     private volatile ConfessionDto[] confessions = Array.Empty<ConfessionDto>();
     private volatile ConfessionDto[] userConfession = Array.Empty<ConfessionDto>();
@@ -28,8 +25,6 @@ internal sealed class KindKupoStore : IDisposable
     {
         this.session = session;
         this.client = client;
-        this.notifications = notifications;
-        this.signals = signals;
     }
     public void Refresh()
         {
