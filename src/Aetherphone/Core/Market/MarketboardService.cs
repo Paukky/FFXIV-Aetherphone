@@ -23,10 +23,12 @@ internal sealed class MarketboardService : IDisposable
 {
     private const string ApiRoot = "https://universalis.app/api/v2";
     private const int ListingCount = 20;
+    private const int ListingFetchCount = 60;
     private const int HistoryCount = 25;
     private const int AggregatedBatch = 80;
     private static readonly TimeSpan FreshFor = TimeSpan.FromSeconds(45);
     private static readonly TimeSpan AggregatedFreshFor = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan TaxFreshFor = TimeSpan.FromHours(6);
     private static readonly MarketEntry Invalid = new() { State = MarketState.Idle };
     private readonly HttpService http;
     private readonly RequestThrottle throttle;
@@ -34,6 +36,8 @@ internal sealed class MarketboardService : IDisposable
     private readonly ConcurrentDictionary<string, MarketEntry> items = new();
     private readonly ConcurrentDictionary<string, AggregatedEntry> aggregated = new();
     private readonly ConcurrentDictionary<string, byte> aggregatedInFlight = new();
+    private readonly ConcurrentDictionary<string, TaxEntry> taxRates = new();
+    private readonly ConcurrentDictionary<string, byte> taxInFlight = new();
 
     public MarketboardService(HttpService http)
     {
@@ -73,6 +77,105 @@ internal sealed class MarketboardService : IDisposable
         }
 
         return aggregated.TryGetValue($"{itemId}:{scope.Key}", out var entry) ? entry.Price : 0;
+    }
+
+    public bool TryGetLowestTax(string worldName, out int rate, out string city)
+    {
+        rate = 0;
+        city = string.Empty;
+        if (worldName.Length == 0)
+        {
+            return false;
+        }
+
+        if (taxRates.TryGetValue(worldName, out var entry) && DateTime.UtcNow - entry.FetchedUtc < TaxFreshFor)
+        {
+            rate = entry.Rate;
+            city = entry.City;
+            return entry.Rate > 0;
+        }
+
+        if (taxInFlight.TryAdd(worldName, 0))
+        {
+            _ = LoadTaxRatesAsync(worldName);
+        }
+
+        return false;
+    }
+
+    private async Task LoadTaxRatesAsync(string worldName)
+    {
+        try
+        {
+            var token = cancellation.Token;
+            using (await throttle.EnterAsync(token).ConfigureAwait(false))
+            {
+                var url = $"{ApiRoot}/tax-rates?world={Uri.EscapeDataString(worldName)}";
+                var rates = await http
+                    .GetJsonAsync(url, UniversalisJsonContext.Default.DictionaryStringInt32, null, token)
+                    .ConfigureAwait(false);
+                var lowestRate = 0;
+                var lowestCity = string.Empty;
+                if (rates is not null)
+                {
+                    foreach (var pair in rates)
+                    {
+                        if (pair.Value <= 0 || (lowestRate > 0 && pair.Value >= lowestRate))
+                        {
+                            continue;
+                        }
+
+                        lowestRate = pair.Value;
+                        lowestCity = pair.Key;
+                    }
+                }
+
+                taxRates[worldName] = new TaxEntry(lowestRate, lowestCity, DateTime.UtcNow);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            taxRates[worldName] = new TaxEntry(0, string.Empty, DateTime.UtcNow);
+            AepLog.Warning(exception, $"Market tax fetch failed for {worldName}");
+        }
+        finally
+        {
+            taxInFlight.TryRemove(worldName, out _);
+        }
+    }
+
+    public bool TryFindCheaperScope(uint itemId, MarketScope scope, long activePrice, out long price,
+        out uint worldId)
+    {
+        price = 0;
+        worldId = 0;
+        if (!scope.IsValid || activePrice <= 0 || scope.Kind == MarketScopeKind.Region)
+        {
+            return false;
+        }
+
+        if (!aggregated.TryGetValue($"{itemId}:{scope.Key}", out var entry))
+        {
+            return false;
+        }
+
+        if (scope.Kind == MarketScopeKind.World && entry.DataCenterPrice > 0 && entry.DataCenterPrice < activePrice)
+        {
+            price = entry.DataCenterPrice;
+            worldId = entry.DataCenterWorldId;
+        }
+
+        if (entry.RegionPrice > 0 && entry.RegionPrice < activePrice &&
+            (price == 0 || entry.RegionPrice < price))
+        {
+            price = entry.RegionPrice;
+            worldId = entry.RegionWorldId;
+        }
+
+        return price > 0 && worldId != 0;
     }
 
     public void PrefetchAggregated(IReadOnlyList<uint> ids, MarketScope scope)
@@ -137,7 +240,7 @@ internal sealed class MarketboardService : IDisposable
             using (await throttle.EnterAsync(token).ConfigureAwait(false))
             {
                 var url =
-                    $"{ApiRoot}/{Uri.EscapeDataString(scope.ApiName)}/{itemId}?listings={ListingCount}&entries={HistoryCount}";
+                    $"{ApiRoot}/{Uri.EscapeDataString(scope.ApiName)}/{itemId}?listings={ListingFetchCount}&entries={HistoryCount}";
                 var data = await http
                     .GetJsonAsync(url, UniversalisJsonContext.Default.UniversalisCurrentData, null, token)
                     .ConfigureAwait(false);
@@ -163,7 +266,7 @@ internal sealed class MarketboardService : IDisposable
         {
             entry.FetchedUtc = DateTime.UtcNow;
             entry.State = MarketState.Failed;
-            AepLog.Warning($"Market fetch failed for {key}: {exception.Message}");
+            AepLog.Warning(exception, $"Market fetch failed for {key}");
         }
     }
 
@@ -192,7 +295,10 @@ internal sealed class MarketboardService : IDisposable
                     {
                         var result = results[index];
                         var price = SelectAggregatedPrice(result, scope.Kind);
-                        aggregated[$"{result.ItemId}:{scope.Key}"] = new AggregatedEntry(price, now);
+                        var dataCenter = SelectAggregatedScope(result, MarketScopeKind.DataCenter);
+                        var region = SelectAggregatedScope(result, MarketScopeKind.Region);
+                        aggregated[$"{result.ItemId}:{scope.Key}"] = new AggregatedEntry(price,
+                            dataCenter.Price, region.Price, dataCenter.WorldId, region.WorldId, now);
                     }
                 }
 
@@ -207,7 +313,7 @@ internal sealed class MarketboardService : IDisposable
         }
         catch (Exception exception)
         {
-            AepLog.Warning($"Market aggregated fetch failed: {exception.Message}");
+            AepLog.Warning(exception, "Market aggregated fetch failed");
         }
         finally
         {
@@ -220,15 +326,11 @@ internal sealed class MarketboardService : IDisposable
 
     private static MarketSnapshot BuildSnapshot(uint itemId, MarketScope scope, UniversalisCurrentData data)
     {
-        var rawListings = data.Listings ?? Array.Empty<UniversalisListing>();
-        var listings = new MarketListing[rawListings.Length];
+        var listings = DedupeListings(data.Listings, out var unitsForSale);
         var hasHq = false;
-        for (var index = 0; index < rawListings.Length; index++)
+        for (var index = 0; index < listings.Length; index++)
         {
-            var listing = rawListings[index];
-            hasHq |= listing.Hq;
-            listings[index] = new MarketListing(listing.PricePerUnit, listing.Quantity, listing.Total, listing.Hq,
-                listing.WorldName ?? string.Empty, listing.RetainerName ?? string.Empty);
+            hasHq |= listings[index].Hq;
         }
 
         var rawSales = data.RecentHistory ?? Array.Empty<UniversalisSale>();
@@ -244,27 +346,64 @@ internal sealed class MarketboardService : IDisposable
         hasHq |= data.MinPriceHq > 0 || data.MaxPriceHq > 0 || data.HqSaleVelocity > 0;
         return new MarketSnapshot(itemId, MarketFormat.FromUnix(data.LastUploadTime), scope.IsMultiWorld, hasHq,
             listings, sales, data.MinPriceNq, data.MinPriceHq, data.AveragePriceNq, data.AveragePriceHq,
-            data.MaxPriceNq, data.MaxPriceHq, data.NqSaleVelocity, data.HqSaleVelocity, data.UnitsForSale,
+            data.MaxPriceNq, data.MaxPriceHq, data.NqSaleVelocity, data.HqSaleVelocity, unitsForSale,
             data.UnitsSold);
     }
 
-    private static long SelectAggregatedPrice(UniversalisAggregatedResult result, MarketScopeKind kind)
+    private static MarketListing[] DedupeListings(UniversalisListing[]? rawListings, out int unitsForSale)
+    {
+        unitsForSale = 0;
+        if (rawListings is null || rawListings.Length == 0)
+        {
+            return Array.Empty<MarketListing>();
+        }
+
+        var listings = new MarketListing[Math.Min(rawListings.Length, ListingCount)];
+        var seen = new HashSet<string>(rawListings.Length, StringComparer.Ordinal);
+        var kept = 0;
+        for (var index = 0; index < rawListings.Length && kept < listings.Length; index++)
+        {
+            var listing = rawListings[index];
+            var listingId = listing.ListingId;
+            if (listingId is { Length: > 0 } && !seen.Add(listingId))
+            {
+                continue;
+            }
+
+            unitsForSale += listing.Quantity;
+            listings[kept] = new MarketListing(listing.PricePerUnit, listing.Quantity, listing.Total, listing.Hq,
+                listing.WorldName ?? string.Empty, listing.RetainerName ?? string.Empty);
+            kept++;
+        }
+
+        if (kept != listings.Length)
+        {
+            Array.Resize(ref listings, kept);
+        }
+
+        return listings;
+    }
+
+    private static long SelectAggregatedPrice(UniversalisAggregatedResult result, MarketScopeKind kind) =>
+        SelectAggregatedScope(result, kind).Price;
+
+    private static ScopeOffer SelectAggregatedScope(UniversalisAggregatedResult result, MarketScopeKind kind)
     {
         var nq = SelectAggregatedField(result.Nq?.MinListing, kind);
         var hq = SelectAggregatedField(result.Hq?.MinListing, kind);
-        if (nq > 0 && hq > 0)
+        if (nq.Price > 0 && hq.Price > 0)
         {
-            return Math.Min(nq, hq);
+            return nq.Price <= hq.Price ? nq : hq;
         }
 
-        return nq > 0 ? nq : hq;
+        return nq.Price > 0 ? nq : hq;
     }
 
-    private static long SelectAggregatedField(UniversalisAggregatedField? field, MarketScopeKind kind)
+    private static ScopeOffer SelectAggregatedField(UniversalisAggregatedField? field, MarketScopeKind kind)
     {
         if (field is null)
         {
-            return 0;
+            return default;
         }
 
         var value = kind switch
@@ -273,7 +412,33 @@ internal sealed class MarketboardService : IDisposable
             MarketScopeKind.DataCenter => field.Dc,
             _ => field.Region,
         };
-        return value?.Price ?? 0;
+        return value is null ? default : new ScopeOffer(value.Price, value.WorldId);
+    }
+
+    private readonly struct TaxEntry
+    {
+        public readonly int Rate;
+        public readonly string City;
+        public readonly DateTime FetchedUtc;
+
+        public TaxEntry(int rate, string city, DateTime fetchedUtc)
+        {
+            Rate = rate;
+            City = city;
+            FetchedUtc = fetchedUtc;
+        }
+    }
+
+    private readonly struct ScopeOffer
+    {
+        public readonly long Price;
+        public readonly uint WorldId;
+
+        public ScopeOffer(long price, uint worldId)
+        {
+            Price = price;
+            WorldId = worldId;
+        }
     }
 
     public void Dispose()
@@ -286,11 +451,25 @@ internal sealed class MarketboardService : IDisposable
     private readonly struct AggregatedEntry
     {
         public readonly long Price;
+        public readonly long DataCenterPrice;
+        public readonly long RegionPrice;
+        public readonly uint DataCenterWorldId;
+        public readonly uint RegionWorldId;
         public readonly DateTime FetchedUtc;
 
         public AggregatedEntry(long price, DateTime fetchedUtc)
+            : this(price, 0L, 0L, 0u, 0u, fetchedUtc)
+        {
+        }
+
+        public AggregatedEntry(long price, long dataCenterPrice, long regionPrice, uint dataCenterWorldId,
+            uint regionWorldId, DateTime fetchedUtc)
         {
             Price = price;
+            DataCenterPrice = dataCenterPrice;
+            RegionPrice = regionPrice;
+            DataCenterWorldId = dataCenterWorldId;
+            RegionWorldId = regionWorldId;
             FetchedUtc = fetchedUtc;
         }
     }

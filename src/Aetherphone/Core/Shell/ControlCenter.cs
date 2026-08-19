@@ -64,7 +64,8 @@ internal sealed class ControlCenter
     private ControlMetrics metrics;
 
     public ControlCenter(Configuration configuration, ThemeProvider themes, PlaybackHub playback, CallHub calls,
-        INavigator navigation, NotificationService notifications, NotificationRouter router)
+        INavigator navigation, NotificationService notifications, NotificationRouter router,
+        Coins.CoinStore coins, Aethernet.AethernetSession session)
     {
         this.themes = themes;
         this.playback = playback;
@@ -72,7 +73,7 @@ internal sealed class ControlCenter
         this.notifications = notifications;
         this.router = router;
         notificationCenter = new NotificationCenter(notifications, router, Dismiss);
-        registry = new ControlRegistry(configuration, themes, playback, calls, navigation, Dismiss);
+        registry = new ControlRegistry(configuration, themes, playback, calls, navigation, Dismiss, coins, session);
         layout = new ControlLayoutService(registry, configuration);
         gallery = new ControlGallery(layout);
     }
@@ -612,12 +613,25 @@ internal sealed class ControlCenter
                 }
 
                 drag.Begin(topBand);
+                if (drag.Active)
+                {
+                    var fraction = Math.Clamp(drag.Delta.Y / openDistance, 0f, 1f);
+                    offset.SnapTo(fraction);
+                    target = fraction;
+                }
             }
 
-            if (drag.Released(out var totalDelta, out _) && MathF.Abs(totalDelta.X) < TapSlop * scale &&
-                MathF.Abs(totalDelta.Y) < TapSlop * scale)
+            if (drag.Released(out var totalDelta, out var velocity))
             {
-                Open();
+                var tapped = MathF.Abs(totalDelta.X) < TapSlop * scale && MathF.Abs(totalDelta.Y) < TapSlop * scale;
+                if (tapped || totalDelta.Y / openDistance > CommitFraction || velocity > fling)
+                {
+                    Open();
+                }
+                else
+                {
+                    target = 0f;
+                }
             }
         }
         else if (allowDismiss)

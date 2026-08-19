@@ -15,6 +15,7 @@ internal sealed partial class LinkpearlApp
     private const float FindSegmentRowHeight = 36f;
     private const float FindFieldRowHeight = 44f;
     private const float FindResultRowHeight = 60f;
+    private const float FindResultAvatarRadius = 20f;
     private readonly string[] findSegmentLabels = new string[2];
     private LookupKind findKind = LookupKind.Character;
     private string findNameInput = string.Empty;
@@ -37,59 +38,6 @@ internal sealed partial class LinkpearlApp
         hasQuery = false;
         forceSearch = false;
         forceDetail = false;
-    }
-
-    private void DrawFindTab(Rect content)
-    {
-        var scale = UiScale.Current;
-        var theme = frameTheme;
-        var pad = 16f * scale;
-        var segmentRow = new Rect(new Vector2(content.Min.X + pad, content.Min.Y),
-            new Vector2(content.Max.X - pad, content.Min.Y + FindSegmentRowHeight * scale));
-        UiAnchors.Report("findpeople.kind", segmentRow);
-        findSegmentLabels[0] = Loc.T(L.FindPeople.Character);
-        findSegmentLabels[1] = Loc.T(L.FindPeople.FreeCompany);
-        var selected = SegmentStrip.Draw("findpeople.kind", segmentRow, findSegmentLabels, (int)findKind, theme);
-        if (selected != (int)findKind)
-        {
-            findKind = (LookupKind)selected;
-            if (hasQuery)
-            {
-                SubmitSearch();
-            }
-        }
-
-        var nameTop = segmentRow.Max.Y + 8f * scale;
-        var nameBar = new Rect(new Vector2(content.Min.X + pad, nameTop),
-            new Vector2(content.Max.X - pad, nameTop + FindFieldRowHeight * scale));
-        UiAnchors.Report("findpeople.name", nameBar);
-        var nameChanged =
-            SubmitField.Draw(nameBar, "##findNameField", Loc.T(L.FindPeople.NameHint), ref findNameInput, theme);
-        var worldTop = nameBar.Max.Y + 8f * scale;
-        var worldBar = new Rect(new Vector2(content.Min.X + pad, worldTop),
-            new Vector2(content.Max.X - pad, worldTop + FindFieldRowHeight * scale));
-        var worldChanged = SubmitField.Draw(worldBar, "##findWorldField", Loc.T(L.FindPeople.WorldHint),
-            ref findWorldInput, theme);
-        if (nameChanged || worldChanged)
-        {
-            SubmitSearch();
-        }
-
-        var body = new Rect(new Vector2(content.Min.X, worldBar.Max.Y + 4f * scale), content.Max);
-        if (!hasQuery)
-        {
-            DrawFindPrompt(body, theme, scale);
-            return;
-        }
-
-        if (findKind == LookupKind.Character)
-        {
-            DrawCharacterResults(body, theme, scale);
-        }
-        else
-        {
-            DrawFreeCompanyResults(body, theme, scale);
-        }
     }
 
     private void SubmitSearch()
@@ -136,7 +84,8 @@ internal sealed partial class LinkpearlApp
             {
                 var match = matches[index];
                 var world = match.World.Length > 0 ? match.World : hintWorld;
-                if (DrawResultRow(card.NextRow(), theme, scale, match.Name, world, lodestone.Avatar(match.Name, world)))
+                if (DrawResultRow(card.NextRow(), theme, scale, match.Name, world,
+                        lodestone.Avatar(match.Name, world, FindResultAvatarRadius * 2f * scale)))
                 {
                     router.Push(LinkpearlRoute.Character(match.Id, match.Name, world));
                 }
@@ -170,7 +119,7 @@ internal sealed partial class LinkpearlApp
             {
                 var match = matches[index];
                 if (DrawResultRow(card.NextRow(), theme, scale, match.Name, match.Subtitle,
-                        lodestone.Remote(match.CrestKey, match.Crest)))
+                        lodestone.Remote(match.CrestKey, match.Crest, FindResultAvatarRadius * 2f * scale)))
                 {
                     router.Push(LinkpearlRoute.FreeCompany(match.Id, match.Name, match.World));
                 }
@@ -185,7 +134,7 @@ internal sealed partial class LinkpearlApp
     {
         var hovered = UiInteract.Hover(row.Min, row.Max);
         var drawList = ImGui.GetWindowDrawList();
-        var avatarRadius = 20f * scale;
+        var avatarRadius = FindResultAvatarRadius * scale;
         var avatarCenter = new Vector2(row.Min.X + avatarRadius, row.Center.Y);
         AvatarView.Draw(drawList, avatarCenter, avatarRadius, theme.SurfaceMuted, Initials.Of(title), 1.4f, image, 48);
         var textX = avatarCenter.X + avatarRadius + 12f * scale;
@@ -270,7 +219,7 @@ internal sealed partial class LinkpearlApp
         var avatarCenter = new Vector2(centerX, origin.Y + 22f * scale + avatarRadius);
         ProgressRing.Glow(avatarCenter, avatarRadius, theme.Accent, 0.4f);
         AvatarView.Draw(drawList, avatarCenter, avatarRadius, theme.SurfaceMuted, Initials.Of(detail.Name), 2.0f,
-            lodestone.Remote(detail.PortraitKey, detail.Portrait), 72);
+            lodestone.Remote(detail.PortraitKey, detail.Portrait, avatarRadius * 2f), 72);
         var cursorY = avatarCenter.Y + avatarRadius + 16f * scale;
         Typography.DrawCentered(new Vector2(centerX, cursorY), detail.Name, theme.TextStrong, TextStyles.Title2);
         cursorY += 24f * scale;
@@ -457,7 +406,7 @@ internal sealed partial class LinkpearlApp
     private void DrawCrest(ImDrawListPtr drawList, Vector2 center, float size, FreeCompanyDetail detail,
         PhoneTheme theme)
     {
-        var handle = lodestone.Remote(detail.CrestKey, detail.Crest);
+        var handle = lodestone.Remote(detail.CrestKey, detail.Crest, size);
         var half = new Vector2(size * 0.5f, size * 0.5f);
         if (handle.Texture is { } texture)
         {
@@ -493,7 +442,7 @@ internal sealed partial class LinkpearlApp
         {
             var member = roster.Members[index];
             if (DrawResultRow(card.NextRow(), theme, scale, member.Name, member.Subtitle,
-                    lodestone.Remote(member.AvatarKey, member.Avatar)))
+                    lodestone.Remote(member.AvatarKey, member.Avatar, FindResultAvatarRadius * 2f * scale)))
             {
                 router.Push(LinkpearlRoute.Character(member.Id, member.Name, member.World));
             }

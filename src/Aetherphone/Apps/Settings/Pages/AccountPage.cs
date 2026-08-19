@@ -30,6 +30,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
     }
 
     private const string LodestoneProfileUrl = "https://na.finalfantasyxiv.com/lodestone/my/setting/profile/";
+    private const string RisingStonesProfileSettingsUrl = "https://ff14risingstones.web.sdo.com/pc/index.html#/me/settings/main";
     public string Title => Loc.T(L.Account.Title);
 
     public string Summary =>
@@ -53,6 +54,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
     private readonly NamePage namePage;
     private readonly ISettingsPage profilePage;
     private readonly ISettingsPage encryptionPage;
+    private readonly ISettingsPage coinPage;
     private readonly PhotoLibrary photoLibrary;
     private readonly ConfirmService confirm;
     private readonly WallpaperImageCache wallpaperImages;
@@ -60,6 +62,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
     private readonly PatreonLinkFlow patreonFlow;
     private readonly CancellationTokenSource cancellation = new();
     private readonly List<ulong> accountIds = new();
+    private string risingStonesUuid = string.Empty;
     private int accountIdsStamp = -1;
     private volatile bool avatarBusy;
     private bool meRequested;
@@ -68,7 +71,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
     public AccountPage(Configuration configuration, AethernetSession session, AuthClient auth, AccountClient account,
         AccountStateService accountState, MediaClient media, GameData gameData, RemoteImageCache images,
         LodestoneService lodestone, ISettingsNavigator navigator, NamePage namePage, ISettingsPage profilePage,
-        ISettingsPage encryptionPage, PhotoLibrary photoLibrary, ConfirmService confirm,
+        ISettingsPage encryptionPage, ISettingsPage coinPage, PhotoLibrary photoLibrary, ConfirmService confirm,
         WallpaperImageCache wallpaperImages)
     {
         this.configuration = configuration;
@@ -84,6 +87,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
         this.namePage = namePage;
         this.profilePage = profilePage;
         this.encryptionPage = encryptionPage;
+        this.coinPage = coinPage;
         this.photoLibrary = photoLibrary;
         this.confirm = confirm;
         this.wallpaperImages = wallpaperImages;
@@ -99,6 +103,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
         {
             accountState.RefreshNow();
         }
+
 
         lastDrawnFrame = frame;
         var theme = context.Theme;
@@ -179,10 +184,10 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
         SettingsRow.Info(details.NextRow(), Loc.T(L.Account.HomeWorldLabel), user.World, theme);
         details.End();
 
-        DrawBadgesSection(user, theme, scale);
+        DrawCommunityBadgesSection(theme, scale);
         DrawPatreonSection(theme, scale);
         ImGui.Dummy(new Vector2(0f, 14f * scale));
-        var links = GroupCard.Begin(theme, 3);
+        var links = GroupCard.Begin(theme, 4);
         if (SettingsRow.Link(links.NextRow(), namePage.Icon, namePage.Tint, namePage.Title, namePage.Summary, theme))
         {
             namePage.ResetEdit();
@@ -193,6 +198,12 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
                 profilePage.Summary, theme))
         {
             navigator.Open(profilePage);
+        }
+
+        if (SettingsRow.Link(links.NextRow(), coinPage.Icon, coinPage.Tint, coinPage.Title,
+                coinPage.Summary, theme))
+        {
+            navigator.Open(coinPage);
         }
 
         if (SettingsRow.Link(links.NextRow(), encryptionPage.Icon, encryptionPage.Tint, encryptionPage.Title,
@@ -234,7 +245,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
         var radius = 38f * scale;
         var avatarCenter = new Vector2(centerX, origin.Y + 10f * scale + radius);
         AvatarView.DrawRemote(drawList, avatarCenter, radius, theme, user.Name, user.World, user.AvatarUrl, images,
-            lodestone, 2.0f, 64);
+            lodestone, 2.0f, 64, 1f, Frames.Of(user.FrameId));
         var avatarExtent = new Vector2(radius, radius);
         var avatarMin = avatarCenter - avatarExtent;
         var avatarMax = avatarCenter + avatarExtent;
@@ -263,11 +274,11 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
 
         var nameY = changeCenter.Y + changeSize.Y * 0.5f + 18f * scale;
         var nameStyle = TextStyles.Title2;
-        var badgeCount = RoleBadges.Count(user.Badges);
-        var reserve = UserName.Reserve(user.Badges, nameStyle, badgeCount);
+        var badgeCount = Math.Max(RoleBadges.Count(user.Badges), user.ProfileBadges?.Length ?? 0);
+        var reserve = UserName.Reserve(user.Badges, user.ProfileBadges, nameStyle, badgeCount);
         var nameSize = Typography.Measure(user.DisplayName, nameStyle);
         var nameWidth = MathF.Min(nameSize.X, MathF.Max(1f, width - 24f * scale - reserve));
-        UserName.DrawAuto(drawList, "account.header.name", user.DisplayName, user.Badges,
+        UserName.DrawAuto(drawList, "account.header.name", user.DisplayName, user.Badges, user.ProfileBadges,
             centerX - (nameWidth + reserve) * 0.5f, nameY - nameSize.Y * 0.5f, nameWidth + reserve, nameStyle,
             theme.TextStrong, theme, badgeCount);
         Typography.DrawCentered(new Vector2(centerX, nameY + 24f * scale), $"{user.Name}@{user.World}",
@@ -276,82 +287,11 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
         ImGui.Dummy(new Vector2(width, nameY + 34f * scale - origin.Y));
     }
 
-    private void DrawBadgesSection(UserDto user, PhoneTheme theme, float scale)
+    private void DrawCommunityBadgesSection(PhoneTheme theme, float scale)
     {
-        var badgeCount = RoleBadges.Count(user.GrantedBadges);
-        if (badgeCount == 0)
-        {
-            return;
-        }
-
         ImGui.Dummy(new Vector2(0f, 14f * scale));
         SettingsSection.Header(Loc.T(L.Account.BadgesSection), theme);
-        var card = GroupCard.Begin(theme, badgeCount);
-        var toggled = default(RoleBadge?);
-        for (var index = 0; index < badgeCount; index++)
-        {
-            var badge = RoleBadges.At(user.GrantedBadges, index);
-            var equipped = (user.Badges & (int)badge.Flag) != 0;
-            if (DrawBadgeRow(card.NextRow(), badge, equipped, theme, scale))
-            {
-                toggled = badge;
-            }
-        }
-
-        card.End();
-        ImGui.Dummy(new Vector2(0f, 8f * scale));
-        SettingsSection.Hint(Loc.T(L.Account.BadgesHint), theme);
-        if (toggled is { } flipped)
-        {
-            ToggleBadge(user, flipped);
-        }
-    }
-
-    private static bool DrawBadgeRow(Rect row, in RoleBadge badge, bool equipped, PhoneTheme theme, float scale)
-    {
-        var drawList = ImGui.GetWindowDrawList();
-        var ink = RoleInk.For(badge.Kind, RoleInk.IsLight(theme));
-        var glyphSize = 16f * scale;
-        ProgressRing.CenterIcon(drawList, new Vector2(row.Min.X + glyphSize * 0.5f, row.Center.Y), badge.Glyph, ink,
-            glyphSize);
-        var label = Loc.T(badge.Tooltip);
-        var rowId = "account.badge." + badge.Kind;
-        var toggleWidth = Metrics.Size.ToggleWidth * scale;
-        var toggleHeight = Metrics.Size.ToggleHeight * scale;
-        var toggleMin = new Vector2(row.Max.X - toggleWidth, row.Center.Y - toggleHeight * 0.5f);
-        var labelLeft = row.Min.X + glyphSize + 10f * scale;
-        var labelMaxWidth = MathF.Max(1f, toggleMin.X - 10f * scale - labelLeft);
-        var labelSize = Typography.Measure(label, TextStyles.BodyEmphasized);
-        Marquee.DrawLeftAuto(rowId, label, labelLeft, row.Center.Y - labelSize.Y * 0.5f, labelMaxWidth,
-            TextStyles.BodyEmphasized, theme.TextStrong);
-        var next = Toggle.Draw(rowId + ".toggle",
-            new Rect(toggleMin, toggleMin + new Vector2(toggleWidth, toggleHeight)), equipped, theme);
-        return next != equipped;
-    }
-
-    private void ToggleBadge(UserDto user, in RoleBadge badge)
-    {
-        var desired = (user.Badges ^ (int)badge.Flag) & user.GrantedBadges;
-        session.SetUser(user with { Badges = desired });
-        var token = cancellation.Token;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var fresh = await account.UpdateBadgesAsync(desired, token).ConfigureAwait(false);
-                if (fresh is not null)
-                {
-                    session.SetUser(fresh);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (Exception exception)
-            {
-                AepLog.Warning($"Badge loadout update failed: {exception.Message}");
-            }
-        });
+        SettingsSection.Hint(Loc.T(L.Loadout.SettingsMoved), theme);
     }
 
     private void DrawPatreonSection(PhoneTheme theme, float scale)
@@ -496,14 +436,13 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
                 AddAccount();
             }
 
-            if (SettingsRow.Bool(actions.NextRow(), Loc.T(L.Account.FollowCharacter), session.FollowsCharacter, theme))
+            var followCharacter = SettingsRow.Bool(actions.NextRow(), Loc.T(L.Account.FollowCharacter),
+                session.FollowsCharacter, theme, null, Loc.T(L.Account.FollowCharacterHint));
+            actions.End();
+            if (followCharacter != session.FollowsCharacter)
             {
                 ToggleFollowCharacter();
             }
-
-            actions.End();
-            ImGui.Dummy(new Vector2(0f, 8f * scale));
-            SettingsSection.Hint(Loc.T(L.Account.FollowCharacterHint), theme);
         }
         else
         {
@@ -766,7 +705,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
             }
             catch (Exception exception)
             {
-                AepLog.Warning($"Token revoke failed: {exception.Message}");
+                AepLog.Warning(exception, "Token revoke failed");
             }
         });
     }
@@ -792,7 +731,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
                     }
                     catch (Exception exception)
                     {
-                        AepLog.Warning($"Account deletion failed: {exception.Message}");
+                        AepLog.Warning(exception, "Account deletion failed");
                     }
 
                     if (erased)
@@ -821,6 +760,18 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
                 new Vector2(ImGui.GetContentRegionAvail().X * 0.5f + ImGui.GetCursorScreenPos().X,
                     ImGui.GetCursorScreenPos().Y + 80f * UiScale.Current), Loc.T(L.Account.LogInFirst),
                 theme.TextMuted);
+            return;
+        }
+
+        if (gameData.IsChineseGameClient())
+        {
+            if (flow.RisingStonesActive)
+            {
+                DrawRisingStonesVerifyStep(theme);
+                return;
+            }
+
+            DrawRisingStonesSignedOut(theme);
             return;
         }
 
@@ -865,6 +816,113 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
         using (ImRaii.PushColor(ImGuiCol.Text, theme.TextMuted))
         {
             Typography.Wrapped(Loc.T(L.Account.LodestoneHint));
+        }
+
+        DrawStatus(theme);
+    }
+
+    private void DrawRisingStonesSignedOut(PhoneTheme theme)
+    {
+        var scale = UiScale.Current;
+        DrawAccountsSection(theme, scale, false);
+        ImGui.Dummy(new Vector2(0f, 6f * scale));
+        using (ImRaii.PushColor(ImGuiCol.Text, theme.TextMuted))
+        {
+            Typography.Wrapped(Loc.T(L.Account.RisingStonesIntro));
+        }
+
+        ImGui.Dummy(new Vector2(0f, 12f * scale));
+        DrawRisingStonesUuidField(theme, scale);
+        ImGui.Dummy(new Vector2(0f, 6f * scale));
+        using (ImRaii.PushColor(ImGuiCol.Text, theme.TextMuted))
+        {
+            Typography.Wrapped(Loc.T(L.Account.RisingStonesUuidHint));
+        }
+
+        ImGui.Dummy(new Vector2(0f, 14f * scale));
+        if (PrimaryButton(Loc.T(L.Account.RisingStonesSignIn), theme) && !flow.Busy && risingStonesUuid.Length > 0)
+        {
+            flow.StartRisingStones(risingStonesUuid);
+        }
+
+        DrawStatus(theme);
+    }
+
+    private void DrawRisingStonesUuidField(PhoneTheme theme, float scale)
+    {
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        var height = 44f * scale;
+        var drawList = ImGui.GetWindowDrawList();
+        Squircle.Fill(drawList, origin, new Vector2(origin.X + width, origin.Y + height), 9f * scale,
+            ImGui.GetColorU32(theme.GroupedCard));
+        ImGui.SetCursorScreenPos(new Vector2(origin.X + 12f * scale,
+            origin.Y + height * 0.5f - ImGui.GetFrameHeight() * 0.5f));
+        ImGui.SetNextItemWidth(width - 24f * scale);
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, new Vector4(0f, 0f, 0f, 0f)).Push(ImGuiCol.Text, theme.TextStrong))
+        {
+            ImGui.InputTextWithHint("##risingStonesUuid", Loc.T(L.Account.RisingStonesUuidLabel),
+                ref risingStonesUuid, SignInFlow.RisingStonesUuidMaxLength, ImGuiInputTextFlags.CharsDecimal);
+        }
+
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, height));
+    }
+
+    private void DrawRisingStonesVerifyStep(PhoneTheme theme)
+    {
+        var scale = UiScale.Current;
+        ImGui.Dummy(new Vector2(0f, 4f * scale));
+        using (Plugin.Fonts.Push(1.3f, FontWeight.SemiBold))
+        {
+            using (ImRaii.PushColor(ImGuiCol.Text, theme.TextStrong))
+            {
+                Typography.Plain(Loc.T(L.Account.RisingStonesVerifyTitle));
+            }
+        }
+
+        ImGui.Dummy(new Vector2(0f, 4f * scale));
+        using (ImRaii.PushColor(ImGuiCol.Text, theme.TextMuted))
+        {
+            Typography.Wrapped(Loc.T(L.Account.RisingStonesVerifyIntro));
+        }
+
+        var code = flow.ChallengeCode;
+        ImGui.Dummy(new Vector2(0f, 10f * scale));
+        if (DrawCodeCard(theme, code))
+        {
+            ImGui.SetClipboardText(code);
+        }
+
+        ImGui.Dummy(new Vector2(0f, 12f * scale));
+        DrawStepRow("1", Loc.T(L.Account.Step1), theme);
+        DrawStepRow("2", Loc.T(L.Account.RisingStonesStep2), theme);
+        DrawStepRow("3", Loc.T(L.Account.RisingStonesStep3), theme);
+        DrawStepRow("4", Loc.T(L.Account.Step4), theme);
+        ImGui.Dummy(new Vector2(0f, 12f * scale));
+        var spacing = 8f * scale;
+        var half = (ImGui.GetContentRegionAvail().X - spacing) * 0.5f;
+        if (Button(Loc.T(L.Account.CopyCode), theme, half))
+        {
+            ImGui.SetClipboardText(code);
+        }
+
+        ImGui.SameLine(0f, spacing);
+        if (Button(Loc.T(L.Account.RisingStonesOpen), theme, half))
+        {
+            UrlActions.OpenInBrowser(RisingStonesProfileSettingsUrl);
+        }
+
+        ImGui.Dummy(new Vector2(0f, 8f * scale));
+        if (PrimaryButton(Loc.T(L.Account.VerifyAdded), theme) && !flow.Busy)
+        {
+            flow.VerifyChallenge();
+        }
+
+        ImGui.Dummy(new Vector2(0f, 2f * scale));
+        if (GhostButton(Loc.T(L.Common.Cancel), theme))
+        {
+            ResetFlow();
         }
 
         DrawStatus(theme);
@@ -937,7 +995,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
             Typography.Wrapped(Loc.T(L.Account.VerifyIntro));
         }
 
-        var code = flow.LodestoneCode;
+        var code = flow.ChallengeCode;
         ImGui.Dummy(new Vector2(0f, 10f * scale));
         if (DrawCodeCard(theme, code))
         {
@@ -966,7 +1024,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
         ImGui.Dummy(new Vector2(0f, 8f * scale));
         if (PrimaryButton(Loc.T(L.Account.VerifyAdded), theme) && !flow.Busy)
         {
-            flow.VerifyLodestone();
+            flow.VerifyChallenge();
         }
 
         ImGui.Dummy(new Vector2(0f, 2f * scale));
@@ -1093,7 +1151,7 @@ internal sealed class AccountPage : ISettingsPage, IDisposable
             }
             catch (Exception exception)
             {
-                AepLog.Warning($"Aethernet profile load failed: {exception.Message}");
+                AepLog.Warning(exception, "Aethernet profile load failed");
             }
         });
     }

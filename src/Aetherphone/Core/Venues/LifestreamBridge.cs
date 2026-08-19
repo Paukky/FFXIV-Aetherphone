@@ -1,4 +1,8 @@
+using System.Globalization;
 using Dalamud.Plugin.Ipc;
+
+using HousingAddress = (string Name, int World, int City, int Ward, int PropertyType, int Plot, int Apartment,
+    bool ApartmentSubdivision, bool AliasEnabled, string Alias);
 
 namespace Aetherphone.Core.Venues;
 
@@ -15,12 +19,14 @@ internal enum LifestreamOutcome
 internal static class LifestreamBridge
 {
     private const string InternalName = "Lifestream";
+    private const int HouseProperty = 0;
 
     private static ICallGateSubscriber<bool>? busyGate;
     private static ICallGateSubscriber<uint, byte, bool>? teleportGate;
     private static ICallGateSubscriber<uint, bool>? changeWorldGate;
     private static ICallGateSubscriber<string, bool>? sameDataCenterGate;
     private static ICallGateSubscriber<string, bool>? crossDataCenterGate;
+    private static ICallGateSubscriber<HousingAddress, object>? housingAddressGate;
 
     public static bool IsAvailable()
     {
@@ -96,6 +102,28 @@ internal static class LifestreamBridge
         return ChangeWorld(worldId) ? LifestreamOutcome.Started : LifestreamOutcome.WorldUnreachable;
     }
 
+    public static LifestreamOutcome TravelToHousingPlot(uint worldId, uint cityAetheryteRowId, int ward, int plot)
+    {
+        if (!IsAvailable())
+        {
+            return LifestreamOutcome.NotInstalled;
+        }
+
+        if (IsBusy())
+        {
+            return LifestreamOutcome.Busy;
+        }
+
+        if (!IsAttuned(cityAetheryteRowId))
+        {
+            return LifestreamOutcome.NotAttuned;
+        }
+
+        return GoToHousingAddress(worldId, cityAetheryteRowId, ward, plot)
+            ? LifestreamOutcome.Started
+            : LifestreamOutcome.CannotTeleportNow;
+    }
+
     public static void Travel(string code)
     {
         if (string.IsNullOrWhiteSpace(code))
@@ -110,6 +138,26 @@ internal static class LifestreamBridge
 
     public static string AetheryteCommand(string aetheryteName) => $"/li tp {aetheryteName}";
 
+    public static string HousingCommand(string worldName, string districtName, int ward, int plot) =>
+        string.Create(CultureInfo.InvariantCulture, $"/li {worldName}, {districtName}, W{ward}, P{plot}");
+
+    private static bool GoToHousingAddress(uint worldId, uint cityAetheryteRowId, int ward, int plot)
+    {
+        try
+        {
+            housingAddressGate ??= Plugin.PluginInterface.GetIpcSubscriber<HousingAddress, object>(
+                $"{InternalName}.GoToHousingAddress");
+            housingAddressGate.InvokeAction((string.Empty, (int)worldId, (int)cityAetheryteRowId, ward, HouseProperty,
+                plot, 1, false, false, string.Empty));
+            return true;
+        }
+        catch (Exception exception)
+        {
+            AepLog.Warning(exception, "[Lifestream] GoToHousingAddress failed");
+            return false;
+        }
+    }
+
     private static bool IsBusy()
     {
         try
@@ -119,7 +167,7 @@ internal static class LifestreamBridge
         }
         catch (Exception exception)
         {
-            AepLog.Warning($"[Lifestream] IsBusy failed: {exception.Message}");
+            AepLog.Warning(exception, "[Lifestream] IsBusy failed");
             return false;
         }
     }
@@ -133,7 +181,7 @@ internal static class LifestreamBridge
         }
         catch (Exception exception)
         {
-            AepLog.Warning($"[Lifestream] Teleport failed: {exception.Message}");
+            AepLog.Warning(exception, "[Lifestream] Teleport failed");
             return false;
         }
     }
@@ -147,7 +195,7 @@ internal static class LifestreamBridge
         }
         catch (Exception exception)
         {
-            AepLog.Warning($"[Lifestream] ChangeWorldById failed: {exception.Message}");
+            AepLog.Warning(exception, "[Lifestream] ChangeWorldById failed");
             return false;
         }
     }
@@ -164,7 +212,7 @@ internal static class LifestreamBridge
         }
         catch (Exception exception)
         {
-            AepLog.Warning($"[Lifestream] world reachability check failed: {exception.Message}");
+            AepLog.Warning(exception, "[Lifestream] world reachability check failed");
             return true;
         }
     }

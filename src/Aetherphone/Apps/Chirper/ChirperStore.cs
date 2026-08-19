@@ -2,6 +2,9 @@ using Aetherphone.Core;
 using Aetherphone.Core.Aethernet;
 using Aetherphone.Core.Aethernet.Clients;
 using Aetherphone.Core.Aethernet.Contracts;
+using Aetherphone.Core.Localization;
+using Aetherphone.Core.Media;
+using Aetherphone.Core.Net;
 using Aetherphone.Core.Social;
 using Aetherphone.Core.Wallpapers;
 
@@ -9,6 +12,12 @@ namespace Aetherphone.Apps.Chirper;
 
 internal sealed class ChirperStore : SocialFeedStore
 {
+    public const int MaxImages = 4;
+
+    private const int MaxImageDimension = 1600;
+
+    private const string UploadScope = "chirp";
+
     private volatile bool avatarBusy;
 
     public ChirperStore(AethernetSession session, AccountClient account, SocialClient client, SafetyClient safety,
@@ -19,16 +28,21 @@ internal sealed class ChirperStore : SocialFeedStore
 
     public bool AvatarBusy => avatarBusy;
 
-    protected override Task<FeedPage?> FetchFeedAsync(string feedKey, string? cursor, CancellationToken token) =>
-        client.FeedAsync(feedKey, cursor, token);
+    protected override Task<FeedPage?> FetchFeedAsync(string feedKey, string? cursor, CancellationToken token,
+        Action<AepFailure>? onFailure = null) =>
+        client.FeedAsync(feedKey, cursor, token, onFailure);
 
     protected override Task<FeedPage?> FetchProfilePostsAsync(string userId, string? cursor, CancellationToken token) =>
         client.UserPostsAsync(userId, cursor, token);
 
-    public void Compose(string text, Action<bool> onComplete)
+    protected override Task<FeedPage?> FetchHashtagPostsAsync(string tag, string? cursor, CancellationToken token) =>
+        client.TagPostsAsync(tag, cursor, token);
+
+    public void Compose(string text, IReadOnlyList<string> imagePaths, bool sensitive, Action<bool> onComplete,
+        Action<AepFailure>? onFailure = null)
     {
         var trimmed = text.Trim();
-        if (trimmed.Length == 0 || posting)
+        if ((trimmed.Length == 0 && imagePaths.Count == 0) || posting)
         {
             return;
         }
@@ -36,7 +50,17 @@ internal sealed class ChirperStore : SocialFeedStore
         posting = true;
         work.Run("compose", async token =>
         {
-            var created = await client.CreatePostAsync(trimmed, token).ConfigureAwait(false);
+            var uploaded = await UploadImagesAsync(imagePaths, MaxImages, MaxImageDimension, UploadScope, token,
+                onFailure).ConfigureAwait(false);
+            if (uploaded is null)
+            {
+                return false;
+            }
+
+            var (keys, width, height) = uploaded.Value;
+            var created = await client.CreatePostAsync(trimmed, keys.Length > 0 ? keys : null, width, height,
+                    sensitive, token, onFailure)
+                .ConfigureAwait(false);
             if (created is null)
             {
                 return false;
@@ -134,10 +158,10 @@ internal sealed class ChirperStore : SocialFeedStore
             post => post.RepostOfId == originalId && post.AuthorId == me.Id);
     }
 
-    public void Quote(string text, string quotedPostId, Action<bool> onComplete)
+    public void Quote(string text, string quotedPostId, IReadOnlyList<string> imagePaths, Action<bool> onComplete)
     {
         var trimmed = text.Trim();
-        if (trimmed.Length == 0 || posting)
+        if ((trimmed.Length == 0 && imagePaths.Count == 0) || posting)
         {
             return;
         }
@@ -145,7 +169,16 @@ internal sealed class ChirperStore : SocialFeedStore
         posting = true;
         work.Run("quote", async token =>
         {
-            var created = await client.QuotePostAsync(trimmed, quotedPostId, token).ConfigureAwait(false);
+            var uploaded = await UploadImagesAsync(imagePaths, MaxImages, MaxImageDimension, UploadScope, token)
+                .ConfigureAwait(false);
+            if (uploaded is null)
+            {
+                return false;
+            }
+
+            var (keys, width, height) = uploaded.Value;
+            var created = await client.QuotePostAsync(trimmed, quotedPostId, keys.Length > 0 ? keys : null, width, height, token)
+                .ConfigureAwait(false);
             if (created is null)
             {
                 return false;

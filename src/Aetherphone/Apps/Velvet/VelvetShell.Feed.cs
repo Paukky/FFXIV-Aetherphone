@@ -175,7 +175,7 @@ internal sealed partial class VelvetShell
         }
 
         VAvatar.Draw(drawList, avatarCenter, hasStory ? avatarRadius - 1f * scale : avatarRadius, theme, authorName,
-            string.Empty, entry.OwnerAvatarUrl, images, lodestone, -1);
+            string.Empty, entry.OwnerAvatarUrl, images, lodestone, -1, null, Frames.Of(entry.OwnerFrameId));
         var nameLeft = avatarCenter.X + avatarRadius + PostCardMetrics.NameGap * scale;
         var headerTextRight = origin.X + width - pad - 34f * scale;
         var headerTextMaxWidth = MathF.Max(1f, headerTextRight - nameLeft);
@@ -183,7 +183,7 @@ internal sealed partial class VelvetShell
         var nameSize = Typography.Measure(authorName, TextStyles.Headline);
         var nameHovering = UiInteract.Hover(new Vector2(nameLeft, nameTop),
             new Vector2(nameLeft + headerTextMaxWidth, nameTop + nameSize.Y));
-        UserName.Draw("velvet.feed.author." + entry.Id, authorName, entry.OwnerBadges, nameLeft, nameTop,
+        UserName.Draw("velvet.feed.author." + entry.Id, authorName, entry.OwnerBadges, entry.OwnerBadgeIds, nameLeft, nameTop,
             headerTextMaxWidth, TextStyles.Headline, VelvetTheme.TitleInk, nameHovering, false);
         var ownerSub = SocialIdentity.FeedMeta(entry.OwnerHandle, TimeText.Short(entry.CreatedAtUnix));
         var ownerSubY = nameTop + PostCardMetrics.SublineTop * scale;
@@ -311,13 +311,29 @@ internal sealed partial class VelvetShell
         float rounding)
     {
         var scanStatus = entry.ScanStatus;
-        return carousel.Draw(drawList, rect, entry.Id, photos, rounding,
-            (list, min, max, radius, url) => DrawMedia(list, min, max, url ?? string.Empty, radius, scanStatus));
+        var veiled = SensitiveReveals.ShouldVeil(entry.Sensitive, entry.Id, configuration.ShowSensitiveContent);
+        var result = carousel.Draw(drawList, rect, entry.Id, photos, rounding,
+            (list, min, max, radius, url) => DrawMedia(list, min, max, url ?? string.Empty, radius, scanStatus,
+                contain: true, veiled));
+        if (!veiled || !result.Tapped)
+        {
+            return result;
+        }
+
+        SensitiveReveals.Reveal(entry.Id);
+        return result with { Tapped = false };
     }
 
+    // The profile grid leaves contain false: it wants its forced square cover crop, like Instagram's.
     private void DrawMedia(ImDrawListPtr drawList, Vector2 min, Vector2 max, string url, float rounding,
-        string? scanStatus = null)
+        string? scanStatus = null, bool contain = false, bool veiled = false)
     {
+        if (veiled)
+        {
+            SensitiveVeil.Draw(drawList, min, max, rounding);
+            return;
+        }
+
         var texture = images.Get(url);
         if (texture is null)
         {
@@ -325,6 +341,10 @@ internal sealed partial class VelvetShell
             Typography.DrawCentered(new Vector2((min.X + max.X) * 0.5f, (min.Y + max.Y) * 0.5f),
                 images.Failed(url) ? Loc.T(L.Velvet.ImageUnavailable) : Loc.T(L.Common.Loading), VelvetTheme.MutedInk,
                 TextStyles.Footnote);
+        }
+        else if (contain)
+        {
+            ImageFit.DrawLetterboxed(drawList, texture, new Rect(min, max), Vector2.Zero, Vector2.One, rounding);
         }
         else
         {

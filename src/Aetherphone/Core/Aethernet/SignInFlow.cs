@@ -6,6 +6,8 @@ namespace Aetherphone.Core.Aethernet;
 
 internal sealed class SignInFlow : IDisposable
 {
+    public const int RisingStonesUuidMaxLength = 16;
+
     private readonly AethernetSession session;
     private readonly AuthClient client;
     private readonly CancellationTokenSource cancellation = new();
@@ -15,6 +17,7 @@ internal sealed class SignInFlow : IDisposable
     private volatile string code = string.Empty;
     private volatile string? challengeId;
     private volatile string? failureReason;
+    private volatile bool risingStonesActive;
     private volatile bool xivAuthActive;
     private volatile string xivUserCode = string.Empty;
     private volatile string? xivVerificationUri;
@@ -30,8 +33,9 @@ internal sealed class SignInFlow : IDisposable
 
     public bool Busy => busy;
     public string Status => status;
-    public string LodestoneCode => code;
-    public bool LodestoneActive => challengeId is not null;
+    public string ChallengeCode => code;
+    public bool LodestoneActive => challengeId is not null && !risingStonesActive;
+    public bool RisingStonesActive => challengeId is not null && risingStonesActive;
     public bool XivAuthActive => xivAuthActive;
     public string XivUserCode => xivUserCode;
     public string? XivVerificationUri => xivVerificationUri;
@@ -64,6 +68,7 @@ internal sealed class SignInFlow : IDisposable
                 }
 
                 code = response.Code;
+                risingStonesActive = false;
                 challengeId = response.ChallengeId;
                 status = string.Empty;
             }
@@ -72,7 +77,7 @@ internal sealed class SignInFlow : IDisposable
             }
             catch (Exception exception)
             {
-                AepLog.Warning($"Aethernet challenge failed: {exception.Message}");
+                AepLog.Warning(exception, "Aethernet challenge failed");
                 status = Loc.T(L.Account.CannotReach);
             }
             finally
@@ -82,7 +87,43 @@ internal sealed class SignInFlow : IDisposable
         });
     }
 
-    public void VerifyLodestone()
+    public void StartRisingStones(string uuid)
+    {
+        busy = true;
+        status = Loc.T(L.Account.RequestingCode);
+        var token = cancellation.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var response = await client.RisingStonesChallengeAsync(uuid, token).ConfigureAwait(false);
+                if (response is null)
+                {
+                    status = Loc.T(L.Account.CannotReach);
+                    return;
+                }
+
+                code = response.Code;
+                risingStonesActive = true;
+                challengeId = response.ChallengeId;
+                status = string.Empty;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception exception)
+            {
+                AepLog.Warning(exception, "Aethernet Rising Stones challenge failed");
+                status = Loc.T(L.Account.CannotReach);
+            }
+            finally
+            {
+                busy = false;
+            }
+        });
+    }
+
+    public void VerifyChallenge()
     {
         var id = challengeId;
         if (id is null)
@@ -91,7 +132,7 @@ internal sealed class SignInFlow : IDisposable
         }
 
         busy = true;
-        status = Loc.T(L.Account.Verifying);
+        status = Loc.T(risingStonesActive ? L.Account.RisingStonesVerifying : L.Account.Verifying);
         var token = cancellation.Token;
         _ = Task.Run(async () =>
         {
@@ -122,7 +163,7 @@ internal sealed class SignInFlow : IDisposable
             }
             catch (Exception exception)
             {
-                AepLog.Warning($"Aethernet verify failed: {exception.Message}");
+                AepLog.Warning(exception, "Aethernet verify failed");
                 status = string.Empty;
                 failureReason = VerifyFailure.Network;
             }
@@ -167,7 +208,7 @@ internal sealed class SignInFlow : IDisposable
             }
             catch (Exception exception)
             {
-                AepLog.Warning($"XIVAuth sign-in failed: {exception.Message}");
+                AepLog.Warning(exception, "XIVAuth sign-in failed");
                 status = string.Empty;
                 failureReason = VerifyFailure.Network;
                 ResetXivFlow();
@@ -269,6 +310,7 @@ internal sealed class SignInFlow : IDisposable
         status = string.Empty;
         failureReason = null;
         busy = false;
+        risingStonesActive = false;
         xivAuthActive = false;
         xivUserCode = string.Empty;
         xivVerificationUri = null;

@@ -149,12 +149,12 @@ internal sealed partial class MessageApp
         if (known is not null && !string.IsNullOrEmpty(known.AvatarUrl))
         {
             AvatarView.DrawRemote(drawList, avatarCenter, radius, theme, name, string.Empty, known.AvatarUrl, images,
-                lodestone, 1f, 32);
+                lodestone, 1f, 32, 1f, Frames.Of(known.FrameId));
         }
         else
         {
             AvatarView.Draw(drawList, avatarCenter, radius, theme.Accent, Initials.Of(name), 1f,
-                lodestone.Avatar(entry.Name, entry.World), 32);
+                lodestone.Avatar(entry.Name, entry.World, radius * 2f), 32);
         }
 
         var actionLeft = rowMax.X - pad;
@@ -309,7 +309,7 @@ internal sealed partial class MessageApp
         var radius = 22f * scale;
         var avatarCenter = new Vector2(origin.X + pad + radius, origin.Y + rowHeight * 0.5f);
         AvatarView.DrawRemote(drawList, avatarCenter, radius, theme, label, string.Empty, contact.AvatarUrl, images,
-            lodestone, 1f, 32);
+            lodestone, 1f, 32, 1f, Frames.Of(contact.FrameId));
         var callCenter = new Vector2(rowMax.X - pad - 18f * scale, avatarCenter.Y);
         var actionLeft = callCenter.X - 24f * scale;
         var textLeft = avatarCenter.X + radius + 14f * scale;
@@ -392,7 +392,7 @@ internal sealed partial class MessageApp
                 }
 
                 AvatarView.Draw(drawList, avatarCenter, radius, screenTheme.Accent, Initial(view.PeerLabel), 2.6f,
-                    lodestone.Avatar(others[0].Name, others[0].World), 64);
+                    lodestone.Avatar(others[0].Name, others[0].World, radius * 2f), 64);
             }
             else
             {
@@ -422,10 +422,25 @@ internal sealed partial class MessageApp
             TextStyles.Callout);
         if (view.State == CallState.Active)
         {
-            Typography.DrawCentered(new Vector2(centerX, nameCenterY + 58f * scale), Loc.T(L.Phone.UseHeadphones),
-                Palette.WithAlpha(screenTheme.TextStrong, 0.45f), TextStyles.Footnote);
+            var micSilent = !view.Muted
+                && view.Seconds >= MicSilentWarningSeconds
+                && view.PeakMicLevel < Core.Telephony.Audio.AudioCapture.GateOpenRms;
+            if (micSilent)
+            {
+                var warning = Typography.FitText(Loc.T(L.Phone.MicNotReaching),
+                    ImGui.GetWindowSize().X - 32f * scale, TextStyles.Footnote);
+                Typography.DrawCentered(new Vector2(centerX, nameCenterY + 58f * scale), warning,
+                    Palette.WithAlpha(screenTheme.Danger, 0.92f), TextStyles.Footnote);
+            }
+            else
+            {
+                Typography.DrawCentered(new Vector2(centerX, nameCenterY + 58f * scale), Loc.T(L.Phone.UseHeadphones),
+                    Palette.WithAlpha(screenTheme.TextStrong, 0.45f), TextStyles.Footnote);
+            }
         }
     }
+
+    private const int MicSilentWarningSeconds = 30;
 
     private static void DrawAvatarBloom(ImDrawListPtr drawList, Vector2 center, float radius, PhoneTheme screenTheme,
         float scale)
@@ -463,7 +478,7 @@ internal sealed partial class MessageApp
             var center = new Vector2(cellCenterX, cellCenterY);
             DrawSpeakingHalo(drawList, center, radius, calls.LevelOf(others[index]), scale);
             AvatarView.Draw(drawList, center, radius, screenTheme.Accent, Initial(others[index].DisplayName), 1.2f,
-                lodestone.Avatar(others[index].Name, others[index].World), 48);
+                lodestone.Avatar(others[index].Name, others[index].World, radius * 2f), 48);
             Typography.DrawCentered(new Vector2(cellCenterX, cellCenterY + radius + 12f * scale),
                 Truncate(others[index].DisplayName, 10), screenTheme.TextStrong, 0.78f);
         }

@@ -1,3 +1,4 @@
+using Aetherphone.Core.Animation;
 using Aetherphone.Apps.Games.Framework;
 using Aetherphone.Core;
 using Aetherphone.Core.Apps;
@@ -34,6 +35,8 @@ internal sealed class TetrisApp : IMiniGame
     public string Id => GameId;
     public Vector4 Accent => AppAccents.For(Id);
     public string Title => Loc.T(L.Games.Tetris);
+    public bool RunsOnAClock => true;
+
     public string Genre => Loc.T(L.Games.GenrePuzzle);
     public void Open()
     {
@@ -270,7 +273,7 @@ internal sealed class TetrisApp : IMiniGame
 
     private void HandleKeyboard()
     {
-        if (!ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows))
+        if (!GameFocus.Active)
         {
             return;
         }

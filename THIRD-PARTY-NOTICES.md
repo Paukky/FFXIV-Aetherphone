@@ -26,6 +26,66 @@ The application icons under `src/Aetherphone/Icons/` are derived from
 - License: MIT (Copyright (c) 2020-2026 Paweł Kuna); full text reproduced in
   the MIT section below.
 
+## Twemoji
+
+The color emoji images under `src/Aetherphone/Emoji/` (3,512 PNGs, one per
+emoji sequence) are the 72x72 assets of
+[Twemoji](https://github.com/jdecked/twemoji) 15.1.0, redistributed
+unmodified.
+
+- Copyright Twitter, Inc and other contributors
+- Source: https://github.com/jdecked/twemoji
+- License (graphics): Creative Commons Attribution 4.0 International
+  (CC-BY 4.0), https://creativecommons.org/licenses/by/4.0/
+
+The emoji metadata in `src/Aetherphone/Emoji/catalog.json` (labels, groups,
+search tags, shortcodes and skin-tone variants) is built from
+[emojibase-data](https://github.com/milesj/emojibase) by Miles Johnson,
+MIT License; full text reproduced in the MIT section below.
+
+## mpv
+
+libmpv provides video decoding and playback for the AetherStream app. No mpv
+binary is redistributed with this plugin:
+`src/Aetherphone/Core/Video/MediaDependencies.cs` downloads an LGPL build
+(`mpv-dev-lgpl-x86_64-*`, from the
+[zhongfly/mpv-winbuild](https://github.com/zhongfly/mpv-winbuild) releases)
+into the plugin's own Dalamud config directory on first use, and keeps it
+updated from there.
+
+- Homepage: https://mpv.io
+- Source: https://github.com/mpv-player/mpv
+- License: GNU Lesser General Public License v2.1 or later (LGPL build
+  configuration); full text: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+
+## yt-dlp
+
+yt-dlp is used by mpv's own `ytdl_hook` to resolve video URLs from sites other
+than YouTube (YouTube itself is resolved separately via YoutubeExplode, already
+a dependency). As with mpv above, no yt-dlp binary is redistributed: it is
+downloaded from the project's own GitHub releases into the plugin's Dalamud
+config directory on first use.
+
+- Homepage: https://github.com/yt-dlp/yt-dlp
+- License: The Unlicense (public domain)
+
+## AlphaChannel (Voudi)
+
+AetherStream's video/screen engine under `src/Aetherphone/Core/Video/`
+(mpv-backed playback and the world-anchored ScreenPainter D3D11 quad
+renderer) is ported from
+[AlphaChannel](https://github.com/Voudi/AlphaChannel) by Voudi, used with the
+author's permission. Two smaller pieces ported from the same source live
+outside that directory: the screen placement controls and presets in
+`src/Aetherphone/Apps/AetherStream/AetherStreamApp.Casting.cs` (from
+AlphaChannel's `ControlWindow.DrawScreenPositionSettings`) and the saved
+screen preset shape in `src/Aetherphone/Configuration.cs` (from its
+`Configuration`, with yaw added). Both are modified from the originals.
+
+- Source: https://github.com/Voudi/AlphaChannel
+- License: GNU General Public License v3.0 or later; full text reproduced in
+  `src/Aetherphone/Core/Video/AlphaChannel-LICENSE`.
+
 ## Concentus
 
 `Concentus.dll` (version 2.2.2, by Logan Stromberg) is a C# implementation of
@@ -79,6 +139,30 @@ redistributed in binary form.
   License covers under the terms of the Apache License, Version 2.0
   (https://www.apache.org/licenses/LICENSE-2.0).
 
+## Bouncy Castle
+
+`BouncyCastle.Cryptography.dll` (version 2.7.0, by The Legion of the
+Bouncy Castle Inc.) is redistributed in binary form.
+
+- Source: https://github.com/bcgit/bc-csharp
+- License:
+
+```
+Copyright (c) 2000-2025 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org).
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+associated documentation files (the "Software"), to deal in the Software without restriction,
+including without limitation the rights to use, copy, modify, merge, publish, distribute,
+sub license, and/or sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions: The above copyright notice and this
+permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
+
 ## MIT-licensed libraries
 
 The following components are redistributed under the MIT License, reproduced
@@ -87,17 +171,19 @@ once at the end of this section:
 | Component | Version | Copyright / project |
 | --- | --- | --- |
 | Tabler Icons (rasterized) | n/a | 2020-2026 Paweł Kuna (https://github.com/tabler/tabler-icons) |
+| emojibase-data (catalog metadata) | 15.x | Miles Johnson (https://github.com/milesj/emojibase) |
 | NAudio.Core / NAudio.WinMM / NAudio.Wasapi | 2.3.0 | Mark Heath (https://github.com/naudio/NAudio) |
 | NetStone | 1.4.1 | 2024 goaaats, Koenari (https://github.com/xivapi/NetStone) |
-| Vortice.Direct3D11 / Vortice.DXGI / Vortice.DirectX | 3.8.3 | Amer Koleci (https://github.com/amerkoleci/Vortice.Windows) |
+| Vortice.Direct3D11 / Vortice.DXGI / Vortice.D3DCompiler / Vortice.DirectX | 3.8.3 | Amer Koleci (https://github.com/amerkoleci/Vortice.Windows) |
 | Vortice.Mathematics | 2.1.0 | Amer Koleci (https://github.com/amerkoleci/Vortice.Mathematics) |
 | SharpGen.Runtime / SharpGen.Runtime.COM | 2.4.2-beta | SharpGenTools contributors (https://github.com/SharpGenTools/SharpGenTools) |
-| YoutubeExplode | 6.6.0 | Oleksii Holub (https://github.com/Tyrrrz/YoutubeExplode) |
-| JsonExtensions | 1.2.0 | Oleksii Holub (https://github.com/Tyrrrz/JsonExtensions) |
-| AngleSharp | 1.4.0 | AngleSharp contributors (https://github.com/AngleSharp/AngleSharp) |
-| HtmlAgilityPack | 1.11.74 | ZZZ Projects and contributors (https://github.com/zzzprojects/html-agility-pack) |
-| System.Security.Cryptography.ProtectedData | 10.0.0 | Microsoft Corporation (https://github.com/dotnet/runtime) |
-| NEbml | 0.11.0 | Oleg Zee (https://github.com/Oleg-Zee/NEbml) |
+| SharpDX / SharpDX.Direct3D11 / SharpDX.DXGI / SharpDX.D3DCompiler | 4.2.0 | Alexandre Mutel (https://github.com/sharpdx/SharpDX) |
+| SharpCompress | 0.48.1 | Adam Hathcock (https://github.com/adamhathcock/sharpcompress) |
+| YoutubeExplode | 6.6.1 | Oleksii Holub (https://github.com/Tyrrrz/YoutubeExplode) |
+| HtmlAgilityPack | 1.11.46 | ZZZ Projects and contributors (https://github.com/zzzprojects/html-agility-pack) |
+| System.Security.Cryptography.ProtectedData | 10.0.11 | Microsoft Corporation (https://github.com/dotnet/runtime) |
+| NEbml | 1.1.0.5 | Oleg Zee (https://github.com/OlegZee/NEbml) |
+| NLayer / NLayer.NAudioSupport | 2.0.1 | Mark Heath, Andrew Ward (https://github.com/naudio/NLayer) |
 
 ```
 MIT License

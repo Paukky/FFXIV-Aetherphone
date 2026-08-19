@@ -64,6 +64,8 @@ internal sealed class CallHub : IDisposable
     public bool Enabled => configuration.CallsEnabled;
     public bool SignedIn => session.IsSignedIn;
     public bool Connected => router.Connected;
+
+    public CallSignalRouter Router => router;
     public string LocalUserId => session.CurrentUser?.Id ?? string.Empty;
     public CallLogEntry[] CallLog => log.Entries;
     public int UnseenMissed => log.UnseenMissed;
@@ -108,7 +110,8 @@ internal sealed class CallHub : IDisposable
             var localId = LocalUserId;
             var others = CountOthers(localId);
             var seconds = state == CallState.Active ? audio.ElapsedSecondsLocked : 0;
-            return new CallView(state, audio.MutedLocked, audio.VolumeLocked, audio.MicLevelLocked, seconds, roster,
+            return new CallView(state, audio.MutedLocked, audio.VolumeLocked, audio.MicLevelLocked,
+                audio.PeakMicLevelLocked, seconds, roster,
                 incomingFrom, router.Connected && connectionLostTicks == 0, localId, BuildPeerLabel(localId), others);
         }
     }

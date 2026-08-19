@@ -161,7 +161,7 @@ internal sealed class PluginCatalog
         }
         catch (Exception exception)
         {
-            AepLog.Warning($"Reading the shipped icon of {internalName} failed: {exception.Message}");
+            AepLog.Warning(exception, $"Reading the shipped icon of {internalName} failed");
             return null;
         }
     }
@@ -212,7 +212,7 @@ internal sealed class PluginCatalog
             }
             catch (Exception ex)
             {
-                AepLog.Warning($"Opening {internalName} failed: {ex.Message}");
+                AepLog.Warning(ex, $"Opening {internalName} failed");
             }
 
             return false;
@@ -238,7 +238,7 @@ internal sealed class PluginCatalog
             }
             catch (Exception ex)
             {
-                AepLog.Warning($"Opening the settings of {internalName} failed: {ex.Message}");
+                AepLog.Warning(ex, $"Opening the settings of {internalName} failed");
                 return false;
             }
         }
@@ -317,8 +317,9 @@ internal sealed class PluginCatalog
             punchline = manifest.Punchline ?? string.Empty;
             iconUrl = NormalizeIconUrl(manifest.IconUrl);
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            AepLog.Debug(exception, $"[Shortcuts] reading the manifest of {plugin.InternalName} failed");
             author = string.Empty;
         }
 
@@ -361,13 +362,42 @@ internal sealed class PluginCatalog
                 continue;
             }
 
-            entry.Commands.Add(new PluginCommand(pair.Key, pair.Value.HelpMessage ?? string.Empty));
+            entry.Commands.Add(new PluginCommand(pair.Key, FirstHelpLine(pair.Value.HelpMessage)));
         }
 
         for (var index = 0; index < entries.Count; index++)
         {
             entries[index].Commands.Sort(CompareCommands);
         }
+    }
+
+    private static string FirstHelpLine(string? help)
+    {
+        if (help is null || help.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        var remaining = help.AsSpan();
+        while (remaining.Length > 0)
+        {
+            var lineBreak = remaining.IndexOfAny('\r', '\n');
+            var line = lineBreak >= 0 ? remaining[..lineBreak] : remaining;
+            var trimmed = line.Trim();
+            if (trimmed.Length > 0)
+            {
+                return trimmed.Length == help.Length ? help : trimmed.ToString();
+            }
+
+            if (lineBreak < 0)
+            {
+                return string.Empty;
+            }
+
+            remaining = remaining[(lineBreak + 1)..];
+        }
+
+        return string.Empty;
     }
 
     private PluginEntry? ResolveOwner(string assemblyName)
@@ -396,8 +426,9 @@ internal sealed class PluginCatalog
             var declaring = handler.Target?.GetType() ?? handler.Method.DeclaringType;
             return declaring?.Assembly.GetName().Name ?? string.Empty;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
+            AepLog.Debug(exception, "[Shortcuts] resolving a command owner assembly failed");
             return string.Empty;
         }
     }

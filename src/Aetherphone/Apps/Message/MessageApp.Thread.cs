@@ -7,6 +7,7 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Aetherphone.Core.Social;
 
 namespace Aetherphone.Apps.Message;
 
@@ -26,6 +27,7 @@ internal sealed partial class MessageApp
         }
 
         protected override PhoneTheme Theme => app.theme;
+        protected override IPhoneApp Owner => app;
         protected override INavigator Navigation => app.navigation;
         protected override Action BackAction => app.back;
         protected override string MyUserId => store.MyUserId;
@@ -83,16 +85,6 @@ internal sealed partial class MessageApp
         }
 
         protected override void OnDraftConsumed(string threadId) => ClearDraft(threadId);
-
-        public override void OnAppClosed()
-        {
-            if (!composer.IsEditing && store.CurrentThreadId is { } openConversation)
-            {
-                SaveDraft(openConversation);
-            }
-
-            base.OnAppClosed();
-        }
 
         private void SaveDraft(string conversationId)
         {
@@ -221,7 +213,8 @@ internal sealed partial class MessageApp
             else
             {
                 AvatarView.DrawRemote(drawList, avatarCenter, avatarRadius, Theme, name, string.Empty,
-                    conversation?.OtherAvatarUrl, images, lodestone, 0.9f, 32);
+                    conversation?.OtherAvatarUrl, images, lodestone, 0.9f, 32, 1f,
+                    Frames.Of(conversation?.FrameId));
             }
 
             var nameLeft = avatarCenter.X + avatarRadius + gap;
@@ -344,7 +337,7 @@ internal sealed partial class MessageApp
                 mapped[index] = new TranscriptMessage(message.Id, message.SenderId, message.Body, message.Kind,
                     message.CreatedAtUnix, message.MediaWidth, message.MediaHeight, message.ReadAtUnix, senderName,
                     tint, MessageFlags(message), message.ReplyToId, replySender, replyBody, replyKind,
-                    message.DurationSecs, reactions, message.SenderBadges);
+                    message.DurationSecs, reactions, message.SenderBadges, message.SenderBadgeIds);
             }
 
             return mapped;

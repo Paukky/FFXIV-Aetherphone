@@ -32,6 +32,7 @@ internal sealed partial class AethergramApp
         }
 
         protected override PhoneTheme Theme => app.theme;
+        protected override IPhoneApp Owner => app;
         protected override INavigator Navigation => app.navigation;
         protected override Action BackAction => app.back;
         protected override string MyUserId => app.dmStore.MyUserId;
@@ -67,7 +68,8 @@ internal sealed partial class AethergramApp
 
             var photos = PostMedia.Photos(post.MediaUrls, post.MediaUrl);
             card = new ChatPostCard(post.Id, SocialIdentity.Name(post.AuthorDisplayName, post.AuthorHandle),
-                post.Text, photos.Length > 0 ? photos[0] : null, true);
+                post.Text, photos.Length > 0 ? photos[0] : null, true,
+                SensitiveReveals.ShouldVeil(post.Sensitive, post.Id, app.configuration.ShowSensitiveContent));
             return true;
         }
 
@@ -214,8 +216,8 @@ internal sealed partial class AethergramApp
                 () => OpenEncryptionInfo(threadId));
             ChatHeaderControls.DrawSearchToggle(ui, area, rowCenterY, searchController.Open, searchController.Toggle);
             var name = app.ThreadTitle(threadId);
-            var avatarHandle = app.ThreadAvatar(threadId, out var monogram, out var presence);
             var avatarRadius = 18f * scale;
+            var avatarHandle = app.ThreadAvatar(threadId, avatarRadius * 2f, out var monogram, out var presence);
             var nameCap = MathF.Max(40f * scale, area.Width * 0.42f);
             var nameSize = Typography.Measure(name, 1f, FontWeight.SemiBold);
             nameSize.X = MathF.Min(nameSize.X, nameCap);
@@ -391,7 +393,7 @@ internal sealed partial class AethergramApp
         return string.Empty;
     }
 
-    private AvatarHandle ThreadAvatar(string threadId, out string monogram, out int presence)
+    private AvatarHandle ThreadAvatar(string threadId, float drawnPixels, out string monogram, out int presence)
     {
         var threads = dmStore.Threads;
         for (var index = 0; index < threads.Length; index++)
@@ -401,7 +403,7 @@ internal sealed partial class AethergramApp
                 var thread = threads[index];
                 monogram = Monogram(thread.OtherDisplayName, thread.OtherHandle);
                 presence = thread.Presence;
-                return images.Avatar(thread.OtherAvatarUrl);
+                return images.Avatar(thread.OtherAvatarUrl, drawnPixels);
             }
         }
 
@@ -409,7 +411,7 @@ internal sealed partial class AethergramApp
         {
             monogram = Monogram(user.DisplayName, user.Handle);
             presence = 0;
-            return images.Avatar(user.AvatarUrl);
+            return images.Avatar(user.AvatarUrl, drawnPixels);
         }
 
         monogram = "?";

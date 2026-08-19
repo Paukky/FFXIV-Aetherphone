@@ -1,4 +1,4 @@
-using Aetherphone.Core.Linkpearl;
+using Aetherphone.Core.GameChat;
 using Aetherphone.Windows;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
@@ -256,7 +256,7 @@ internal sealed class ShortcutRunner : IDisposable
         UrlActions.OpenInBrowser(url.Trim(), exception =>
         {
             opened = false;
-            AepLog.Warning($"Shortcut \"{runningName}\" could not open {url}: {exception.Message}");
+            AepLog.Warning(exception, $"Shortcut \"{runningName}\" could not open {url}");
         });
 
         if (!opened)

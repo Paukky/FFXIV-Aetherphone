@@ -33,7 +33,7 @@ Colors and surfaces come from `AppSkin` and `AppPalette` (per-app skin) or `Phon
 
 `TextStyle` (src/Aetherphone/Windows/Components/TextStyles.cs) is a record of a font scale and a `FontWeight` (Regular, Medium, SemiBold, Bold, defined in src/Aetherphone/Core/FontService.cs). `TextStyles` is the ladder of named styles: `LargeTitle`, `Title1`, `Title2`, `Title3`, `Headline`, `Body`, `BodyEmphasized`, `Callout`, `Subheadline`, `SubheadlineEmphasized`, `Footnote`, `FootnoteEmphasized`, `Caption1`, `Caption2`, `IconLabel`.
 
-The rule: all text goes through `Typography` with a `TextStyles` entry. Never invent a magic scale like `0.83f`. The ladder scales exist as size buckets in `FontService` (the `SizeMultipliers` array), so an off-ladder scale lands in the nearest bucket anyway and only makes the call site misleading.
+The rule: all text goes through `Typography` with a `TextStyles` entry. Never invent a magic scale like `0.83f`. `FontService` snaps every scale to the nearest of its size buckets (the `SizeMultipliers` array), so an off-ladder scale lands in a bucket anyway and only makes the call site misleading. One named style is off-bucket by design: `IconLabel` (0.85) rides the 0.88 bucket.
 
 ```csharp
 var drawList = ImGui.GetWindowDrawList();
@@ -68,7 +68,7 @@ Watch for the cursor landmine: `Typography.Draw` and `Typography.DrawCentered` h
 
 - `Metrics.Space`: `Xxs` 4, `Xs` 6, `Sm` 8, `Md` 12, `Lg` 16, `Xl` 22, `Xxl` 32
 - `Metrics.Radius`: `Field` 9, `Sm` 8, `Md` 12, `Card` 16, `Lg` 18, `TileFactor` 0.28
-- `Metrics.Size`: `Header` 42, `Row` 46, `FieldHeight` 34, `FieldMultiline` 88, `ToggleWidth` 46, `ToggleHeight` 28, `IconTile` 28, `HeroRing` 56, `HomeIndicatorInset` 34
+- `Metrics.Size`: `Header` 42, `Row` 46, `FieldHeight` 34, `FieldMultiline` 88, `ToggleWidth` 46, `ToggleHeight` 28, `HintIconHeight` 22, `HintIconGap` 16, `IconTile` 28, `HeroRing` 56, `HomeIndicatorInset` 34
 - `Metrics.Stroke`: `Hairline` 1, `Thin` 1.4, `Ring` 2
 
 The values are unscaled design units, authored against a 360 wide phone. Multiply by `UiScale.Current` (Dalamud's UI scale times the phone zoom) at the call site:
@@ -229,6 +229,9 @@ A tap only registers if the pointer traveled less than the drag slop, so panning
 | `SearchField.Draw` / `SearchField.DrawSubmit` | Pill search input with search icon; `Draw` adds a clear button, `DrawSubmit` returns true on Enter (src/Aetherphone/Windows/Components/SearchField.cs) |
 | `Elevation.Card` / `Elevation.Floating` | Layered soft drop shadows behind cards and floating surfaces (src/Aetherphone/Windows/Components/Elevation.cs) |
 | `AppHeader.Draw(context, title, onBack)` | Standard app title bar with optional back button (src/Aetherphone/Windows/Components/AppHeader.cs) |
+| `GroupCard.Begin(theme, rowCount)` + `NextRow()` | The inset card that every list of rows sits in, hairlines drawn for you (src/Aetherphone/Windows/Components/GroupCard.cs) |
+| `SettingsRow.Link` / `AppLink` / `Disclosure` / `Bool` / `Switch` / `Info` / `Selectable` / `Action` | The row vocabulary for a GroupCard; `Switch` is the icon-tile row with an inline toggle, `Bool` the plain one, both taking an optional `hint` that becomes a question-mark icon (src/Aetherphone/Windows/Components/SettingsRow.cs) |
+| `SettingsSection.Header(title, theme, hint)` | Uppercase section label, with an optional hint icon for a whole section (src/Aetherphone/Windows/Components/SettingsSection.cs) |
 | `HoverButton.Circle` | Round icon button with hover ring (src/Aetherphone/Windows/Components/HoverButton.cs) |
 | `PopoverSurface.Draw` | The floating card background menus sit on (src/Aetherphone/Windows/Components/PopoverSurface.cs) |
 | `PullToRefresh` | Overscroll spinner fed by `AppSurface` `Pull` (src/Aetherphone/Windows/Components/PullToRefresh.cs) |

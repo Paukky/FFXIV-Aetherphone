@@ -85,12 +85,12 @@ internal static class SocialActivityList
         UiInteract.HoverHighlight(drawList, origin, rowMax, rowRounding);
         var avatarCenter = new Vector2(origin.X + pad + radius, origin.Y + rowHeight * 0.5f);
         AvatarView.DrawRemote(drawList, avatarCenter, radius, theme, item.ActorName, string.Empty,
-            item.ActorAvatarUrl, images, lodestone, 0.95f, 32);
+            item.ActorAvatarUrl, images, lodestone, 0.95f, 32, 1f, Frames.Of(item.ActorFrameId));
         DrawTypeBadge(drawList, avatarCenter + new Vector2(radius - 4f * scale, radius - 4f * scale), item.Type,
             theme, scale);
         var textTop = origin.Y + (rowHeight - contentHeight) * 0.5f;
         var rowHovering = UiInteract.Hover(origin, rowMax);
-        UserName.Draw(drawList, "socialactivity.actor." + item.Id, actorLabel, item.ActorBadges, textLeft, textTop,
+        UserName.Draw(drawList, "socialactivity.actor." + item.Id, actorLabel, item.ActorBadges, item.ActorBadgeIds, textLeft, textTop,
             textWidth, new TextStyle(0.95f, FontWeight.SemiBold), theme.TextStrong, rowHovering, theme);
         Typography.Draw(new Vector2(origin.X + width - pad - timeSize.X, textTop + 2f * scale), timeText,
             palette.MutedInk, 0.78f);
@@ -105,7 +105,18 @@ internal static class SocialActivityList
             }
         }
 
-        if (UiInteract.HoverClick(origin, rowMax))
+        var avatarMin = avatarCenter - new Vector2(radius, radius);
+        var avatarMax = avatarCenter + new Vector2(radius, radius);
+        var overAvatar = UiInteract.Hover(avatarMin, avatarMax);
+        if (overAvatar)
+        {
+            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            if (UiInteract.Click(avatarMin, avatarMax, true))
+            {
+                openActor(item);
+            }
+        }
+        else if (UiInteract.HoverClick(origin, rowMax))
         {
             if (SocialActivity.OpensPost(item))
             {
@@ -138,6 +149,7 @@ internal static class SocialActivityList
             SocialActivity.TypeQuote => (FontAwesomeIcon.QuoteRight.ToIconString(), theme.Accent),
             SocialActivity.TypeFollowRequest => (FontAwesomeIcon.UserClock.ToIconString(), theme.Accent),
             SocialActivity.TypeFollowAccept => (FontAwesomeIcon.UserCheck.ToIconString(), theme.Accent),
+            SocialActivity.TypeRadioLive => (FontAwesomeIcon.BroadcastTower.ToIconString(), theme.Accent),
             _ => (FontAwesomeIcon.Bell.ToIconString(), theme.Accent),
         };
         var badgeRadius = 8f * scale;

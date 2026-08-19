@@ -7,6 +7,7 @@ using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Home;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Media;
+using Aetherphone.Core.Net;
 using Aetherphone.Core.Message;
 using Aetherphone.Core.Notifications;
 using Aetherphone.Windows.Components;
@@ -48,7 +49,7 @@ internal sealed class GramDmStore : ChatThreadStoreBase<GramMessageDto, GramThre
     private void OnGramPinged()
     {
         InboxCadence.RequestImmediate();
-        RefreshThreadIfVisible();
+        RequestThreadRefresh();
     }
 
     public GramThreadDto[] Threads => ThreadListItems;
@@ -116,35 +117,6 @@ internal sealed class GramDmStore : ChatThreadStoreBase<GramMessageDto, GramThre
             await client.AcceptThreadAsync(otherId, token).ConfigureAwait(false), RefreshThreads);
     }
 
-    public void DeleteThread(string otherId, Action? onDone = null)
-    {
-        var snapshot = ThreadListItems;
-        for (var index = 0; index < snapshot.Length; index++)
-        {
-            if (snapshot[index].OtherUserId != otherId)
-            {
-                continue;
-            }
-
-            var updated = new GramThreadDto[snapshot.Length - 1];
-            Array.Copy(snapshot, 0, updated, 0, index);
-            Array.Copy(snapshot, index + 1, updated, index, snapshot.Length - index - 1);
-            ThreadListItems = updated;
-            break;
-        }
-
-        CloseThreadIfCurrent(otherId);
-        work.Run("thread delete", async token =>
-            await client.DeleteThreadAsync(otherId, token).ConfigureAwait(false), succeeded =>
-        {
-            RefreshThreads();
-            if (succeeded)
-            {
-                onDone?.Invoke();
-            }
-        });
-    }
-
     private void AcceptThreadIfPending(string otherId)
     {
         if (IsThreadPending(otherId))
@@ -187,10 +159,11 @@ internal sealed class GramDmStore : ChatThreadStoreBase<GramMessageDto, GramThre
         await keys.HydrateGramAsync(token).ConfigureAwait(false);
     }
 
-    protected override async Task<ThreadListPage?> FetchThreadListAsync(string? cursor, CancellationToken token)
+    protected override async Task<ThreadListPage?> FetchThreadListAsync(string? cursor, CancellationToken token,
+        Action<AepFailure>? onFailure = null)
     {
         await EnsureGramHydratedAsync(token).ConfigureAwait(false);
-        var page = await client.ThreadsAsync(cursor, token).ConfigureAwait(false);
+        var page = await client.ThreadsAsync(cursor, token, onFailure).ConfigureAwait(false);
         return page is null ? null : new ThreadListPage(page.Items, page.NextCursor);
     }
 
@@ -334,6 +307,9 @@ internal sealed class GramDmStore : ChatThreadStoreBase<GramMessageDto, GramThre
     protected override Task<bool> DeleteMessageRequestAsync(string messageId, CancellationToken token) =>
         client.DeleteMessageAsync(messageId, token);
 
+    protected override Task<bool> DeleteThreadRequestAsync(string threadId, CancellationToken token) =>
+        client.DeleteThreadAsync(threadId, token);
+
     protected override Task SetReactionRequestAsync(string messageId, string reactionToken, CancellationToken token) =>
         client.SetReactionAsync(messageId, reactionToken, token);
 
@@ -416,6 +392,13 @@ internal sealed class GramDmStore : ChatThreadStoreBase<GramMessageDto, GramThre
             : ChatText.ListPreview(thread.LastMessagePreview);
         return new PhoneNotification("aethergram", name, preview, DateTime.Now,
             AppPalettes.Aethergram.Accent, thread.OtherUserId);
+    }
+
+    protected override bool IsInboxPreviewReady(GramThreadDto thread)
+    {
+        return thread.LastMessageKind == PostShareKind
+            || thread.LastMessageEncVersion != EnvelopeCodec.VersionEnvelope
+            || cipher.IsPreviewResolved(thread.OtherUserId, thread.LastMessageAtUnix);
     }
 
     protected override GramMessageDto[] DecorateMessages(string threadId, GramMessageDto[] items)

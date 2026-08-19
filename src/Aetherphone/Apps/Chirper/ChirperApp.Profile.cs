@@ -56,6 +56,11 @@ internal sealed partial class ChirperApp
                 for (var index = 0; index < posts.Length; index++)
                 {
                     var post = posts[index];
+                    if (HiddenByMediaPreference(post))
+                    {
+                        continue;
+                    }
+
                     if (!renderedUnderlyingIds.Add(post.RepostOfId ?? post.Id))
                     {
                         continue;
@@ -107,6 +112,81 @@ internal sealed partial class ChirperApp
         }
     }
 
+    private void OpenHashtag(string tag)
+    {
+        actions.Reset();
+        store.OpenHashtagPosts(tag);
+        router.Push(ChirperRoute.Hashtag(tag));
+    }
+
+    private string HashtagTitle(string tag)
+    {
+        if (!string.Equals(hashtagTitleTag, tag, StringComparison.Ordinal))
+        {
+            hashtagTitleTag = tag;
+            hashtagTitle = "#" + tag;
+        }
+
+        return hashtagTitle;
+    }
+
+    private void DrawHashtag(Rect area, string tag)
+    {
+        store.EnsureHashtagPosts(tag);
+        var context = new PhoneContext(area, theme, navigation);
+        AppHeader.Draw(context, HashtagTitle(tag), back);
+        var scale = UiScale.Current;
+        var top = area.Min.Y + AppHeader.Height * scale;
+        var body = new Rect(new Vector2(area.Min.X, top), area.Max);
+        using (AppSurface.Begin(body))
+        {
+            var posts = store.HashtagPosts;
+            if (posts.Length == 0)
+            {
+                Typography.DrawCentered(new Vector2(body.Center.X, top + 60f * scale),
+                    store.HashtagLoading ? Loc.T(L.Common.Loading) : Loc.T(L.Social.HashtagEmpty),
+                    AppPalettes.Chirper.MutedInk);
+                return;
+            }
+
+            ImGui.Dummy(new Vector2(0f, FeedTopPadding * scale));
+            hashtagVirtualizer.BeginFrame();
+            renderedUnderlyingIds.Clear();
+            for (var index = 0; index < posts.Length; index++)
+            {
+                var post = posts[index];
+                if (HiddenByMediaPreference(post))
+                {
+                    continue;
+                }
+
+                if (!renderedUnderlyingIds.Add(post.RepostOfId ?? post.Id))
+                {
+                    continue;
+                }
+
+                if (hashtagVirtualizer.Skip(post.Id))
+                {
+                    continue;
+                }
+
+                DrawPost(post);
+                hashtagVirtualizer.Record(post.Id);
+            }
+
+            if (store.HashtagLoadingMore)
+            {
+                InfiniteScroll.DrawLoadingRow(body.Center.X, AppPalettes.Chirper.MutedInk);
+            }
+
+            ImGui.Dummy(new Vector2(0f, 24f * scale));
+            if (InfiniteScroll.ReachedBottom() && store.HasMoreHashtagPosts && !store.HashtagLoadingMore)
+            {
+                store.LoadMoreHashtagPosts();
+            }
+        }
+    }
+
     private void DrawDiscover(Rect area)
     {
         var context = new PhoneContext(area, theme, navigation);
@@ -121,81 +201,52 @@ internal sealed partial class ChirperApp
     private void DrawHomeTopBar(Rect area)
     {
         var scale = UiScale.Current;
-        var rowCenterY = area.Min.Y + AppHeader.Height * scale * 0.5f;
-        var titleStyle = new TextStyle(1.3f, FontWeight.Bold);
-        var leftReserve = area.Min.X + 84f * scale;
-        var rightReserve = area.Max.X - 112f * scale;
-        var titleCenterX = (leftReserve + rightReserve) * 0.5f;
-        var maxTitleWidth = MathF.Max(1f, rightReserve - leftReserve);
-        var titleSize = Typography.Measure(DisplayName, titleStyle);
-        var clampedWidth = MathF.Min(titleSize.X, maxTitleWidth);
-        var titlePadding = new Vector2(12f * scale, 6f * scale);
-        var titleTop = rowCenterY - titleSize.Y * 0.5f;
-        var titleMin = new Vector2(titleCenterX - clampedWidth * 0.5f, titleTop) - titlePadding;
-        var titleMax = new Vector2(titleCenterX + clampedWidth * 0.5f, titleTop + titleSize.Y) + titlePadding;
-        UiInteract.HoverHighlight(ImGui.GetWindowDrawList(), titleMin, titleMax, (titleMax.Y - titleMin.Y) * 0.5f);
-        Marquee.DrawCenteredAuto("chirper.home.title", DisplayName, titleCenterX, titleTop, maxTitleWidth, titleStyle,
-            AppPalettes.Chirper.TitleInk);
-        if (UiInteract.HoverClick(titleMin, titleMax))
-        {
-            RefreshActiveFeed();
-        }
+        var actions = new HeaderActions(area, scale, HomeActionSlots);
+        var titleLeft = area.Min.X + 16f * scale;
         if (store.Me is { } me)
         {
             var radius = 16f * scale;
-            var center = new Vector2(area.Min.X + 16f * scale + radius, rowCenterY);
-            DrawAvatar(ImGui.GetWindowDrawList(), center, radius, me.Name, me.World, me.AvatarUrl, 0.9f, 28);
+            var center = new Vector2(titleLeft + radius, actions.RowCenterY);
+            DrawAvatar(ImGui.GetWindowDrawList(), center, radius, me.Name, me.World, me.AvatarUrl, 0.9f, 28,
+                Frames.Of(me.FrameId));
             if (UiInteract.HoverClick(center - new Vector2(radius, radius), center + new Vector2(radius, radius)))
             {
                 OpenProfile(me.Id);
             }
+
+            titleLeft = center.X + radius + 14f * scale;
         }
 
-        if (store.IsSignedIn)
+        if (HeaderTitle.Draw("chirper.home.title", DisplayName, titleLeft, actions, AppPalettes.Chirper.TitleInk,
+                scale))
         {
-            var refreshCenter = new Vector2(area.Min.X + 68f * scale, rowCenterY);
-            if (store.IsLoading(activeScope))
-            {
-                LoadingPulse.Spinner(refreshCenter, 8f * scale, ui.Accent);
-            }
-            else if (ui.IconButton(refreshCenter, 16f * scale, FontAwesomeIcon.Sync.ToIconString(),
-                         AppPalettes.Chirper.BodyInk, new Vector4(0f, 0f, 0f, 0f), 1.1f, Loc.T(L.Common.Refresh),
-                         HoverLabelSide.Below))
-            {
-                RefreshActiveFeed();
-            }
+            RefreshActiveFeed();
         }
 
-        var rulesCenter = new Vector2(area.Max.X - 96f * scale, rowCenterY);
-        if (ui.IconButton(rulesCenter, 16f * scale, FontAwesomeIcon.QuestionCircle.ToIconString(),
-                AppPalettes.Chirper.MutedInk, new Vector4(0f, 0f, 0f, 0f), 1.1f, Loc.T(L.Conduct.Eyebrow),
-                HoverLabelSide.Below))
-        {
-            conduct.ShowRules(Id);
-        }
-
-        var searchCenter = new Vector2(area.Max.X - 24f * scale, rowCenterY);
-        UiAnchors.Report("chirper.search", new Rect(searchCenter - new Vector2(18f * scale, 18f * scale),
-            searchCenter + new Vector2(18f * scale, 18f * scale)));
-        if (ui.IconButton(searchCenter, 16f * scale, FontAwesomeIcon.Search.ToIconString(), AppPalettes.Chirper.BodyInk,
-                new Vector4(0f, 0f, 0f, 0f), 1.2f, Loc.T(L.Chirper.FindPeople), HoverLabelSide.Below) &&
-            store.IsSignedIn)
+        var searchCenter = actions.Slot(2);
+        UiAnchors.Report("chirper.search", actions.Bounds(2));
+        if (ui.IconButton(searchCenter, actions.Radius, FontAwesomeIcon.Search.ToIconString(),
+                AppPalettes.Chirper.BodyInk, AppSkin.Transparent, 1.2f, Loc.T(L.Chirper.FindPeople),
+                HoverLabelSide.Below) && store.IsSignedIn)
         {
             store.ClearDiscover();
             profile.SearchDraft = string.Empty;
             router.Push(ChirperRoute.Discover);
         }
 
-        var bellCenter = new Vector2(area.Max.X - 60f * scale, rowCenterY);
-        UiAnchors.Report("chirper.activity", new Rect(bellCenter - new Vector2(18f * scale, 18f * scale),
-            bellCenter + new Vector2(18f * scale, 18f * scale)));
-        if (ui.IconButton(bellCenter, 16f * scale, FontAwesomeIcon.Bell.ToIconString(), AppPalettes.Chirper.BodyInk,
-                new Vector4(0f, 0f, 0f, 0f), 1.2f, Loc.T(L.Social.ActivityTitle), HoverLabelSide.Below) &&
-            store.IsSignedIn)
+        var bellCenter = actions.Slot(1);
+        UiAnchors.Report("chirper.activity", actions.Bounds(1));
+        if (ui.IconButton(bellCenter, actions.Radius, FontAwesomeIcon.Bell.ToIconString(), AppPalettes.Chirper.BodyInk,
+                AppSkin.Transparent, 1.2f, Loc.T(L.Social.ActivityTitle), HoverLabelSide.Below) && store.IsSignedIn)
         {
             OpenActivity();
         }
 
         ActivityBadge.Draw(bellCenter + new Vector2(10f * scale, -10f * scale), social.UnseenCount(Id), theme, scale);
+        if (ui.IconButton(actions.Slot(0), actions.Radius, FontAwesomeIcon.EllipsisH.ToIconString(),
+                AppPalettes.Chirper.BodyInk, AppSkin.Transparent, 1.2f, Loc.T(L.Chirper.More), HoverLabelSide.Below))
+        {
+            overflowMenu.Toggle(OverflowMenuId, actions.Bounds(0));
+        }
     }
 }

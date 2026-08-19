@@ -10,9 +10,12 @@ using Aetherphone.Core.Platform;
 using Aetherphone.Core.Shell;
 using Aetherphone.Core.Theme;
 using Aetherphone.Core.Updates;
+using Aetherphone.Core.Video;
 using Aetherphone.Core.Wallpapers;
 using Aetherphone.Windows;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.GamePad;
+using Dalamud.Game.ClientState.Keys;
 using Dalamud.Game.Command;
 using Dalamud.Game.Config;
 using Dalamud.Game.Gui.ContextMenu;
@@ -44,6 +47,9 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
     [PluginService] internal static IUnlockState UnlockState { get; private set; } = null!;
+    [PluginService] internal static IGameInteropProvider InteropProvider { get; private set; } = null!;
+    [PluginService] internal static IKeyState KeyState { get; private set; } = null!;
+    [PluginService] internal static IGamepadState GamepadState { get; private set; } = null!;
     [PluginService] internal static IAetheryteList AetheryteList { get; private set; } = null!;
     internal static Plugin Instance { get; private set; } = null!;
     internal static Configuration Cfg { get; private set; } = null!;
@@ -51,10 +57,18 @@ public sealed class Plugin : IDalamudPlugin
     internal static WallpaperLibrary Wallpapers { get; private set; } = null!;
     internal static DeviceStatus Device { get; private set; } = null!;
     internal static UpdateCheckService Updates { get; private set; } = null!;
+    internal static PhotoWindow PhotoWindow { get; private set; } = null!;
     private readonly WindowSystem windowSystem = new(AepConstants.Name);
     private readonly PhoneServices services;
     private readonly PhoneShell shell;
     private readonly PhoneWindow phoneWindow;
+    private readonly VideoPlayer video;
+    private readonly ScreenController screenController;
+    private readonly AetherStreamQueue videoQueue;
+    private readonly WatchAlongSession watchAlong;
+    private readonly StreamSuggestionNotifier streamSuggestions;
+    private readonly VideoDebugWindow videoDebugWindow;
+    private readonly AetherStreamScreenWindow screenWindow;
     private readonly UpdateChipWindow updateChipWindow;
     private readonly PhoneEmoteController phoneEmote;
     private readonly TimerNotifier timerNotifier;
@@ -81,25 +95,44 @@ public sealed class Plugin : IDalamudPlugin
             Cfg.MigrateMessage();
             Cfg.MigrateMessagesMerge();
             Cfg.MigrateSetupCompleted();
+            Cfg.MigrateChirperMediaFilters();
             Cfg.MigratePhoneWidth();
             Cfg.MigrateControlPanelRepack();
             Cfg.MigrateCharacterSessions();
+            Cfg.MigrateHousingRefreshFloor();
             InitializeLocalization();
             Device = new DeviceStatus(ClientState, ObjectTable, DataManager);
             services = PhoneServices.Build(Cfg, ChatGui, DataManager, ObjectTable, ClientState, Framework, DutyState,
                 TextureProvider, PluginInterface.ConfigDirectory, UnlockState, Condition);
+            FilePicker.ProblemReporter = message =>
+                services.Confirm.Alert(null, message, Loc.T(L.Common.Close));
             Fonts = new FontService(PluginInterface, Cfg, services.Loading, Cfg.TextZoom,
                 PhoneSizeCatalog.ZoomFor(Cfg.PhoneWidth));
             EmojiCatalog.Load();
             Wallpapers = services.Wallpapers;
-            var bundle = AppRegistry.BuildDefault(services);
+            screenController = new ScreenController(() => Cfg.VideoHideNameplates);
+            services.SongResolver.Attach(screenController.Engine.Dependencies);
+            video = new VideoPlayer(screenController.Engine);
+            videoQueue = new AetherStreamQueue(video, services.VideoMetadata);
+            watchAlong = new WatchAlongSession(services.AethernetSession, Cfg, services.Confirm, video,
+                videoQueue, services.StreamSignals, screenController);
+            streamSuggestions = new StreamSuggestionNotifier(watchAlong, services.Notifications);
+            Framework.Update += OnVideoFrameworkUpdate;
+            videoDebugWindow = new VideoDebugWindow(video, screenController);
+            screenWindow = new AetherStreamScreenWindow(screenController, video);
+            var bundle = AppRegistry.BuildDefault(services, video, screenController, videoQueue, watchAlong,
+                streamSuggestions, screenWindow);
             shell = new PhoneShell(services, bundle);
             screenshotImport = new ScreenshotImportService(bundle.Photos, Cfg);
             phoneWindow = new PhoneWindow(shell, Cfg);
             Updates = new UpdateCheckService(services.Http, PluginInterface);
             updateChipWindow = new UpdateChipWindow(phoneWindow, Updates, services.Themes);
+            PhotoWindow = new PhotoWindow(services.Themes);
             windowSystem.AddWindow(phoneWindow);
             windowSystem.AddWindow(updateChipWindow);
+            windowSystem.AddWindow(PhotoWindow);
+            windowSystem.AddWindow(videoDebugWindow);
+            windowSystem.AddWindow(screenWindow);
             services.Visibility.Bind(() => phoneWindow is { IsOpen: true, IsMinimized: false });
             phoneEmote = new PhoneEmoteController(Cfg, Framework, ObjectTable, Condition, DataManager,
                 () => services.Visibility.IsVisible);
@@ -126,6 +159,7 @@ public sealed class Plugin : IDalamudPlugin
             PluginInterface.UiBuilder.Draw += windowSystem.Draw;
             PluginInterface.UiBuilder.Draw += FilePicker.Draw;
             PluginInterface.UiBuilder.OpenMainUi += phoneWindow.ToggleShell;
+            PluginInterface.UiBuilder.OpenConfigUi += phoneWindow.OpenSettings;
             PluginInterface.UiBuilder.DisableGposeUiHide = Cfg.ShowInGpose;
             ClientState.Login += OnLogin;
 
@@ -156,10 +190,12 @@ public sealed class Plugin : IDalamudPlugin
         if (phoneWindow is not null)
         {
             PluginInterface.UiBuilder.OpenMainUi -= phoneWindow.ToggleShell;
+            PluginInterface.UiBuilder.OpenConfigUi -= phoneWindow.OpenSettings;
         }
 
         ClientState.Login -= OnLogin;
         Framework.Update -= OnAutoOpenTick;
+        Framework.Update -= OnVideoFrameworkUpdate;
         ContextMenu.OnMenuOpened -= OnMenuOpened;
         CommandManager.RemoveHandler(AepConstants.PrimaryCommand);
         CommandManager.RemoveHandler(AepConstants.AliasCommand);
@@ -171,6 +207,13 @@ public sealed class Plugin : IDalamudPlugin
 
         dtrEntry?.Remove();
         windowSystem.RemoveAllWindows();
+        videoDebugWindow?.Dispose();
+        streamSuggestions?.Dispose();
+        watchAlong?.Dispose();
+        videoQueue?.Dispose();
+        video?.Dispose();
+        screenController?.Dispose();
+        DxHandler.Dispose();
         phoneEmote?.Dispose();
         timerNotifier?.Dispose();
         calendarReminders?.Dispose();
@@ -178,6 +221,7 @@ public sealed class Plugin : IDalamudPlugin
         reminders?.Dispose();
         Updates?.Dispose();
         shell?.Dispose();
+        screenshotImport?.Dispose();
         services?.Dispose();
         Device?.Dispose();
         Fonts?.Dispose();
@@ -203,6 +247,12 @@ public sealed class Plugin : IDalamudPlugin
         autoOpenPending = true;
         Framework.Update -= OnAutoOpenTick;
         Framework.Update += OnAutoOpenTick;
+    }
+
+    private void OnVideoFrameworkUpdate(IFramework framework)
+    {
+        video.OnFrameworkUpdate();
+        watchAlong.OnFrameworkUpdate((float)framework.UpdateDelta.TotalSeconds);
     }
 
     private void OnAutoOpenTick(IFramework framework)
@@ -243,14 +293,23 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= windowSystem.Draw;
         PluginInterface.UiBuilder.Draw -= FilePicker.Draw;
         PluginInterface.UiBuilder.OpenMainUi -= phoneWindow.ToggleShell;
+        PluginInterface.UiBuilder.OpenConfigUi -= phoneWindow.OpenSettings;
         ClientState.Login -= OnLogin;
         Framework.Update -= OnAutoOpenTick;
+        Framework.Update -= OnVideoFrameworkUpdate;
         services.Notifications.Changed -= UpdateDtrBadge;
         services.Calls.IncomingCallPresented -= OnIncomingCall;
         ContextMenu.OnMenuOpened -= OnMenuOpened;
         dtrEntry.Remove();
         phoneWindow.PersistPositions();
         windowSystem.RemoveAllWindows();
+        videoDebugWindow.Dispose();
+        streamSuggestions.Dispose();
+        watchAlong.Dispose();
+        videoQueue.Dispose();
+        video.Dispose();
+        screenController.Dispose();
+        DxHandler.Dispose();
         phoneEmote.Dispose();
         timerNotifier.Dispose();
         calendarReminders.Dispose();
@@ -295,6 +354,11 @@ public sealed class Plugin : IDalamudPlugin
 
     private static string DetectLanguage()
     {
+        if ((int)ClientState.ClientLanguage == Core.Game.GameData.ChineseSimplifiedClientLanguage)
+        {
+            return "zh";
+        }
+
         switch (ClientState.ClientLanguage)
         {
             case Dalamud.Game.ClientLanguage.German:
@@ -335,6 +399,12 @@ public sealed class Plugin : IDalamudPlugin
         if (argument.Equals("reset", StringComparison.OrdinalIgnoreCase))
         {
             phoneWindow.Recenter();
+            return;
+        }
+
+        if (argument.Equals("videodebug", StringComparison.OrdinalIgnoreCase))
+        {
+            videoDebugWindow.IsOpen = true;
             return;
         }
 
@@ -381,14 +451,21 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnMenuOpened(IMenuOpenedArgs args)
     {
-        var itemId = ResolveContextItem(args);
-        if (itemId == 0 || !services.MarketIndex.TryGet(itemId, out _))
+        if(!Cfg.MarketContextMenu)
         {
             return;
         }
-
-        args.AddMenuItem(
-            new MenuItem { Name = Loc.T(L.Plugin.SearchTheMarket), OnClicked = _ => OpenMarketAt(itemId), });
+            else
+        {
+            var itemId = ResolveContextItem(args);
+            if (itemId == 0 || !services.MarketIndex.TryGet(itemId, out _))
+            {
+                return;
+            }
+            
+            args.AddMenuItem(
+                new MenuItem { Name = Loc.T(L.Plugin.SearchTheMarket), OnClicked = _ => OpenMarketAt(itemId), });
+        }
     }
 
     private static uint ResolveContextItem(IMenuOpenedArgs args)

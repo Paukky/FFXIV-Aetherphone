@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using Aetherphone.Core.Aethernet.Contracts;
+
 namespace Aetherphone.Core.Telephony.Contracts;
 
 internal static class SignalType
@@ -27,7 +30,45 @@ internal static class SignalType
     public const string SocialPing = "social.ping";
     public const string MusterPing = "muster.ping";
     public const string AnnouncePing = "announce.ping";
+    public const string CasinoPrefix = "casino.";
+    public const string CasinoAttach = "casino.attach";
+    public const string CasinoDetach = "casino.detach";
+    public const string CasinoResync = "casino.resync";
+    public const string CasinoAttached = "casino.attached";
+    public const string CasinoDeclined = "casino.declined";
+    public const string CasinoSnapshot = "casino.snapshot";
+    public const string CasinoEvent = "casino.event";
+    public const string CasinoPrivate = "casino.private";
+    public const string CasinoEnded = "casino.ended";
+    public const string CasinoPing = "casino.ping";
     public const string Error = "error";
+
+    public const string StreamPrefix = "stream.";
+    public const string StreamState = "stream.state";
+    public const string StreamJoin = "stream.join";
+    public const string StreamLeave = "stream.leave";
+    public const string StreamJoined = "stream.joined";
+    public const string StreamDeclined = "stream.declined";
+    public const string StreamRoster = "stream.roster";
+    public const string StreamLeft = "stream.left";
+    public const string StreamEnded = "stream.ended";
+
+    public const string StreamJoinRequest = "stream.joinRequest";
+    public const string StreamApprove = "stream.approve";
+    public const string StreamDeny = "stream.deny";
+    public const string StreamJoinPending = "stream.joinPending";
+
+    public const string StreamQueueSuggest = "stream.queueSuggest";
+    public const string StreamQueueSuggestion = "stream.queueSuggestion";
+    public const string StreamQueueApprove = "stream.queueApprove";
+    public const string StreamQueueDeny = "stream.queueDeny";
+    public const string StreamQueueSuggestionResult = "stream.queueSuggestionResult";
+
+    public const string StreamKick = "stream.kick";
+    public const string StreamKicked = "stream.kicked";
+
+    public const string StreamNearby = "stream.nearby";
+    public const string StreamNearbyRoster = "stream.nearby.roster";
 }
 
 internal static class ParticipantState
@@ -44,7 +85,14 @@ internal sealed record ParticipantInfo(
     string DisplayName,
     int Slot,
     string State,
-    bool Muted);
+    bool Muted,
+    string Handle = "",
+    string? AvatarUrl = null);
+
+internal sealed record NearbyStreamInfo(string HostId, string Name, string World, string DisplayName,
+    string Handle = "", string? AvatarUrl = null);
+
+internal sealed record StreamQueueEntry(string? Url, string? Title);
 
 internal sealed record CallControl
 {
@@ -56,8 +104,58 @@ internal sealed record CallControl
     public string? UserId { get; init; }
     public bool? Muted { get; init; }
     public string? Reason { get; init; }
+
+    public string? HostId { get; init; }
+    public string? Url { get; init; }
+    public double? PositionSeconds { get; init; }
+    public long? StateAtUnixMs { get; init; }
+    public bool? Paused { get; init; }
+    public StreamQueueEntry[]? UpcomingQueue { get; init; }
+
+    public bool? ApprovalRequired { get; init; }
+
+    public string? SuggestionId { get; init; }
+
+    public float? ScreenX { get; init; }
+    public float? ScreenY { get; init; }
+    public float? ScreenZ { get; init; }
+    public float? ScreenYaw { get; init; }
+    public float? ScreenScale { get; init; }
+
+    public uint? TerritoryId { get; init; }
+    public uint? WorldId { get; init; }
+    public bool? Discoverable { get; init; }
+    public NearbyStreamInfo[]? NearbyStreams { get; init; }
+
     public string? App { get; init; }
     public string? ContentKind { get; init; }
     public string? ContentId { get; init; }
     public string? ParentId { get; init; }
+    public ChatMessageDto? Message { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CasinoPayload? Casino { get; init; }
+}
+
+internal sealed record CasinoPayload
+{
+    public string RoomId { get; init; } = string.Empty;
+    public int Epoch { get; init; }
+    public long Seq { get; init; }
+
+    public long PairSeq { get; init; }
+
+    public long ServerNowUnixMs { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? EventKind { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CasinoRoomSnapshotDto? Snapshot { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CasinoRoomEventDto? Event { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CasinoPrivateDto? Private { get; init; }
 }

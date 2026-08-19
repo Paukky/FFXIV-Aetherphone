@@ -67,7 +67,7 @@ internal sealed partial class VelvetShell
             var avatarCenter = new Vector2(origin.X + avatarRadius, origin.Y + headerHeight * 0.5f);
             var authorName = DisplayNameOf(post.OwnerDisplayName, post.OwnerHandle);
             VAvatar.Draw(drawList, avatarCenter, avatarRadius, theme, authorName, string.Empty, post.OwnerAvatarUrl,
-                images, lodestone, -1);
+                images, lodestone, -1, null, Frames.Of(post.OwnerFrameId));
             var nameLeft = avatarCenter.X + avatarRadius + 10f * scale;
             var ownerSub = post.OwnerHandle.Length > 0 ? "@" + post.OwnerHandle : string.Empty;
             var ownerTime = TimeText.Short(post.CreatedAtUnix);
@@ -82,7 +82,7 @@ internal sealed partial class VelvetShell
             var authorSize = Typography.Measure(authorName, TextStyles.Headline);
             var authorHovering = UiInteract.Hover(new Vector2(nameLeft, authorY),
                 new Vector2(nameLeft + nameMaxWidth, authorY + authorSize.Y));
-            UserName.Draw("velvet.detail.author." + post.Id, authorName, post.OwnerBadges, nameLeft,
+            UserName.Draw("velvet.detail.author." + post.Id, authorName, post.OwnerBadges, post.OwnerBadgeIds, nameLeft,
                 authorY, nameMaxWidth, TextStyles.Headline, VelvetTheme.TitleInk, authorHovering, false);
             var ownerSubY = avatarCenter.Y + 3f * scale;
             var ownerSubSize = Typography.Measure(ownerSub, TextStyles.Subheadline);
@@ -103,7 +103,7 @@ internal sealed partial class VelvetShell
             if (result.Tapped && !UiInteract.InputBlocked && result.Index < photos.Length)
             {
                 var mediaUrl = photos[result.Index];
-                photoViewer.Open(() => images.Get(mediaUrl));
+                photoViewer.Open(this, () => images.Get(mediaUrl));
             }
 
             var actionsY = imageRect.Max.Y + 22f * scale;
@@ -205,7 +205,8 @@ internal sealed partial class VelvetShell
                 DrawDisplayTokens(post.Tags, VChipStyle.Tint, VelvetTheme.Rose);
             }
 
-            DrawComments(post.CommentCount, width, scale);
+            var viewerOwnsPost = store.Me is { } viewer && viewer.UserId == post.OwnerId;
+            DrawComments(post.CommentCount, width, scale, viewerOwnsPost);
             Gap(20f);
         }
 
@@ -213,7 +214,7 @@ internal sealed partial class VelvetShell
         DrawPostMenu(area, false);
     }
 
-    private void DrawComments(int totalCount, float width, float scale)
+    private void DrawComments(int totalCount, float width, float scale, bool viewerOwnsPost)
     {
         Gap(10f);
         var linePos = ImGui.GetCursorScreenPos();
@@ -243,7 +244,7 @@ internal sealed partial class VelvetShell
 
         for (var index = 0; index < comments.Length; index++)
         {
-            DrawCommentRow(comments[index], scale);
+            DrawCommentRow(comments[index], scale, viewerOwnsPost);
         }
 
         if (store.CommentsLoadingMore)
@@ -256,7 +257,7 @@ internal sealed partial class VelvetShell
         }
     }
 
-    private void DrawCommentRow(VelvetCommentDto comment, float scale)
+    private void DrawCommentRow(VelvetCommentDto comment, float scale, bool viewerOwnsPost)
     {
         var origin = ImGui.GetCursorScreenPos();
         var width = ScrollLayout.StableContentWidth();
@@ -265,13 +266,13 @@ internal sealed partial class VelvetShell
         var avatarCenter = new Vector2(origin.X + avatarRadius, origin.Y + avatarRadius);
         var authorName = DisplayNameOf(comment.AuthorDisplayName, comment.AuthorHandle);
         VAvatar.Draw(drawList, avatarCenter, avatarRadius, theme, authorName, string.Empty, comment.AuthorAvatarUrl,
-            images, lodestone, -1);
+            images, lodestone, -1, null, Frames.Of(comment.AuthorFrameId));
         var textLeft = avatarCenter.X + avatarRadius + 10f * scale;
         var wrapWidth = origin.X + width - 28f * scale - textLeft;
         var nameMaxWidth = wrapWidth * 0.55f;
         var nameHovering = UiInteract.Hover(new Vector2(textLeft, origin.Y),
             new Vector2(textLeft + nameMaxWidth, origin.Y + 16f * scale));
-        var nameWidth = UserName.Draw("velvet.comment.author." + comment.Id, authorName, comment.AuthorBadges,
+        var nameWidth = UserName.Draw("velvet.comment.author." + comment.Id, authorName, comment.AuthorBadges, comment.AuthorBadgeIds,
             textLeft, origin.Y, nameMaxWidth, TextStyles.SubheadlineEmphasized, VelvetTheme.TitleInk, nameHovering,
             false);
         var time = TimeText.Short(comment.CreatedAtUnix);
@@ -319,13 +320,20 @@ internal sealed partial class VelvetShell
         }
 
         var mine = store.Me is { } me && me.UserId == comment.AuthorId;
-        if (mine)
+        if (mine || viewerOwnsPost)
         {
             var trashCenter = new Vector2(origin.X + width - 8f * scale, origin.Y + 8f * scale);
             if (ui.IconButton(trashCenter, 10f * scale, FontAwesomeIcon.Times.ToIconString(), VelvetTheme.MutedInk,
                     AppSkin.Transparent, 0.7f))
             {
-                AskDeleteComment(commentsPostId, comment.Id);
+                if (mine)
+                {
+                    AskDeleteComment(commentsPostId, comment.Id);
+                }
+                else
+                {
+                    AskRemoveComment(commentsPostId, comment.Id);
+                }
             }
         }
 
@@ -345,13 +353,36 @@ internal sealed partial class VelvetShell
     {
         var style = new CommentComposerStyle(VelvetTheme.Hairline, VelvetTheme.PlumWell, VelvetTheme.TitleInk,
             VelvetTheme.Rose, VelvetTheme.PlumWell, VelvetTheme.OnAccent, true, 9f, 54f, 0.85f);
+        var returned = Interlocked.Exchange(ref commentRestore, null);
+        if (returned is not null)
+        {
+            commentDraft = returned;
+        }
+
+        if (commentFailure.Failed)
+        {
+            Typography.DrawWrappedCentered(new Vector2(bar.Center.X, bar.Min.Y - 22f * UiScale.Current),
+                commentFailure.Text(), VelvetTheme.MutedInk, TextStyles.Footnote,
+                bar.Width - 28f * UiScale.Current);
+        }
+
         var focusPending = false;
         if (CommentComposerBar.Draw(bar, screen, ui, theme, style, "##velvetComment", Loc.T(L.Velvet.AddComment),
                 ref commentDraft, 500, commentMentions, mentionPopup, images, lodestone, store.Commenting,
                 ref focusPending, commentEmoji))
         {
-            store.AddComment(postId, commentDraft, _ => { });
+            var text = commentDraft;
             commentDraft = string.Empty;
+            commentFailure.Clear();
+            store.AddComment(postId, text, accepted =>
+            {
+                if (accepted)
+                {
+                    return;
+                }
+
+                commentRestore = text;
+            }, commentFailure.Set);
         }
     }
 
@@ -402,7 +433,9 @@ internal sealed partial class VelvetShell
                     Name = DisplayNameOf(user.DisplayName, user.Handle),
                     World = string.Empty,
                     AvatarUrl = user.AvatarUrl,
+                    FrameId = user.FrameId,
                     RoleBadges = user.Badges,
+                    RoleBadgeIds = user.ProfileBadges,
                     UserId = user.Id,
                 };
                 if (VRow.Draw(in model, ui, theme, images, lodestone) == VRowHit.Body)
@@ -450,6 +483,19 @@ internal sealed partial class VelvetShell
         confirm.Ask(new ConfirmRequest
         {
             Message = Loc.T(L.Velvet.DeleteCommentConfirmMessage),
+            ConfirmLabel = Loc.T(L.Velvet.DeleteConfirm),
+            CancelLabel = Loc.T(L.Velvet.DeleteCancel),
+            BusyLabel = Loc.T(L.Velvet.Saving),
+            FailedMessage = Loc.T(L.Velvet.DeleteCommentFailed),
+            ConfirmAsync = done => store.DeleteComment(postId, commentId, done),
+        });
+    }
+
+    private void AskRemoveComment(string postId, string commentId)
+    {
+        confirm.Ask(new ConfirmRequest
+        {
+            Message = Loc.T(L.Velvet.RemoveCommentConfirmMessage),
             ConfirmLabel = Loc.T(L.Velvet.DeleteConfirm),
             CancelLabel = Loc.T(L.Velvet.DeleteCancel),
             BusyLabel = Loc.T(L.Velvet.Saving),

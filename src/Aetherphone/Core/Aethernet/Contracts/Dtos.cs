@@ -2,6 +2,8 @@ namespace Aetherphone.Core.Aethernet.Contracts;
 
 internal sealed record ChallengeRequest(string Name, string World);
 
+internal sealed record RisingStonesChallengeRequest(string Uuid);
+
 internal sealed record ChallengeResponse(string ChallengeId, string Code, string Instructions);
 
 internal sealed record VerifyRequest(string ChallengeId);
@@ -69,11 +71,60 @@ internal sealed record UserDto(
     int PendingFollowRequests = 0,
     string Region = "",
     int Badges = 0,
-    int GrantedBadges = 0) : IIdentified;
+    int GrantedBadges = 0,
+    string[]? ProfileBadges = null,
+    long Coins = 0,
+    long CoinsEarnedToday = 0,
+    long CoinsDailyCap = 0,
+    string FrameId = "") : IIdentified;
 
 internal sealed record UpdateProfileRequest(string? DisplayName, string? Handle, string? Bio, string? AvatarUrl = null);
 
 internal sealed record UpdateBadgeLoadoutRequest(int Equipped);
+
+internal sealed record BadgeTranslationDto(string Lang, string Name);
+
+internal sealed record BadgeDescriptorDto(
+    string Id,
+    string Name,
+    string Icon,
+    string AssetIcon = "",
+    string AssetUrl = "",
+    string[]? Colors = null,
+    string Effect = "none",
+    string[]? Platforms = null,
+    BadgeTranslationDto[]? Translations = null,
+    bool? Hidden = null);
+
+internal sealed record BadgeCatalogDto(BadgeDescriptorDto[] Badges);
+
+internal sealed record FrameDescriptorDto(
+    string Id,
+    string Name,
+    string Asset = "",
+    string AssetUrl = "",
+    int ScalePercent = 138,
+    BadgeTranslationDto[]? Translations = null);
+
+internal sealed record FrameCatalogDto(FrameDescriptorDto[] Frames);
+
+internal sealed record InventoryItemDto(
+    string Id,
+    string Kind,
+    int Slot,
+    bool Locked = false,
+    BadgeDescriptorDto? Badge = null,
+    FrameDescriptorDto? Frame = null);
+
+internal sealed record InventorySectionDto(string Kind, int Slots, InventoryItemDto[] Items);
+
+internal sealed record InventoryDto(InventorySectionDto[] Sections);
+
+internal sealed record InventoryEquipRequest(string Kind, string ItemId, int? Slot);
+
+internal sealed record AwardedBadgesDto(BadgeDescriptorDto[] Badges);
+
+internal sealed record UpdateBadgeVisibilityRequest(bool Hidden);
 
 internal sealed record PatreonLinkStartResponse(bool Ok, string? Reason, string? Url, int ExpiresInSeconds);
 
@@ -97,7 +148,15 @@ internal sealed record UpdateAccountPrivacyRequest(bool? IsPrivate);
 
 internal sealed record FollowResultDto(bool Following, bool Requested);
 
-internal sealed record CreatePostRequest(string Text, string? QuotedPostId = null);
+internal sealed record CreatePostRequest(
+    string Text,
+    string? QuotedPostId = null,
+    string[]? MediaKeys = null,
+    int MediaWidth = 0,
+    int MediaHeight = 0,
+    bool Sensitive = false);
+
+internal sealed record SetSensitiveRequest(bool Sensitive);
 
 internal sealed record ReactRequest(int Kind);
 
@@ -154,7 +213,11 @@ internal sealed record PostDto(
     int RepostCount = 0,
     bool MyReposted = false,
     bool Saved = false,
-    int AuthorBadges = 0) : IIdentified;
+    int AuthorBadges = 0,
+    string[]? AuthorBadgeIds = null,
+    string AuthorFrameId = "",
+    bool Sensitive = false,
+    bool SensitiveLocked = false) : IIdentified;
 
 internal sealed record FeedPage(PostDto[] Items, string? NextCursor);
 
@@ -174,7 +237,8 @@ internal sealed record CreateGramRequest(
     int Width,
     int Height,
     string[]? MediaKeys = null,
-    PhotoTagInput[]? PhotoTags = null);
+    PhotoTagInput[]? PhotoTags = null,
+    bool Sensitive = false);
 
 internal sealed record CreateStoryRequest(string Caption, string MediaKey, int Width, int Height);
 
@@ -190,7 +254,9 @@ internal sealed record StoryDto(
     bool Seen,
     int ViewCount,
     string ScanStatus = "clean",
-    int AuthorBadges = 0) : IIdentified;
+    int AuthorBadges = 0,
+    string[]? AuthorBadgeIds = null,
+    string AuthorFrameId = "") : IIdentified;
 
 internal sealed record StoryRingDto(
     string AuthorId,
@@ -200,7 +266,8 @@ internal sealed record StoryRingDto(
     bool IsMe,
     bool HasUnseen,
     int Count,
-    long LatestAtUnix);
+    long LatestAtUnix,
+    string AuthorFrameId = "");
 
 internal sealed record StoryTray(StoryRingDto[] Rings);
 
@@ -212,7 +279,9 @@ internal sealed record StoryViewerDto(
     string Handle,
     string? AvatarUrl,
     long ViewedAtUnix,
-    int Badges = 0);
+    int Badges = 0,
+    string[]? BadgeIds = null,
+    string FrameId = "");
 
 internal sealed record StoryViewersPage(StoryViewerDto[] Items, int Total, string? NextCursor = null);
 
@@ -230,9 +299,18 @@ internal sealed record CommentDto(
     bool Liked,
     MentionDto[]? Mentions = null,
     string ScanStatus = "clean",
-    int AuthorBadges = 0) : IIdentified;
+    int AuthorBadges = 0,
+    string[]? AuthorBadgeIds = null,
+    string AuthorFrameId = "",
+    string? MediaUrl = null,
+    int MediaWidth = 0,
+    int MediaHeight = 0) : IIdentified;
 
-internal sealed record CreateCommentRequest(string Text);
+internal sealed record CreateCommentRequest(
+    string Text,
+    string? MediaKey = null,
+    int MediaWidth = 0,
+    int MediaHeight = 0);
 
 internal sealed record CommentPage(CommentDto[] Items, string? NextCursor);
 
@@ -273,7 +351,9 @@ internal sealed record VelvetProfileDto(
     int WhoCanMessage = 0,
     int Sexuality = 0,
     string[]? Kinks = null,
-    string Region = "");
+    string Region = "",
+    string[]? BadgeIds = null,
+    string FrameId = "");
 
 internal sealed record UpdateVelvetProfileRequest(
     string? Intro,
@@ -313,7 +393,10 @@ internal sealed record VelvetPostDto(
     string[]? MediaUrls = null,
     MentionDto[]? Mentions = null,
     int Audience = 0,
-    int OwnerBadges = 0) : IIdentified;
+    int OwnerBadges = 0,
+    string[]? OwnerBadgeIds = null,
+    string OwnerFrameId = "",
+    bool Sensitive = false) : IIdentified;
 
 internal sealed record VelvetFeedPage(VelvetPostDto[] Items, string? NextCursor);
 
@@ -343,7 +426,9 @@ internal sealed record VelvetCommentDto(
     bool Liked,
     MentionDto[]? Mentions = null,
     string ScanStatus = "clean",
-    int AuthorBadges = 0) : IIdentified;
+    int AuthorBadges = 0,
+    string[]? AuthorBadgeIds = null,
+    string AuthorFrameId = "") : IIdentified;
 
 internal sealed record VelvetCommentPage(VelvetCommentDto[] Items, string? NextCursor);
 
@@ -435,7 +520,9 @@ internal sealed record NotificationDto(
     long CreatedAtUnix,
     string? CommentId = null,
     int ActorBadges = 0,
-    bool Read = false) : IIdentified;
+    bool Read = false,
+    string[]? ActorBadgeIds = null,
+    string ActorFrameId = "") : IIdentified;
 
 internal sealed record NotificationPage(
     NotificationDto[] Items,
@@ -521,7 +608,8 @@ internal sealed record ContactDto(
     string PhoneNumber,
     string Alias,
     bool IsMutual,
-    long CreatedAtUnix);
+    long CreatedAtUnix,
+    string FrameId = "");
 
 internal sealed record ContactListResult(ContactDto[] Contacts, string MyNumber);
 
@@ -554,7 +642,8 @@ internal sealed record ConversationDto(
     int LastMessageEncVersion = 0,
     string LastMessageSenderId = "",
     bool Muted = false,
-    long? LastSeenAtUnix = null) : IIdentified;
+    long? LastSeenAtUnix = null,
+    string FrameId = "") : IIdentified;
 
 internal sealed record ConversationMemberDto(
     string UserId,
@@ -564,7 +653,9 @@ internal sealed record ConversationMemberDto(
     int Role,
     bool IsActive,
     long? LastReadAtUnix = null,
-    int Badges = 0);
+    int Badges = 0,
+    string[]? BadgeIds = null,
+    string FrameId = "");
 
 internal sealed record ChatMessageDto(
     string Id,
@@ -592,7 +683,9 @@ internal sealed record ChatMessageDto(
     int DurationSecs = 0,
     ReactionSummaryDto[]? Reactions = null,
     long? EditedAtUnix = null,
-    int SenderBadges = 0) : IIdentified;
+    int SenderBadges = 0,
+    string[]? SenderBadgeIds = null,
+    string SenderFrameId = "") : IIdentified;
 
 internal sealed record ReactionSummaryDto(string Token, int Count, bool Mine);
 
@@ -643,7 +736,7 @@ internal sealed record ChatMediaUrlDto(string Url, long ExpiresAtUnix);
 
 internal sealed record WrappedPrivateKeyDto(string Salt, int Iterations, string Nonce, string Ciphertext);
 
-internal sealed record PutMyKeysRequest(string PublicKey, WrappedPrivateKeyDto? PrivateKey = null);
+internal sealed record PutMyKeysRequest(string PublicKey, WrappedPrivateKeyDto? PrivateKey = null, int? ExpectedKeyVersion = null);
 
 internal sealed record MyKeysDto(
     string PublicKey,
@@ -684,3 +777,7 @@ internal sealed record ConversationKeysDto(
 internal sealed record ConversationWrapsDto(string ConversationId, int CurrentGeneration, KeyWrapDto[] Wraps);
 
 internal sealed record MyConversationKeysDto(ConversationWrapsDto[] Items);
+
+internal sealed record ArchivedKeyEscrowDto(int KeyVersion, string PublicKey, WrappedPrivateKeyDto Escrow, long CreatedAtUnix);
+
+internal sealed record ArchivedEscrowsDto(ArchivedKeyEscrowDto[] Items);

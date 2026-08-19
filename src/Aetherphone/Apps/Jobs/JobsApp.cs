@@ -69,6 +69,7 @@ internal sealed partial class JobsApp : IPhoneApp
         pendingEquip = null;
         sincePendingEquip = 0f;
         menuGearsetId = -1;
+        ResetPendingReorder();
         menu.Close();
         CloseColorPicker();
         CloseCategoryEditor();
@@ -177,11 +178,21 @@ internal sealed partial class JobsApp : IPhoneApp
                 }
                 else
                 {
+                    var categoryCount = CurrentCategories().Count;
                     for (var index = 0; index < sections.Length; index++)
                     {
                         var section = sections[index];
                         var title = section.IsCustom ? section.CustomTitle : Loc.T(section.RoleTitle);
+                        var headerTop = ImGui.GetCursorScreenPos();
+                        var headerWidth = ImGui.GetContentRegionAvail().X;
                         ui.SectionHeading(title, index == 0 ? 8f : 4f);
+                        if (section.IsCustom)
+                        {
+                            var headerRect = new Rect(headerTop,
+                                new Vector2(headerTop.X + headerWidth, ImGui.GetCursorScreenPos().Y));
+                            DrawCategoryReorder(headerRect, section.CategoryIndex, categoryCount, scale);
+                        }
+
                         DrawSectionCard(section, scale);
                         ImGui.Dummy(new Vector2(0f, SectionGap * scale));
                     }
@@ -190,6 +201,8 @@ internal sealed partial class JobsApp : IPhoneApp
                 }
             }
         }
+
+        ApplyPendingReorder();
 
         DrawColorMenu(content, theme);
         DrawCategoriesMenu(content, theme);
@@ -327,18 +340,10 @@ internal sealed partial class JobsApp : IPhoneApp
         var separator = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.06f));
         for (var index = 0; index < section.Entries.Length; index++)
         {
-            var rowTop = min.Y + index * rowHeight;
-            var rowRect = new Rect(new Vector2(min.X, rowTop), new Vector2(max.X, rowTop + rowHeight));
-            var contentRect = new Rect(new Vector2(min.X + padding, rowTop), new Vector2(max.X - padding, rowTop + rowHeight));
-            if (!rowAnchorTaken)
-            {
-                rowAnchorTaken = true;
-                UiAnchors.Report("jobs.row", rowRect);
-            }
-
-            DrawJobRow(drawList, rowRect, contentRect, section.Entries[index], scale);
+            DrawSectionRow(drawList, section, index, min, max, padding, rowHeight, scale);
             if (index > 0)
             {
+                var rowTop = min.Y + index * rowHeight;
                 drawList.AddLine(new Vector2(min.X + padding, rowTop), new Vector2(max.X - padding, rowTop), separator,
                     Metrics.Stroke.Hairline);
             }
@@ -348,19 +353,49 @@ internal sealed partial class JobsApp : IPhoneApp
         ImGui.Dummy(new Vector2(width, rowCount * rowHeight));
     }
 
-    private void DrawJobRow(ImDrawListPtr drawList, Rect rowRect, Rect contentRect, JobEntry job, float scale)
+    private void DrawSectionRow(ImDrawListPtr drawList, JobSection section, int index, Vector2 min, Vector2 max,
+        float padding, float rowHeight, float scale)
     {
+        var rowTop = min.Y + index * rowHeight;
+        var rowRect = new Rect(new Vector2(min.X, rowTop), new Vector2(max.X, rowTop + rowHeight));
+        var contentRect = new Rect(new Vector2(min.X + padding, rowTop),
+            new Vector2(max.X - padding, rowTop + rowHeight));
+        if (!rowAnchorTaken)
+        {
+            rowAnchorTaken = true;
+            UiAnchors.Report("jobs.row", rowRect);
+        }
+
+        DrawJobRow(drawList, rowRect, contentRect, section, index, scale);
+    }
+
+    private void DrawJobRow(ImDrawListPtr drawList, Rect rowRect, Rect contentRect, JobSection section, int rowIndex,
+        float scale)
+    {
+        var job = section.Entries[rowIndex];
         var hasMenu = job.Kind == JobEntryKind.Gearset;
         var menuRadius = 13f * scale;
         var menuCenter = new Vector2(contentRect.Max.X - menuRadius, contentRect.Center.Y);
         var menuHalf = new Vector2(menuRadius, menuRadius);
         var overMenu = hasMenu && UiInteract.Hover(menuCenter - menuHalf, menuCenter + menuHalf);
+
+        var reorderable = section.IsCustom && section.Entries.Length > 1;
+        var reorderRadius = RowReorderRadius * scale;
+        var reorderCenter = new Vector2(menuCenter.X - menuRadius - 20f * scale, contentRect.Center.Y);
+        var reorderHalf = new Vector2(reorderRadius, reorderRadius + RowReorderOffset * scale);
+        var overReorder = reorderable && UiInteract.Hover(reorderCenter - reorderHalf, reorderCenter + reorderHalf);
+
         var equippable = job.Kind == JobEntryKind.Gearset && !job.IsActive;
-        var hovered = equippable && !overMenu && UiInteract.Hover(rowRect.Min, rowRect.Max);
+        var hovered = equippable && !overMenu && !overReorder && UiInteract.Hover(rowRect.Min, rowRect.Max);
         if (hovered)
         {
             var alpha = ImGui.IsMouseDown(ImGuiMouseButton.Left) ? 0.14f : 0.07f;
             drawList.AddRectFilled(rowRect.Min, rowRect.Max, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, alpha)));
+        }
+
+        if (reorderable)
+        {
+            DrawJobReorder(reorderCenter, reorderRadius, section, rowIndex, scale);
         }
 
         var iconSize = 42f * scale;
@@ -380,6 +415,10 @@ internal sealed partial class JobsApp : IPhoneApp
             : string.Empty;
         var textLeft = iconMax.X + 14f * scale;
         var noteRight = hasMenu ? menuCenter.X - menuRadius - 8f * scale : contentRect.Max.X;
+        if (reorderable)
+        {
+            noteRight -= reorderRadius * 2f + 8f * scale;
+        }
         var textRight = noteRight -
                         (note.Length == 0 ? 0f : Typography.Measure(note, TextStyles.Caption2).X + 28f * scale);
         var maxTextWidth = MathF.Max(1f, textRight - textLeft);

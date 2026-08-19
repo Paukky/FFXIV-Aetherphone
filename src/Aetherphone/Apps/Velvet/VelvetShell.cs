@@ -8,6 +8,7 @@ using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.Home;
+using Aetherphone.Core.Inventory;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
 using Aetherphone.Core.Media;
@@ -30,8 +31,13 @@ namespace Aetherphone.Apps.Velvet;
 internal sealed partial class VelvetShell : IPhoneApp
 {
     private const float HeartbeatSeconds = 45f;
+    private const byte LalafellRaceId = 3;
 
     private readonly VelvetStore store;
+    private readonly FailureSlot discoverFailure = new();
+    private readonly FailureSlot commentFailure = new();
+    private string? commentRestore;
+    private readonly HashSet<string> reportedTargets = new(StringComparer.Ordinal);
     private readonly StoryPresenter stories;
     private readonly VelvetLauncher launcher;
     private readonly SocialLauncher socialLauncher;
@@ -71,6 +77,8 @@ internal sealed partial class VelvetShell : IPhoneApp
     private VelvetPage activeTab = VelvetPage.Discover;
     private float sinceHeartbeat = HeartbeatSeconds;
     private bool cachedLalafell;
+    private bool raceKnown;
+    private ulong raceContentId;
 
     public VelvetShell(AethernetSession session, AethernetApi net, LodestoneService lodestone,
         Configuration configuration, PhotoLibrary library, HttpService http, RemoteImageCache images,
@@ -79,12 +87,14 @@ internal sealed partial class VelvetShell : IPhoneApp
         PhoneVisibility visibility, RealtimeSignalBus realtimeSignals, WallpaperImageCache wallpaperImages,
         ConfirmService confirm, ReportService report, ConductGateService conduct, AppInstaller installer)
     {
+        var velvetArchiveDir = new DirectoryInfo(Path.Combine(Plugin.PluginInterface.ConfigDirectory.FullName, "Velvet"));
+        var notInterestedArchive = new VelvetNotInterestedArchive(velvetArchiveDir);
         store = new VelvetStore(session, net.Velvet, net.Account, net.Safety, net.Media, notifications, configuration,
-            keyVault, conversationKeys, visibility, realtimeSignals, installer);
+            keyVault, conversationKeys, visibility, realtimeSignals, installer, notInterestedArchive);
         commentMentions = new MentionAutocomplete(store.NewMentionSuggestions());
         stories = new StoryPresenter(session, net.Grams, net.Media, images, lodestone, VelvetArt.StoryRing, VelvetTheme.Palette,
             new StoryConfirmLabels(L.Velvet.DeleteConfirm, L.Velvet.DeleteCancel, L.Velvet.Saving), confirm,
-            realtimeSignals, "Velvet stories", StartStoryCompose);
+            realtimeSignals, "Velvet stories", StartStoryCompose, openProfile: OpenProfile);
         this.launcher = launcher;
         this.socialLauncher = socialLauncher;
         this.lodestone = lodestone;
@@ -202,6 +212,7 @@ internal sealed partial class VelvetShell : IPhoneApp
         theme = context.Theme;
         navigation = context.Navigation;
         ui.Theme = theme;
+        SyncLocalRace();
 
         if (!store.IsSignedIn)
         {
@@ -211,13 +222,14 @@ internal sealed partial class VelvetShell : IPhoneApp
             return;
         }
 
-        if (IsLalafellCharacter() || store.AccessBlocked)
+        if (LocalRaceIsLalafell is true || store.AccessBlocked)
         {
             TourHolds.Hold(Id);
             store.EnsureMe();
             TickHeartbeat();
+            var reason = store.RegionBlocked ? L.Velvet.UnavailableRegionBody : L.Velvet.UnavailableBody;
             EmptyState.Draw(context.Content, ui, FontAwesomeIcon.Ban, Loc.T(L.Velvet.UnavailableTitle),
-                Loc.T(L.Velvet.UnavailableBody));
+                Loc.T(reason));
             return;
         }
 
@@ -283,29 +295,48 @@ internal sealed partial class VelvetShell : IPhoneApp
         if (sinceHeartbeat >= HeartbeatSeconds)
         {
             sinceHeartbeat = 0f;
-            store.Heartbeat(SocialRegion.EffectiveCode(configuration, gameData), IsLalafellCharacter());
+            store.Heartbeat(SocialRegion.EffectiveCode(configuration, gameData), LocalRaceIsLalafell);
         }
     }
 
-    private bool IsLalafellCharacter()
+    private void SyncLocalRace()
     {
-        const byte lalafellRaceId = 3;
         if (!Plugin.Framework.IsInFrameworkUpdateThread)
         {
-            return cachedLalafell;
+            return;
+        }
+
+        var contentId = InventoryReader.ReadLocalContentId();
+        if (contentId != raceContentId)
+        {
+            raceContentId = contentId;
+            raceKnown = false;
+            cachedLalafell = false;
+        }
+
+        if (raceKnown || contentId == 0)
+        {
+            return;
         }
 
         var local = gameData.LocalPlayer;
         if (local is null)
         {
-            return cachedLalafell;
+            return;
         }
 
         var customize = local.Customize;
         var raceIndex = (int)CustomizeIndex.Race;
-        cachedLalafell = customize.Length > raceIndex && customize[raceIndex] == lalafellRaceId;
-        return cachedLalafell;
+        if (customize.Length <= raceIndex)
+        {
+            return;
+        }
+
+        cachedLalafell = customize[raceIndex] == LalafellRaceId;
+        raceKnown = true;
     }
+
+    private bool? LocalRaceIsLalafell => raceKnown ? cachedLalafell : null;
 
     private void DrawView(VelvetView view, Rect area, int depth)
     {
@@ -341,6 +372,9 @@ internal sealed partial class VelvetShell : IPhoneApp
                 break;
             case VelvetScreenId.Blocked:
                 DrawBlocked(area);
+                break;
+            case VelvetScreenId.NotInterested:
+                DrawNotInterested(area);
                 break;
             case VelvetScreenId.ChatImage:
                 threadView.DrawImagePicker(area, view.Arg ?? string.Empty);
@@ -487,6 +521,7 @@ internal sealed partial class VelvetShell : IPhoneApp
         }
 
         DrawPostMenu(area, true);
+        DrawThreadMenu(area);
     }
 
     private void DrawRichBody(ImDrawListPtr drawList, RichTextLayout layout, Vector2 origin)

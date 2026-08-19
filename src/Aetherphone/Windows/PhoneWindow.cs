@@ -91,6 +91,13 @@ internal sealed class PhoneWindow : Window
         IsOpen = true;
     }
 
+    public void OpenSettings()
+    {
+        Maximize();
+        IsOpen = true;
+        shell.OpenApp("settings");
+    }
+
     private void RequestPosition(Vector2? target)
     {
         if (target is not { } position)
@@ -220,6 +227,7 @@ internal sealed class PhoneWindow : Window
         LastSize = ImGui.GetWindowSize();
         Components.UiInteract.SetWindowHovered(ImGui.IsWindowHovered(
             ImGuiHoveredFlags.ChildWindows | ImGuiHoveredFlags.AllowWhenBlockedByActiveItem));
+        Components.UiInteract.SetWindowFocused(ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows));
         Plugin.Updates.Poll();
         using (Plugin.Fonts.Push(1f))
         {

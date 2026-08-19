@@ -1,5 +1,6 @@
 using System.Text;
 using Aetherphone.Core.Aethernet.Contracts;
+using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Social;
 
@@ -15,14 +16,47 @@ internal static class ModerationNoticeKinds
     public const int SignedOut = 5;
     public const int ReportOutcome = 6;
     public const int BadgeGranted = 7;
+    public const int BadgeRevoked = 8;
+    public const int EconomyAction = 9;
+    public const int MarkedSensitive = 10;
+    public const int FrameGranted = 11;
+    public const int FrameRevoked = 12;
 }
 
 internal static class ModerationNoticeText
 {
+    private static BadgeCatalogStore? badgeCatalog;
+    private static FrameCatalogStore? frameCatalog;
+
+    public static void Configure(BadgeCatalogStore catalog, FrameCatalogStore frames)
+    {
+        badgeCatalog = catalog;
+        frameCatalog = frames;
+    }
+
+    public static void Reset()
+    {
+        badgeCatalog = null;
+        frameCatalog = null;
+    }
+
     public static bool IsBlocking(ModerationNoticeDto notice)
     {
         return notice.Kind != ModerationNoticeKinds.ReportOutcome
-            && notice.Kind != ModerationNoticeKinds.BadgeGranted;
+            && notice.Kind != ModerationNoticeKinds.BadgeGranted
+            && notice.Kind != ModerationNoticeKinds.BadgeRevoked
+            && notice.Kind != ModerationNoticeKinds.FrameGranted
+            && notice.Kind != ModerationNoticeKinds.FrameRevoked
+            && notice.Kind != ModerationNoticeKinds.EconomyAction
+            && notice.Kind != ModerationNoticeKinds.MarkedSensitive;
+    }
+
+    public static bool IsCosmeticGrant(ModerationNoticeDto notice)
+    {
+        return notice.Kind == ModerationNoticeKinds.BadgeGranted
+            || notice.Kind == ModerationNoticeKinds.BadgeRevoked
+            || notice.Kind == ModerationNoticeKinds.FrameGranted
+            || notice.Kind == ModerationNoticeKinds.FrameRevoked;
     }
 
     public static string Title(ModerationNoticeDto notice)
@@ -36,6 +70,11 @@ internal static class ModerationNoticeText
             ModerationNoticeKinds.Suspended => Loc.T(L.Moderation.NoticeSuspendedTitle),
             ModerationNoticeKinds.SignedOut => Loc.T(L.Moderation.NoticeSignedOutTitle),
             ModerationNoticeKinds.BadgeGranted => Loc.T(L.Moderation.NoticeBadgeTitle),
+            ModerationNoticeKinds.BadgeRevoked => Loc.T(L.Moderation.NoticeBadgeRevokedTitle),
+            ModerationNoticeKinds.FrameGranted => Loc.T(L.Moderation.NoticeFrameTitle),
+            ModerationNoticeKinds.FrameRevoked => Loc.T(L.Moderation.NoticeFrameRevokedTitle),
+            ModerationNoticeKinds.EconomyAction => Loc.T(L.Moderation.NoticeCoinTitle),
+            ModerationNoticeKinds.MarkedSensitive => Loc.T(L.Moderation.NoticeSensitiveTitle),
             _ => Loc.T(L.Moderation.NoticeThanksTitle),
         };
     }
@@ -47,14 +86,38 @@ internal static class ModerationNoticeText
             return Loc.T(L.Moderation.NoticeThanksBody);
         }
 
-        if (notice.Kind == ModerationNoticeKinds.BadgeGranted)
+        if (notice.Kind == ModerationNoticeKinds.BadgeGranted || notice.Kind == ModerationNoticeKinds.BadgeRevoked)
         {
             return BadgeBody(notice);
+        }
+
+        if (notice.Kind == ModerationNoticeKinds.FrameGranted || notice.Kind == ModerationNoticeKinds.FrameRevoked)
+        {
+            return FrameBody(notice);
         }
 
         if (notice.Kind == ModerationNoticeKinds.SignedOut)
         {
             return Loc.T(L.Moderation.NoticeSignedOutBody);
+        }
+
+        if (notice.Kind == ModerationNoticeKinds.EconomyAction)
+        {
+            return notice.Detail.Length > 0 ? notice.Detail : Loc.T(L.Moderation.NoticeCoinBody);
+        }
+
+        if (notice.Kind == ModerationNoticeKinds.MarkedSensitive)
+        {
+            var veiled = new StringBuilder();
+            Append(veiled, Loc.T(L.Moderation.NoticeSensitiveBody));
+            AppendQuote(veiled, notice);
+            if (notice.ModeratorNote.Length > 0)
+            {
+                Append(veiled, Loc.T(L.Moderation.NoticeModeratorNote, notice.ModeratorNote));
+            }
+
+            Append(veiled, Loc.T(L.Moderation.RemovedFooter));
+            return veiled.ToString();
         }
 
         var body = new StringBuilder();
@@ -88,20 +151,149 @@ internal static class ModerationNoticeText
         return body.ToString();
     }
 
+    public static ConfirmSection[] Sections(ModerationNoticeDto notice)
+    {
+        var sections = new List<ConfirmSection>(9);
+        AddIntro(sections, notice);
+        AddRule(sections, notice);
+        AddEvidence(sections, notice);
+
+        if (notice.Kind == ModerationNoticeKinds.Suspended)
+        {
+            sections.Add(ConfirmSection.Divider());
+            sections.Add(ConfirmSection.Paragraph(notice.BanUntilUnix is { } until
+                ? Loc.T(L.Moderation.NoticeSuspendedFor, LiftMoment(until))
+                : Loc.T(L.Moderation.NoticeSuspendedPermanent)));
+        }
+
+        if (notice.ModeratorNote.Length > 0)
+        {
+            sections.Add(ConfirmSection.Divider());
+            sections.Add(ConfirmSection.Labeled(Loc.T(L.Moderation.NoticeModeratorNoteLabel), notice.ModeratorNote));
+        }
+
+        if (notice.Kind == ModerationNoticeKinds.Warning)
+        {
+            sections.Add(ConfirmSection.Divider());
+            sections.Add(ConfirmSection.Paragraph(Loc.T(L.Moderation.NoticeWarningConsequence)));
+        }
+
+        sections.Add(ConfirmSection.Divider());
+        sections.Add(ConfirmSection.Paragraph(Loc.T(L.Moderation.RemovedFooter)));
+        return sections.ToArray();
+    }
+
+    private static void AddIntro(List<ConfirmSection> sections, ModerationNoticeDto notice)
+    {
+        if (notice.Kind == ModerationNoticeKinds.Suspended && notice.BanUntilUnix is not null)
+        {
+            sections.Add(ConfirmSection.Paragraph(Loc.T(L.Moderation.NoticeSuspendedIntro)));
+            return;
+        }
+
+        if (notice.Kind == ModerationNoticeKinds.ProfileTextCleared && notice.RuleTitle.Length > 0)
+        {
+            sections.Add(ConfirmSection.Paragraph(Loc.T(L.Moderation.NoticeProfileClearedIntro, notice.RuleTitle)));
+            return;
+        }
+
+        if (notice.Kind == ModerationNoticeKinds.SignedOut)
+        {
+            sections.Add(ConfirmSection.Paragraph(Loc.T(L.Moderation.NoticeSignedOutBody)));
+        }
+    }
+
+    private static void AddRule(List<ConfirmSection> sections, ModerationNoticeDto notice)
+    {
+        if (notice.Kind == ModerationNoticeKinds.SignedOut)
+        {
+            return;
+        }
+
+        if (notice.RuleTitle.Length == 0)
+        {
+            sections.Add(ConfirmSection.Paragraph(ContentModeration.RemovalMessage(notice.ReasonCode)));
+            return;
+        }
+
+        sections.Add(ConfirmSection.Card(notice.RuleTitle, notice.RuleSummary));
+    }
+
+    private static void AddEvidence(List<ConfirmSection> sections, ModerationNoticeDto notice)
+    {
+        var label = Loc.T(L.Moderation.NoticeRemovedContentLabel);
+        if (notice.Kind == ModerationNoticeKinds.ProfileTextCleared && notice.Detail.Length > 0)
+        {
+            sections.Add(ConfirmSection.Divider());
+            sections.Add(ConfirmSection.Chip(label, notice.Detail));
+            return;
+        }
+
+        if (notice.ContentExcerpt.Length > 0)
+        {
+            sections.Add(ConfirmSection.Divider());
+            sections.Add(ConfirmSection.Chip(label, notice.ContentExcerpt));
+            return;
+        }
+
+        if (notice.MediaCount > 0)
+        {
+            sections.Add(ConfirmSection.Divider());
+            sections.Add(ConfirmSection.Chip(label,
+                Loc.T(L.Moderation.NoticePhotoCount, notice.MediaCount.ToString())));
+        }
+    }
+
     private static string BadgeBody(ModerationNoticeDto notice)
     {
+        var revoked = notice.Kind == ModerationNoticeKinds.BadgeRevoked;
         var names = BadgeNames(notice.Detail);
         if (names.Count == 0)
         {
-            return Loc.T(L.Moderation.NoticeBadgeBodyFallback);
+            return Loc.T(revoked ? L.Moderation.NoticeBadgeRevokedBodyFallback : L.Moderation.NoticeBadgeBodyFallback);
         }
 
         if (names.Count == 1)
         {
-            return Loc.T(L.Moderation.NoticeBadgeBodyOne, names[0]);
+            return Loc.T(revoked ? L.Moderation.NoticeBadgeRevokedBodyOne : L.Moderation.NoticeBadgeBodyOne, names[0]);
         }
 
-        return Loc.T(L.Moderation.NoticeBadgeBodyMany, string.Join(", ", names));
+        return Loc.T(revoked ? L.Moderation.NoticeBadgeRevokedBodyMany : L.Moderation.NoticeBadgeBodyMany,
+            string.Join(", ", names));
+    }
+
+    private static string FrameBody(ModerationNoticeDto notice)
+    {
+        var revoked = notice.Kind == ModerationNoticeKinds.FrameRevoked;
+        var names = FrameNames(notice.Detail);
+        if (names.Count == 0)
+        {
+            return Loc.T(revoked ? L.Moderation.NoticeFrameRevokedBodyFallback : L.Moderation.NoticeFrameBodyFallback);
+        }
+
+        if (names.Count == 1)
+        {
+            return Loc.T(revoked ? L.Moderation.NoticeFrameRevokedBodyOne : L.Moderation.NoticeFrameBodyOne, names[0]);
+        }
+
+        return revoked
+            ? Loc.T(L.Moderation.NoticeFrameRevokedBodyMany, string.Join(", ", names))
+            : Loc.T(L.Moderation.NoticeFrameBodyOne, names[0]);
+    }
+
+    private static List<string> FrameNames(string detail)
+    {
+        var ids = detail.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var names = new List<string>(ids.Length);
+        for (var index = 0; index < ids.Length; index++)
+        {
+            if (frameCatalog?.Find(ids[index]) is { } style)
+            {
+                names.Add(style.Name);
+            }
+        }
+
+        return names;
     }
 
     private static List<string> BadgeNames(string detail)
@@ -113,6 +305,10 @@ internal static class ModerationNoticeText
             if (BadgeNameFor(keys[index]) is { } name)
             {
                 names.Add(Loc.T(name));
+            }
+            else if (badgeCatalog?.Find(keys[index]) is { } style)
+            {
+                names.Add(style.Name);
             }
         }
 

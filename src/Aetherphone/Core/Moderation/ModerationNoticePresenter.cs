@@ -72,7 +72,7 @@ internal sealed class ModerationNoticePresenter : IDisposable
 
     private void Present(ModerationNoticeDto notice)
     {
-        if (notice.Kind == ModerationNoticeKinds.BadgeGranted)
+        if (ModerationNoticeText.IsCosmeticGrant(notice) || notice.Kind == ModerationNoticeKinds.EconomyAction)
         {
             accountState.RefreshNow();
         }
@@ -80,15 +80,17 @@ internal sealed class ModerationNoticePresenter : IDisposable
         var title = ModerationNoticeText.Title(notice);
         var body = ModerationNoticeText.Body(notice);
 
+        notifications.Notify(new PhoneNotification(SettingsAppId, title, body, DateTime.Now,
+            AppAccents.For(SettingsAppId), notice.Id));
+
         if (!ModerationNoticeText.IsBlocking(notice))
         {
-            notifications.Notify(new PhoneNotification(SettingsAppId, title, body, DateTime.Now,
-                AppAccents.For(SettingsAppId), notice.Id));
             notices.Acknowledge(notice);
             return;
         }
 
-        confirm.Alert(title, body, Loc.T(L.Moderation.RemovedDismiss), () => notices.Acknowledge(notice));
+        confirm.Alert(title, ModerationNoticeText.Sections(notice), body, Loc.T(L.Moderation.RemovedDismiss),
+            () => notices.Acknowledge(notice));
     }
 
     public void Dispose()

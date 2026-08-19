@@ -112,10 +112,15 @@ internal sealed class ShellTransitionRenderer
                 var rise = (1f - reveal) * 8f * UiScale.Current;
                 var target = new Rect(screen.Min + offset + new Vector2(0f, rise),
                     screen.Max + offset + new Vector2(0f, rise));
+                var footprint = HostWindowFootprint.Capture();
+                ImGui.SetCursorScreenPos(target.Min);
                 using (ImRaii.PushId(over.Id))
+                using (ImRaii.Child("zoomstage", target.Size, false, cardFlags))
                 {
                     painter.PaintApp(target, screenRadius, theme, over);
                 }
+
+                footprint.Restore();
             }
 
             var cardDrawList = ImGui.GetWindowDrawList();
@@ -144,9 +149,9 @@ internal sealed class ShellTransitionRenderer
         var size = rest.Width * (1f + 0.4f * raw);
         var center = card.Center;
         var surface = IconTile.Surface(over.Accent);
-        var ink = new Vector4(1f, 1f, 1f, alpha);
+        var ink = AppAccents.InkFor(over.Id) with { W = alpha };
         if (!AppIconArt.TryDraw(drawList, over.Id, center, size, ink,
-                Palette.WithAlpha(Palette.Darken(surface, 0.25f), alpha)))
+                Palette.WithAlpha(Palette.Mix(surface, ink, 0.28f), alpha)))
         {
             var glyphHeight = Typography.Measure(over.Glyph).Y;
             var glyphScale = glyphHeight > 0f ? size * 0.5f / glyphHeight : 1f;

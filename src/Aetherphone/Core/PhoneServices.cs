@@ -8,6 +8,7 @@ using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.Games;
 using Aetherphone.Core.Health;
+using Aetherphone.Core.Housing;
 using Aetherphone.Core.Inventory;
 using Aetherphone.Core.Lodestone;
 using Aetherphone.Core.Maps;
@@ -17,6 +18,7 @@ using Aetherphone.Core.Moderation;
 using Aetherphone.Core.Muster;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Linkpearl;
+using Aetherphone.Core.GameChat;
 using Aetherphone.Core.Net;
 using Aetherphone.Core.News;
 using Aetherphone.Core.Notifications;
@@ -34,6 +36,7 @@ using Aetherphone.Core.Wallpapers;
 using Aetherphone.Core.YellowPages;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
+using Aetherphone.Core.Video;
 using YoutubeExplode;
 
 namespace Aetherphone.Core;
@@ -46,6 +49,8 @@ internal sealed class PhoneServices : IDisposable
     public required GameData GameData { get; init; }
     public required CharacterWatch CharacterWatch { get; init; }
     public required MapData Maps { get; init; }
+    public required HousingService Housing { get; init; }
+    public required HousingReminderService HousingReminders { get; init; }
     public required ITextureProvider Textures { get; init; }
     public required WeatherService Weather { get; init; }
     public required WeatherControl WeatherControl { get; init; }
@@ -58,20 +63,46 @@ internal sealed class PhoneServices : IDisposable
     public required ModerationNoticeArchive ModerationArchive { get; init; }
     public required SafetyLauncher SafetyLauncher { get; init; }
     public required SoundService Sound { get; init; }
-    public required MessageStore Messages { get; init; }
-    public required ChatBridge ChatBridge { get; init; }
     public required LinkpearlLauncher LinkpearlLauncher { get; init; }
     public required VelvetLauncher VelvetLauncher { get; init; }
     public required DmLauncher DmLauncher { get; init; }
     public required GramDmLauncher GramDmLauncher { get; init; }
     public required SocialLauncher SocialLauncher { get; init; }
-    public required LinkshellMuteStore LinkshellMutes { get; init; }
     public required LinkpearlNotificationGate LinkpearlNotificationGate { get; init; }
-    public required LinkshellStore Linkshells { get; init; }
-    public required LinkshellBridge LinkshellBridge { get; init; }
+    public required GameChat.ChatLog ChatLog { get; init; }
+    public required GameChat.ChatSend ChatSend { get; init; }
+    public required GameChat.ChatCapture ChatCapture { get; init; }
+    public required GameChat.ChatArchive ChatArchive { get; init; }
+    public required GameChat.TabStore ChatTabs { get; init; }
+    public required GameChat.ChatInbox ChatInbox { get; init; }
+    public required GameChat.ChatNotifier ChatNotifier { get; init; }
     public required HttpService Http { get; init; }
     public required MediaCache Media { get; init; }
     public required RemoteImageCache RemoteImages { get; init; }
+
+    public required Social.BadgeCatalogStore BadgeCatalog { get; init; }
+
+    public required Social.FrameCatalogStore FrameCatalog { get; init; }
+
+    public required Social.LoadoutStore Loadout { get; init; }
+
+    public required Coins.CoinStore Coins { get; init; }
+
+    public required Coins.CoinCatalogStore CoinCatalog { get; init; }
+
+    public required Coins.CoinGameSessionTracker CoinSessions { get; init; }
+
+    public required Coins.CoinEarnNotifier CoinEarnNotifier { get; init; }
+
+    public required Casino.CasinoStore Casino { get; init; }
+    public required Casino.CasinoPlayStore CasinoPlay { get; init; }
+    public required Casino.CasinoHistoryStore CasinoHistory { get; init; }
+    public required Casino.CasinoRoomsStore CasinoRooms { get; init; }
+    public required Casino.CasinoTablesStore CasinoTables { get; init; }
+    public required Casino.CasinoSpinStore CasinoSpin { get; init; }
+    public required Casino.CasinoTurnNotifier CasinoTurns { get; init; }
+    public required Casino.CasinoLauncher CasinoLauncher { get; init; }
+    public required Video.AetherStreamLauncher AetherStreamLauncher { get; init; }
     public required PluginCatalog PluginCatalog { get; init; }
     public required ShortcutStore Shortcuts { get; init; }
     public required ShortcutRunner ShortcutRunner { get; init; }
@@ -84,6 +115,7 @@ internal sealed class PhoneServices : IDisposable
     public required KeyVault KeyVault { get; init; }
     public required PeerKeyDirectory PeerKeys { get; init; }
     public required ConversationKeyStore ConversationKeys { get; init; }
+    public required EncryptionSetupLauncher EncryptionSetup { get; init; }
     public required MarketItemIndex MarketIndex { get; init; }
     public required MarketboardService Market { get; init; }
     public required MarketLauncher MarketLauncher { get; init; }
@@ -92,7 +124,9 @@ internal sealed class PhoneServices : IDisposable
     public required RadioService Radio { get; init; }
     public required RadioPlayer RadioPlayer { get; init; }
     public required SongSearchService SongSearch { get; init; }
+    public required VideoUrlResolver VideoMetadata { get; init; }
     public required SongPlayer SongPlayer { get; init; }
+    public required SongLinkResolver SongResolver { get; init; }
     public required SongHistory SongHistory { get; init; }
     public required PlaylistStore Playlists { get; init; }
     public required PlaybackHub Playback { get; init; }
@@ -100,6 +134,8 @@ internal sealed class PhoneServices : IDisposable
     public required VenuesService Venues { get; init; }
     public required MusterStore Musters { get; init; }
     public required MusterLauncher MusterLauncher { get; init; }
+
+    public required RadioLauncher RadioLauncher { get; init; }
     public required YellowPagesStore YellowPages { get; init; }
 
     public required AdInquiryStore AdInquiries { get; init; }
@@ -111,6 +147,7 @@ internal sealed class PhoneServices : IDisposable
     public required ActivityRingNotifier RingNotifier { get; init; }
     public required HealthTracker Health { get; init; }
     public required CallHub Calls { get; init; }
+    public required StreamSignalRouter StreamSignals { get; init; }
     public required PhoneVisibility Visibility { get; init; }
     public required RealtimeSignalBus RealtimeSignals { get; init; }
     public required LoadingScreen Loading { get; init; }
@@ -132,7 +169,7 @@ internal sealed class PhoneServices : IDisposable
         var wallpapers = new WallpaperLibrary(textures, builtInWallpaperDirectory, customWallpaperDirectory,
             configuration);
         var themes = new ThemeProvider(configuration, wallpapers);
-        var gameData = new GameData(dataManager, objectTable);
+        var gameData = new GameData(dataManager, objectTable, framework);
         var maps = new MapData(dataManager, clientState);
         var weather = new WeatherService(dataManager, clientState);
         var weatherControl = new WeatherControl(weather, framework, clientState, condition,
@@ -148,20 +185,23 @@ internal sealed class PhoneServices : IDisposable
         var notifications = new NotificationService(sound, configuration, installer, framework);
         var characterWatch = new CharacterWatch(framework);
         var messageArchive = new MessageArchive(new DirectoryInfo(Path.Combine(configDirectory.FullName, "Messages")));
-        var messages = new MessageStore(messageArchive, configuration, characterWatch);
         var linkpearlNotificationGate = new LinkpearlNotificationGate(configuration);
         var linkpearlGate = installer.Gate("messages");
-        var chatBridge = new ChatBridge(messages, notifications, linkpearlNotificationGate, chatGui, gameData,
-            linkpearlGate);
         var linkpearlLauncher = new LinkpearlLauncher();
         var velvetLauncher = new VelvetLauncher();
         var dmLauncher = new DmLauncher();
         var gramDmLauncher = new GramDmLauncher();
         var socialLauncher = new SocialLauncher();
-        var linkshellMutes = new LinkshellMuteStore(configuration, characterWatch);
-        var linkshells = new LinkshellStore(linkshellMutes, characterWatch);
-        var linkshellBridge = new LinkshellBridge(linkshells, linkshellMutes, notifications, linkpearlNotificationGate,
-            chatGui, gameData, linkpearlGate);
+        var chatLog = new GameChat.ChatLog();
+        var chatSend = new GameChat.ChatSend();
+        var chatCapture = new GameChat.ChatCapture(chatLog, chatSend, chatGui, gameData, linkpearlGate);
+        var chatArchive = new GameChat.ChatArchive(
+            new DirectoryInfo(Path.Combine(configDirectory.FullName, "GameChat")), configuration, chatLog,
+            messageArchive, characterWatch);
+        var chatTabs = new GameChat.TabStore(configuration, characterWatch);
+        var chatInbox = new GameChat.ChatInbox(chatLog, chatTabs, configuration);
+        var chatNotifier = new GameChat.ChatNotifier(chatLog, chatTabs, chatInbox, linkpearlNotificationGate,
+            notifications, linkpearlGate);
         var cacheRoot = new DirectoryInfo(Path.Combine(configDirectory.FullName, "cache"));
         cacheRoot.Create();
         var mediaRoot = new DirectoryInfo(Path.Combine(cacheRoot.FullName, "media"));
@@ -172,12 +212,28 @@ internal sealed class PhoneServices : IDisposable
         var imageDisk = new DiskCache(imageRoot, 128L * 1024 * 1024);
         var remoteImages = new RemoteImageCache(http, imageDisk);
         var pluginCatalog = new PluginCatalog(remoteImages, http, imageDisk);
-        var lodestone = new LodestoneService(configuration, http, media, cacheRoot);
+        var lodestone = new LodestoneService(configuration, gameData, http, media, cacheRoot);
         var lookup = new LookupService(lodestone);
         var aethernetSession = new AethernetSession(configuration, framework);
-        var availability = new AppAvailability(http, aethernetSession, configuration);
+        var availability = new AppAvailability(http, aethernetSession, configuration, gameData);
         var aethernet = new AethernetApi(http, aethernetSession);
         var keyVault = new KeyVault(configuration, aethernetSession, aethernet.Keys);
+        var badgeCatalog = new Social.BadgeCatalogStore(aethernetSession, aethernet.Account);
+        var frameCatalog = new Social.FrameCatalogStore(aethernetSession, aethernet.Account);
+        var loadoutStore = new Social.LoadoutStore(aethernetSession, aethernet.Account);
+        Social.Frames.Use(frameCatalog);
+        Windows.Components.UserName.Configure(badgeCatalog, remoteImages);
+        Moderation.ModerationNoticeText.Configure(badgeCatalog, frameCatalog);
+        var coinApi = new AethernetApi(http, aethernetSession, "coin");
+        var coins = new Coins.CoinStore(aethernetSession, coinApi.Coins);
+        var coinCatalog = new Coins.CoinCatalogStore(aethernetSession, coinApi.Coins);
+        var coinSessions = new Coins.CoinGameSessionTracker(configuration, aethernetSession, coinApi.Coins);
+        var coinEarnNotifier = new Coins.CoinEarnNotifier(coins, notifications);
+        var casinoApi = new AethernetApi(http, aethernetSession, "casino");
+        var casino = new Casino.CasinoStore(configuration, aethernetSession, casinoApi.Casino, coins);
+        var casinoPlay = new Casino.CasinoPlayStore(configuration, aethernetSession, casinoApi.Casino, casino);
+        var casinoHistory = new Casino.CasinoHistoryStore(aethernetSession, casinoApi.Casino);
+        var casinoSpin = new Casino.CasinoSpinStore(aethernetSession, casinoApi.Casino, coins);
         var peerKeys = new PeerKeyDirectory(configuration, aethernet.Keys);
         var conversationKeys = new ConversationKeyStore(aethernet.Keys, keyVault);
         var marketIndex = new MarketItemIndex(dataManager);
@@ -188,10 +244,12 @@ internal sealed class PhoneServices : IDisposable
         var radio = new RadioService(http);
         var radioPlayer = new RadioPlayer();
         var youtube = new YoutubeClient();
-        var songSearch = new SongSearchService(youtube);
         var audioRoot = new DirectoryInfo(Path.Combine(cacheRoot.FullName, "audio"));
         var audioCache = new DiskCache(audioRoot, 256L * 1024 * 1024);
-        var songPlayer = new SongPlayer(youtube, audioCache);
+        var songResolver = new SongLinkResolver(Path.Combine(audioRoot.FullName, "resolver"));
+        var songSearch = new SongSearchService(youtube, songResolver);
+        var videoMetadata = new VideoUrlResolver(youtube);
+        var songPlayer = new SongPlayer(youtube, audioCache, songResolver);
         var songHistory = new SongHistory(configuration);
         var playlists = new PlaylistStore(configuration);
         var playback = new PlaybackHub(radioPlayer, songPlayer, configuration);
@@ -209,9 +267,17 @@ internal sealed class PhoneServices : IDisposable
         var health = new HealthTracker(framework, characterWatch, notifications, configDirectory);
         var realtimeSignals = new RealtimeSignalBus();
         var visibility = new PhoneVisibility();
+        var housingCacheRoot = new DirectoryInfo(Path.Combine(cacheRoot.FullName, "housing"));
+        var housingGate = installer.Gate(HousingService.AppId);
+        var housingGameMaps = new HousingGameMaps(dataManager, textures);
+        var housing = new HousingService(http, configuration, gameData, framework, housingGameMaps, visibility,
+            housingCacheRoot, housingGate);
+        var housingReminders = new HousingReminderService(configuration, framework, notifications, housing.Watch,
+            housingGate);
         var confirm = new ConfirmService();
         var calls = new CallHub(configuration, aethernetSession, notifications, sound, playback, realtimeSignals,
             confirm, installer.Gate("message"));
+        var streamSignals = new StreamSignalRouter(calls.Router);
         var characterSwitcher = new CharacterSessionManager(framework, aethernetSession, aethernet.Account,
             gameData, configuration, confirm);
         var socialNotifications = new SocialNotificationService(aethernetSession, aethernet.Account, notifications, configuration, framework, visibility, realtimeSignals, installer);
@@ -222,6 +288,12 @@ internal sealed class PhoneServices : IDisposable
             accountState, framework);
         var moderationArchive = new ModerationNoticeArchive(aethernetSession, aethernet.Account);
         var safetyLauncher = new SafetyLauncher();
+        var casinoRooms = new Casino.CasinoRoomsStore(aethernetSession, casinoApi.Casino, casino, visibility,
+            realtimeSignals);
+        var casinoTables = new Casino.CasinoTablesStore(aethernetSession, casinoApi.Casino, casino, visibility,
+            realtimeSignals);
+        var casinoTurns = new Casino.CasinoTurnNotifier(aethernetSession, casinoRooms, notifications,
+            Apps.AppAccents.For("casino"));
         var musters = new MusterStore(aethernetSession, aethernet.Musters, notifications, configuration,
             visibility, realtimeSignals, installer.Gate(MusterStore.AppId));
         var yellowPages = new YellowPagesStore(aethernetSession, aethernet.Ads, aethernet.Media, configuration,
@@ -236,6 +308,8 @@ internal sealed class PhoneServices : IDisposable
             GameData = gameData,
             CharacterWatch = characterWatch,
             Maps = maps,
+            Housing = housing,
+            HousingReminders = housingReminders,
             Textures = textures,
             Weather = weather,
             WeatherControl = weatherControl,
@@ -247,20 +321,38 @@ internal sealed class PhoneServices : IDisposable
             ModerationArchive = moderationArchive,
             SafetyLauncher = safetyLauncher,
             Sound = sound,
-            Messages = messages,
-            ChatBridge = chatBridge,
             LinkpearlLauncher = linkpearlLauncher,
             VelvetLauncher = velvetLauncher,
             DmLauncher = dmLauncher,
             GramDmLauncher = gramDmLauncher,
             SocialLauncher = socialLauncher,
-            LinkshellMutes = linkshellMutes,
             LinkpearlNotificationGate = linkpearlNotificationGate,
-            Linkshells = linkshells,
-            LinkshellBridge = linkshellBridge,
+            ChatLog = chatLog,
+            ChatSend = chatSend,
+            ChatCapture = chatCapture,
+            ChatArchive = chatArchive,
+            ChatTabs = chatTabs,
+            ChatInbox = chatInbox,
+            ChatNotifier = chatNotifier,
             Http = http,
             Media = media,
             RemoteImages = remoteImages,
+            BadgeCatalog = badgeCatalog,
+            FrameCatalog = frameCatalog,
+            Loadout = loadoutStore,
+            Coins = coins,
+            CoinCatalog = coinCatalog,
+            CoinSessions = coinSessions,
+            CoinEarnNotifier = coinEarnNotifier,
+            Casino = casino,
+            CasinoPlay = casinoPlay,
+            CasinoHistory = casinoHistory,
+            CasinoRooms = casinoRooms,
+            CasinoTables = casinoTables,
+            CasinoSpin = casinoSpin,
+            CasinoTurns = casinoTurns,
+            CasinoLauncher = new Casino.CasinoLauncher(),
+            AetherStreamLauncher = new Video.AetherStreamLauncher(),
             PluginCatalog = pluginCatalog,
             Shortcuts = new ShortcutStore(configuration, pluginCatalog),
             ShortcutRunner = new ShortcutRunner(clientState, condition),
@@ -273,6 +365,7 @@ internal sealed class PhoneServices : IDisposable
             KeyVault = keyVault,
             PeerKeys = peerKeys,
             ConversationKeys = conversationKeys,
+            EncryptionSetup = new EncryptionSetupLauncher(),
             MarketIndex = marketIndex,
             Market = market,
             MarketLauncher = marketLauncher,
@@ -281,7 +374,9 @@ internal sealed class PhoneServices : IDisposable
             Radio = radio,
             RadioPlayer = radioPlayer,
             SongSearch = songSearch,
+            VideoMetadata = videoMetadata,
             SongPlayer = songPlayer,
+            SongResolver = songResolver,
             SongHistory = songHistory,
             Playlists = playlists,
             Playback = playback,
@@ -289,6 +384,7 @@ internal sealed class PhoneServices : IDisposable
             Venues = venues,
             Musters = musters,
             MusterLauncher = new MusterLauncher(),
+            RadioLauncher = new RadioLauncher(),
             YellowPages = yellowPages,
             AdInquiries = adInquiries,
             YellowPagesLauncher = new YellowPagesLauncher(),
@@ -299,6 +395,7 @@ internal sealed class PhoneServices : IDisposable
             RingNotifier = ringNotifier,
             Health = health,
             Calls = calls,
+            StreamSignals = streamSignals,
             Visibility = visibility,
             RealtimeSignals = realtimeSignals,
             Loading = new LoadingScreen(configuration),
@@ -321,22 +418,28 @@ internal sealed class PhoneServices : IDisposable
         ModerationNotices.Dispose();
         AccountState.Dispose();
         KeyVault.Dispose();
+        StreamSignals.Dispose();
         Calls.Dispose();
         Collections.Dispose();
         InventoryCapture.Dispose();
         RingNotifier.Dispose();
         Health.Dispose();
         Activity.Dispose();
+        HousingReminders.Dispose();
+        Housing.Dispose();
         Venues.Dispose();
         Musters.Dispose();
         YellowPages.Dispose();
         AdInquiries.Dispose();
         SongPlayer.Dispose();
         SongSearch.Dispose();
+        VideoMetadata.Dispose();
         RadioPlayer.Dispose();
         Radio.Dispose();
-        LinkshellBridge.Dispose();
-        ChatBridge.Dispose();
+        ChatNotifier.Dispose();
+        ChatCapture.Dispose();
+        ChatInbox.Dispose();
+        ChatArchive.Dispose();
         Lookup.Dispose();
         Lodestone.Dispose();
         MarketAlerts.Dispose();
@@ -347,6 +450,22 @@ internal sealed class PhoneServices : IDisposable
         Media.Dispose();
         ShortcutRunner.Dispose();
         RemoteImages.Dispose();
+        Windows.Components.UserName.Reset();
+        Moderation.ModerationNoticeText.Reset();
+        CasinoTurns.Dispose();
+        CasinoTables.Dispose();
+        CasinoRooms.Dispose();
+        CasinoSpin.Dispose();
+        CasinoHistory.Dispose();
+        CasinoPlay.Dispose();
+        Casino.Dispose();
+        CoinEarnNotifier.Dispose();
+        CoinSessions.Dispose();
+        CoinCatalog.Dispose();
+        Coins.Dispose();
+        BadgeCatalog.Dispose();
+        FrameCatalog.Dispose();
+        Loadout.Dispose();
         Availability.Dispose();
         Http.Dispose();
         Wallpapers.Dispose();

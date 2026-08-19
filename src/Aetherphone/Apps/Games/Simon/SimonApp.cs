@@ -1,3 +1,4 @@
+using Aetherphone.Core.Animation;
 using Aetherphone.Apps.Games.Framework;
 using Aetherphone.Core;
 using Aetherphone.Core.Apps;
@@ -46,6 +47,8 @@ internal sealed class SimonApp : IMiniGame
     public string Id => GameId;
     public Vector4 Accent => AppAccents.For(Id);
     public string Title => Loc.T(L.Games.Simon);
+    public bool RunsOnAClock => true;
+
     public string Genre => Loc.T(L.Games.GenreMemory);
     public void Open()
     {

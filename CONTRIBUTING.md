@@ -14,6 +14,8 @@ You need the .NET 10 SDK. The plugin requires Dalamud at runtime; CI pulls a Dal
 
 Load the built plugin via `/xlsettings` -> **Experimental** -> **Dev Plugin Locations**, pointing at `src/Aetherphone/bin/Release/Aetherphone.dll`.
 
+A `Debug` build produces a separate side-by-side plugin instead: `src/Aetherphone/bin/Debug/AetherphoneDev.dll`, loaded as `AetherphoneDev`, opened with `/phonedev`, with its own config and pointed at the development Aethernet instance. Register whichever path you build.
+
 ## Project layout
 
 - `src/Aetherphone/Core/`: the device platform: app framework and navigation, theming, messaging, notifications, character/contacts, game data readers, and the shared services (networking, crypto, media, localization) the apps build on.
@@ -34,6 +36,10 @@ The full developer documentation lives in [`docs/`](docs/README.md): the archite
 3. Keep the diff focused. One concern per PR.
 4. Match the existing style; the rules are written down in [docs/conventions.md](docs/conventions.md). Code is self-documenting; comments explain *why* (or a hard-coded constant), never *what*. No heavy abstractions "for later."
 5. If your change affects what a user sees or types (commands, layout, settings), update the README.
+
+## Translations
+
+Improving one of the nine language files needs no C#, no build, and no git. You edit a single JSON file under `src/Aetherphone/Localization/` in the browser and open a pull request from there. [docs/translating.md](docs/translating.md) walks a non-developer through the whole flow, including the rules that keep the nine catalogs in lockstep. Adding a *new* string is a code change and follows [docs/localization.md](docs/localization.md) instead.
 
 ## Good first issues
 

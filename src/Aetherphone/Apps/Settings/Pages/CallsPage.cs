@@ -5,8 +5,6 @@ using Aetherphone.Core.Telephony;
 using Aetherphone.Core.Telephony.Audio;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility.Raii;
-
 using Dalamud.Interface;
 
 namespace Aetherphone.Apps.Settings.Pages;
@@ -14,7 +12,7 @@ namespace Aetherphone.Apps.Settings.Pages;
 internal sealed class CallsPage : ISettingsPage
 {
     public string Title => Loc.T(L.Phone.SettingsTitle);
-    public string Summary => calls.Enabled ? Loc.T(L.Phone.SummaryOn) : Loc.T(L.Phone.SummaryOff);
+    public string Summary => calls.Enabled ? string.Empty : Loc.T(L.Phone.SummaryOff);
     public FontAwesomeIcon Icon => FontAwesomeIcon.Phone;
     public Vector4 Tint => new(0.20f, 0.78f, 0.35f, 1f);
     private readonly CallHub calls;
@@ -32,7 +30,7 @@ internal sealed class CallsPage : ISettingsPage
         var scale = UiScale.Current;
         using (AppSurface.Begin(body))
         {
-            SettingsSection.Header(Loc.T(L.Phone.Calls), theme);
+            ImGui.Dummy(new Vector2(0f, Metrics.Space.Md * scale));
             var toggleCard = GroupCard.Begin(theme, 1);
             var enabled = SettingsRow.Bool(toggleCard.NextRow(), Loc.T(L.Phone.EnablePhoneCalls), calls.Enabled, theme);
             toggleCard.End();
@@ -41,7 +39,7 @@ internal sealed class CallsPage : ISettingsPage
                 calls.SetEnabled(enabled);
             }
 
-            SettingsSection.Header(Loc.T(L.Phone.Microphone), theme);
+            SettingsSection.Header(Loc.T(L.Phone.Microphone), theme, Loc.T(L.Phone.AudioHint));
             var inputs = AudioDevices.InputNames();
             var current = configuration.CallInputDevice;
             var micCard = GroupCard.Begin(theme, inputs.Length + 1);
@@ -61,13 +59,28 @@ internal sealed class CallsPage : ISettingsPage
             }
 
             micCard.End();
-            ImGui.Dummy(new Vector2(0f, 10f * scale));
-            using (ImRaii.PushColor(ImGuiCol.Text, theme.TextMuted))
+            SettingsSection.Header(Loc.T(L.Phone.Speaker), theme);
+            var outputs = AudioDevices.OutputNames();
+            var currentOutput = configuration.CallOutputDevice;
+            var speakerCard = GroupCard.Begin(theme, outputs.Length + 1);
+            if (SettingsRow.Selectable(speakerCard.NextRow(), Loc.T(L.Phone.SystemDefault),
+                    string.IsNullOrEmpty(currentOutput), theme))
             {
-                ImGui.PushTextWrapPos(0f);
-                Typography.Wrapped(Loc.T(L.Phone.AudioHint));
-                ImGui.PopTextWrapPos();
+                SetOutput(string.Empty);
             }
+
+            for (var index = 0; index < outputs.Length; index++)
+            {
+                var name = outputs[index];
+                if (SettingsRow.Selectable(speakerCard.NextRow(), DeviceLabel(name, index), currentOutput == name,
+                        theme))
+                {
+                    SetOutput(name);
+                }
+            }
+
+                speakerCard.End();
+            ImGui.Dummy(new Vector2(0f, Metrics.Space.Md * scale));
         }
     }
 
@@ -79,6 +92,17 @@ internal sealed class CallsPage : ISettingsPage
         }
 
         configuration.CallInputDevice = name;
+        configuration.Save();
+    }
+
+    private void SetOutput(string name)
+    {
+        if (configuration.CallOutputDevice == name)
+        {
+            return;
+        }
+
+        configuration.CallOutputDevice = name;
         configuration.Save();
     }
 

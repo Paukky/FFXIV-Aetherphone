@@ -5,6 +5,7 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Aetherphone.Core.Social;
 
 namespace Aetherphone.Apps.Velvet.Kit;
 
@@ -42,6 +43,9 @@ internal struct VRowModel
     public bool PillEnabled;
     public int Badge;
     public int RoleBadges;
+    public string[]? RoleBadgeIds;
+
+    public string? FrameId;
     public string? UserId;
     public string Time;
     public bool Chevron;
@@ -82,7 +86,7 @@ internal static class VRow
             var radius = (model.AvatarRadius <= 0f ? 20f : model.AvatarRadius) * scale;
             var avatarCenter = new Vector2(min.X + leftPad + radius, centerY);
             VAvatar.Draw(drawList, avatarCenter, radius, theme, nameText, worldText, model.AvatarUrl, images,
-                lodestone, model.Presence);
+                lodestone, model.Presence, null, Frames.Of(model.FrameId));
             textLeft = avatarCenter.X + radius + Metrics.Space.Md * scale;
         }
         else if (model.Leading == VRowLeading.IconTile)
@@ -167,7 +171,7 @@ internal static class VRow
         if (subtitleText.Length == 0)
         {
             var titleSize = Typography.Measure(titleText, TextStyles.Headline);
-            UserName.Draw(drawList, titleKey, titleText, model.RoleBadges, textLeft,
+            UserName.Draw(drawList, titleKey, titleText, model.RoleBadges, model.RoleBadgeIds, textLeft,
                 centerY - titleSize.Y * 0.5f, innerWidth, TextStyles.Headline, VelvetTheme.TitleInk, hovered, false);
         }
         else
@@ -176,7 +180,7 @@ internal static class VRow
             var titleSize = Typography.Measure(titleText, TextStyles.Headline);
             var titleHovering = UiInteract.Hover(new Vector2(textLeft, titleY),
                 new Vector2(textLeft + innerWidth, titleY + titleSize.Y));
-            UserName.Draw(drawList, titleKey, titleText, model.RoleBadges, textLeft, titleY,
+            UserName.Draw(drawList, titleKey, titleText, model.RoleBadges, model.RoleBadgeIds, textLeft, titleY,
                 innerWidth, TextStyles.Headline, VelvetTheme.TitleInk, titleHovering, false);
             var subtitleY = centerY + 3f * scale;
             var subtitleSize = Typography.Measure(subtitleText, TextStyles.Subheadline);
@@ -186,7 +190,11 @@ internal static class VRow
                 innerWidth, TextStyles.Subheadline, VelvetTheme.MutedInk, subtitleHovering);
         }
 
-        if (hit == VRowHit.None && !overControl && UiInteract.Click(min, max, hovered))
+        if (hit == VRowHit.None && !overControl && hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+        {
+            hit = VRowHit.Overflow;
+        }
+        else if (hit == VRowHit.None && !overControl && UiInteract.Click(min, max, hovered))
         {
             hit = VRowHit.Body;
         }

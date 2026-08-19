@@ -14,6 +14,7 @@ internal sealed class CallSignalRouter : IDisposable
         connection = new RealtimeConnection(session);
         connection.ControlReceived += OnControl;
         connection.ConnectedChanged += OnConnected;
+        signals.BindSender(Send);
     }
 
     public event Action<Guid, CallControl>? IncomingReceived;
@@ -44,10 +45,16 @@ internal sealed class CallSignalRouter : IDisposable
 
     private void OnControl(CallControl message)
     {
+        if (message.Type.StartsWith(SignalType.CasinoPrefix, StringComparison.Ordinal))
+        {
+            signals.PublishCasino(new CasinoSignal(message.Type, message.Reason, message.Casino));
+            return;
+        }
+
         switch (message.Type)
         {
             case SignalType.ChatPing:
-                signals.PublishChat();
+                signals.PublishChat(new ChatSignal(message.ContentId, message.Message));
                 return;
             case SignalType.VelvetPing:
                 signals.PublishVelvet();
@@ -87,7 +94,11 @@ internal sealed class CallSignalRouter : IDisposable
 
         if (target is null)
         {
-            AepLog.Warning($"[calls] unhandled-signal type={message.Type} call={message.CallId} reason={message.Reason}");
+            if (!message.Type.StartsWith(SignalType.StreamPrefix, StringComparison.Ordinal))
+            {
+                AepLog.Warning($"[calls] unhandled-signal type={message.Type} call={message.CallId} reason={message.Reason}");
+            }
+
             return;
         }
 
@@ -101,6 +112,7 @@ internal sealed class CallSignalRouter : IDisposable
 
     public void Dispose()
     {
+        signals.BindSender(null);
         connection.ControlReceived -= OnControl;
         connection.ConnectedChanged -= OnConnected;
         connection.Dispose();

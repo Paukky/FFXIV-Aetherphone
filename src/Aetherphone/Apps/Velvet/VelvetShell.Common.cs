@@ -49,9 +49,19 @@ internal sealed partial class VelvetShell
         report.Open(new ReportPrompt
         {
             Title = title,
-            Submit = (reason, done) => store.Report(targetType, targetId, reason, done),
+            Submit = (reason, done) => store.Report(targetType, targetId, reason, succeeded =>
+            {
+                if (succeeded)
+                {
+                    reportedTargets.Add(targetId);
+                }
+
+                done(succeeded);
+            }),
         });
     }
+
+    private bool AlreadyReported(string targetId) => reportedTargets.Contains(targetId);
 
     private void DrawPostMenu(Rect area, bool inFeed)
     {
@@ -125,11 +135,12 @@ internal sealed partial class VelvetShell
     {
         confirm.Ask(new ConfirmRequest
         {
-            Message = Loc.T(L.Velvet.BlockConfirm, displayName),
+            Title = Loc.T(L.Social.BlockConfirmTitle, displayName),
+            Message = Loc.T(L.Velvet.BlockConfirm),
             ConfirmLabel = Loc.T(L.Velvet.Block),
             CancelLabel = Loc.T(L.Velvet.DeleteCancel),
             Danger = true,
-            Confirm = () => store.Block(userId, _ => { }),
+            ConfirmAsync = done => store.Block(userId, done, confirm.ReportFailure),
         });
     }
 }

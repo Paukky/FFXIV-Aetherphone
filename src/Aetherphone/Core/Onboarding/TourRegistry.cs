@@ -40,17 +40,12 @@ internal static class TourRegistry
             {
                 GuideStep.Note(L.Onboarding.MessagesTitle, L.Onboarding.MessagesBody),
                 GuideStep.Point(L.Onboarding.MessagesListTitle, L.Onboarding.MessagesListBody, "messages.list"),
-                GuideStep.Tap(L.Onboarding.MessagesLinkshellsTitle, L.Onboarding.MessagesLinkshellsBody,
-                    "messages.tabs", "messages.tab.linkshells"),
-                GuideStep.Tap(L.Apps.Contacts, L.Onboarding.ContactsBody, "messages.tab.contacts",
-                    "messages.tab.contacts"),
-                GuideStep.Point(L.Onboarding.ContactsListTitle, L.Onboarding.ContactsListBody, "contacts.list"),
-                GuideStep.Point(L.Onboarding.ContactsSearchTitle, L.Onboarding.ContactsSearchBody, "contacts.search"),
-                GuideStep.Tap(L.Apps.FindPeople, L.Onboarding.FindPeopleBody, "messages.tab.find",
-                    "messages.tab.find"),
-                GuideStep.Point(L.Onboarding.FindPeopleSearchTitle, L.Onboarding.FindPeopleSearchBody,
-                    "findpeople.name"),
-                GuideStep.Point(L.Onboarding.FindPeopleKindTitle, L.Onboarding.FindPeopleKindBody, "findpeople.kind"),
+                GuideStep.Note(L.Onboarding.MessagesLinkshellsTitle, L.Onboarding.MessagesLinkshellsBody),
+                GuideStep.Tap(L.Linkpearl.People, L.Onboarding.ContactsBody, "messages.tab.people",
+                    "messages.tab.people"),
+                GuideStep.Point(L.Onboarding.ContactsListTitle, L.Onboarding.ContactsListBody, "people.list"),
+                GuideStep.Point(L.Onboarding.ContactsSearchTitle, L.Onboarding.ContactsSearchBody, "people.search"),
+                GuideStep.Point(L.Onboarding.FindPeopleKindTitle, L.Onboarding.FindPeopleBody, "people.scope"),
             });
         Add(tours, "skywatcher", 2,
             new[]
@@ -145,7 +140,7 @@ internal static class TourRegistry
                 GuideStep.Tap(L.Onboarding.AethergramSearchTitle, L.Onboarding.AethergramSearchBody,
                     "aethergram.tab.search", "aethergram.tab.search"),
                 GuideStep.Point(L.Onboarding.AethergramActivityTitle, L.Onboarding.AethergramActivityBody,
-                    "aethergram.tab.activity"),
+                    "aethergram.activity"),
                 GuideStep.Tap(L.Onboarding.AethergramProfileTitle, L.Onboarding.AethergramProfileBody,
                     "aethergram.tab.profile", "aethergram.tab.profile"),
                 GuideStep.Note(L.Onboarding.AethergramSafeTitle, L.Onboarding.AethergramSafeBody),
@@ -366,6 +361,69 @@ internal static class TourRegistry
                     "health.tab.goals"),
                 GuideStep.Note(L.Onboarding.HealthGoalsTitle, L.Onboarding.HealthGoalsBody),
                 GuideStep.Note(L.Onboarding.HealthPrivacyTitle, L.Onboarding.HealthPrivacyBody),
+            });
+        Add(tours, "coin", 1,
+            new[]
+            {
+                GuideStep.Note(L.Apps.Coin, L.Onboarding.CoinBody),
+                GuideStep.Point(L.Onboarding.CoinBalanceTitle, L.Onboarding.CoinBalanceBody, "coin.balance"),
+                GuideStep.Point(L.Onboarding.CoinCheckInTitle, L.Onboarding.CoinCheckInBody, "coin.checkin"),
+                GuideStep.Point(L.Onboarding.CoinEarnTitle, L.Onboarding.CoinEarnBody, "coin.earn"),
+                GuideStep.Tap(L.Onboarding.CoinShopTitle, L.Onboarding.CoinShopBody, "coin.tabs", "coin.tab.shop"),
+                GuideStep.Note(L.Onboarding.CoinFairTitle, L.Onboarding.CoinFairBody),
+            });
+        Add(tours, "shortcuts", 1,
+            new[]
+            {
+                GuideStep.Note(L.Apps.Shortcuts, L.Onboarding.ShortcutsBody),
+                GuideStep.Point(L.Onboarding.ShortcutsNewTitle, L.Onboarding.ShortcutsNewBody, "shortcuts.new"),
+                GuideStep.Point(L.Onboarding.ShortcutsLibraryTitle, L.Onboarding.ShortcutsLibraryBody,
+                    "shortcuts.library"),
+                GuideStep.Point(L.Onboarding.ShortcutsImportTitle, L.Onboarding.ShortcutsImportBody,
+                    "shortcuts.import"),
+                GuideStep.Tap(L.Onboarding.ShortcutsPluginsTitle, L.Onboarding.ShortcutsPluginsBody, "shortcuts.tabs",
+                    "shortcuts.tab.plugins"),
+                GuideStep.Note(L.Onboarding.ShortcutsHomeTitle, L.Onboarding.ShortcutsHomeBody),
+            });
+        Add(tours, "housing", 1,
+            new[]
+            {
+                GuideStep.Note(L.Apps.Housing, L.Onboarding.HousingBody),
+                GuideStep.Point(L.Onboarding.HousingContextTitle, L.Onboarding.HousingContextBody, "housing.context"),
+                GuideStep.Point(L.Onboarding.HousingMapTitle, L.Onboarding.HousingMapBody, "housing.map"),
+                GuideStep.Point(L.Onboarding.HousingPhaseTitle, L.Onboarding.HousingPhaseBody, "housing.phase"),
+                GuideStep.Point(L.Onboarding.HousingFiltersTitle, L.Onboarding.HousingFiltersBody, "housing.filters"),
+                GuideStep.Point(L.Onboarding.HousingWatchTitle, L.Onboarding.HousingWatchBody, "housing.watchlist"),
+                GuideStep.Note(L.Onboarding.HousingDataTitle, L.Onboarding.HousingDataBody),
+            });
+        Add(tours, "casino", 1,
+            new[]
+            {
+                GuideStep.Note(L.Apps.Casino, L.Onboarding.CasinoBody),
+                GuideStep.Point(L.Onboarding.CasinoChipsTitle, L.Onboarding.CasinoChipsBody, "casino.chipbar"),
+                GuideStep.Point(L.Onboarding.CasinoSpinTitle, L.Onboarding.CasinoSpinBody, "casino.spin"),
+                GuideStep.Point(L.Onboarding.CasinoFloorTitle, L.Onboarding.CasinoFloorBody, "casino.games"),
+                GuideStep.Point(L.Onboarding.CasinoRecordsTitle, L.Onboarding.CasinoRecordsBody, "casino.records"),
+                GuideStep.Point(L.Onboarding.CasinoLimitsTitle, L.Onboarding.CasinoLimitsBody, "casino.limits"),
+                GuideStep.Tap(L.Onboarding.CasinoLiveTitle, L.Onboarding.CasinoLiveBody, "casino.tabs",
+                    "casino.tab.live"),
+                GuideStep.Point(L.Onboarding.CasinoRoomsTitle, L.Onboarding.CasinoRoomsBody, "casino.live.rooms"),
+            });
+        Add(tours, "aetherstream", 1,
+            new[]
+            {
+                GuideStep.Note(L.Apps.AetherStream, L.Onboarding.AetherStreamBody),
+                GuideStep.Point(L.Onboarding.AetherStreamPlayerTitle, L.Onboarding.AetherStreamPlayerBody,
+                    "aetherstream.hero"),
+                GuideStep.Point(L.Onboarding.AetherStreamAddTitle, L.Onboarding.AetherStreamAddBody,
+                    "aetherstream.composer"),
+                GuideStep.Point(L.Onboarding.AetherStreamTransportTitle, L.Onboarding.AetherStreamTransportBody,
+                    "aetherstream.transport"),
+                GuideStep.Point(L.Onboarding.AetherStreamActionsTitle, L.Onboarding.AetherStreamActionsBody,
+                    "aetherstream.actions"),
+                GuideStep.Note(L.Onboarding.AetherStreamPartyTitle, L.Onboarding.AetherStreamPartyBody),
+                GuideStep.Point(L.Onboarding.AetherStreamSettingsTitle, L.Onboarding.AetherStreamSettingsBody,
+                    "aetherstream.settings"),
             });
         return tours;
     }

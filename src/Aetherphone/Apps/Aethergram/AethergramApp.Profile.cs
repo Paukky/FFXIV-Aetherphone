@@ -3,6 +3,7 @@ using Aetherphone.Core.Aethernet.Contracts;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Media;
 using Aetherphone.Core.Onboarding;
+using Aetherphone.Core.Social;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
@@ -69,19 +70,26 @@ internal sealed partial class AethergramApp
         var drawList = ImGui.GetWindowDrawList();
         var rounding = 8f * scale;
         var photos = PostMedia.Photos(post.MediaUrls, post.MediaUrl);
-        var texture = images.Get(photos.Length > 0 ? photos[0] : null);
-        if (texture is null)
+        if (SensitiveReveals.ShouldVeil(post.Sensitive, post.Id, configuration.ShowSensitiveContent))
         {
-            Squircle.Fill(drawList, min, max, rounding, ImGui.GetColorU32(AppPalettes.Aethergram.FieldSurface));
-            return;
+            SensitiveVeil.Draw(drawList, min, max, rounding);
         }
-
-        var (uv0, uv1) = ImageFit.CoverSquare(texture.Size);
-        drawList.AddImageRounded(texture.Handle, min, max, uv0, uv1, 0xFFFFFFFFu, rounding,
-            ImDrawFlags.RoundCornersAll);
-        if (photos.Length > 1)
+        else
         {
-            MultiPhotoBadge.Draw(drawList, new Vector2(max.X - 8f * scale, min.Y + 8f * scale), scale);
+            var texture = images.Get(photos.Length > 0 ? photos[0] : null);
+            if (texture is null)
+            {
+                Squircle.Fill(drawList, min, max, rounding, ImGui.GetColorU32(AppPalettes.Aethergram.FieldSurface));
+                return;
+            }
+
+            var (uv0, uv1) = ImageFit.CoverSquare(texture.Size);
+            drawList.AddImageRounded(texture.Handle, min, max, uv0, uv1, 0xFFFFFFFFu, rounding,
+                ImDrawFlags.RoundCornersAll);
+            if (photos.Length > 1)
+            {
+                MultiPhotoBadge.Draw(drawList, new Vector2(max.X - 8f * scale, min.Y + 8f * scale), scale);
+            }
         }
 
         if (ImGui.IsItemHovered())
@@ -103,60 +111,34 @@ internal sealed partial class AethergramApp
     private void DrawHomeTopBar(Rect area)
     {
         var scale = UiScale.Current;
-        var rowCenterY = area.Min.Y + AppHeader.Height * scale * 0.5f;
+        var actions = new HeaderActions(area, scale, store.IsSignedIn ? HomeActionSlots : 0);
         var logoLeft = area.Min.X + 16f * scale;
-        var chevronReserve = store.IsSignedIn ? 32f * scale : 0f;
-        var trailingReserve = (store.IsSignedIn ? 148f * scale : 16f * scale) + chevronReserve;
-        var maxLogoWidth = MathF.Max(1f, area.Max.X - trailingReserve - logoLeft);
-        var logoStyle = new TextStyle(1.3f, FontWeight.Bold);
-        var logoHeight = Typography.Measure(DisplayName, logoStyle).Y;
-        var logoPos = new Vector2(logoLeft, rowCenterY - logoHeight * 0.5f);
-        var logoWidth = Marquee.DrawLeftAuto("aethergram.home.logo", DisplayName, logoPos.X, logoPos.Y, maxLogoWidth,
-            logoStyle, AppPalettes.Aethergram.TitleInk);
-        var logoSize = new Vector2(logoWidth, logoHeight);
+        if (HeaderTitle.Draw("aethergram.home.logo", DisplayName, logoLeft, actions,
+                AppPalettes.Aethergram.TitleInk, scale) && store.IsSignedIn)
+        {
+            RefreshActiveFeed();
+        }
+
         if (!store.IsSignedIn)
         {
             return;
         }
 
-        var chevronCenter = new Vector2(logoPos.X + logoSize.X + 17f * scale, rowCenterY + 2f * scale);
-        var chevron = scopeMenu.IsOpenFor(ScopeMenuId) ? FontAwesomeIcon.ChevronUp : FontAwesomeIcon.ChevronDown;
-        var anchor = new Rect(new Vector2(logoPos.X, rowCenterY - 12f * scale),
-            chevronCenter + new Vector2(12f * scale, 12f * scale));
-        if (ui.IconButton(chevronCenter, 12f * scale, chevron.ToIconString(), AppPalettes.Aethergram.MutedInk,
-                AppSkin.Transparent, 0.85f))
-        {
-            scopeMenu.Toggle(ScopeMenuId, anchor);
-        }
-
-        var refreshCenter = new Vector2(area.Max.X - 96f * scale, rowCenterY);
-        if (store.IsLoading(activeScope))
-        {
-            LoadingPulse.Spinner(refreshCenter, 8f * scale, ui.Accent);
-        }
-        else if (ui.IconButton(refreshCenter, 16f * scale, FontAwesomeIcon.Sync.ToIconString(),
-                     AppPalettes.Aethergram.BodyInk, AppSkin.Transparent, 1.1f, Loc.T(L.Common.Refresh),
-                     HoverLabelSide.Below))
-        {
-            RefreshActiveFeed();
-        }
-
-        var rulesCenter = new Vector2(area.Max.X - 60f * scale, rowCenterY);
-        if (ui.IconButton(rulesCenter, 16f * scale, FontAwesomeIcon.QuestionCircle.ToIconString(),
-                AppPalettes.Aethergram.MutedInk, AppSkin.Transparent, 1.1f, Loc.T(L.Conduct.Eyebrow),
+        var bellCenter = actions.Slot(1);
+        UiAnchors.Report("aethergram.activity", actions.Bounds(1));
+        if (ui.IconButton(bellCenter, actions.Radius, FontAwesomeIcon.Bell.ToIconString(),
+                AppPalettes.Aethergram.BodyInk, AppSkin.Transparent, 1.2f, Loc.T(L.Social.ActivityTitle),
                 HoverLabelSide.Below))
         {
-            conduct.ShowRules(Id);
+            OpenActivity();
         }
 
-        var composeCenter = new Vector2(area.Max.X - 24f * scale, rowCenterY);
-        UiAnchors.Report("aethergram.compose", new Rect(composeCenter - new Vector2(18f * scale, 18f * scale),
-            composeCenter + new Vector2(18f * scale, 18f * scale)));
-        if (ui.IconButton(composeCenter, 16f * scale, FontAwesomeIcon.PlusSquare.ToIconString(),
-                AppPalettes.Aethergram.BodyInk, AppSkin.Transparent, 1.25f, Loc.T(L.Aethergram.NewPost),
+        ActivityBadge.Draw(bellCenter + new Vector2(10f * scale, -10f * scale), social.UnseenCount(Id), theme, scale);
+        if (ui.IconButton(actions.Slot(0), actions.Radius, FontAwesomeIcon.EllipsisH.ToIconString(),
+                AppPalettes.Aethergram.BodyInk, AppSkin.Transparent, 1.2f, Loc.T(L.Aethergram.More),
                 HoverLabelSide.Below))
         {
-            StartCompose(false);
+            overflowMenu.Toggle(OverflowMenuId, actions.Bounds(0));
         }
     }
 }

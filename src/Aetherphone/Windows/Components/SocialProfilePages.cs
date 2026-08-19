@@ -44,6 +44,7 @@ internal sealed class SocialProfileStyle
     public required LocString DeleteFailed { get; init; }
     public required LocString DeleteCommentConfirmMessage { get; init; }
     public required LocString DeleteCommentFailed { get; init; }
+    public required LocString RemoveCommentConfirmMessage { get; init; }
     public LocString? MessageLabel { get; init; }
     public LocString? SettingsLabel { get; init; }
     public LocString? SavedLabel { get; init; }
@@ -217,11 +218,12 @@ internal sealed class SocialProfilePages
             ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.14f)), 64);
         var portraitName = user.IsMe ? user.Name : displayName;
         var portraitWorld = user.IsMe ? user.World : string.Empty;
-        DrawAvatar(drawList, avatarCenter, avatarRadius, theme, portraitName, portraitWorld, user.AvatarUrl, 1.5f, 64);
+        DrawAvatar(drawList, avatarCenter, avatarRadius, theme, portraitName, portraitWorld, user.AvatarUrl, 1.5f, 64,
+            Frames.Of(user.FrameId));
         avatarLightbox.TryOpen(avatarCenter, avatarRadius, user.AvatarUrl, images);
         var textY = headTop + (headHeight - identityHeight) * 0.5f;
-        UserName.DrawAuto(drawList, "socialprofile.name." + user.Id, displayName, user.Badges, identityLeft, textY,
-            identityWidth, TextStyles.Title2, theme.TextStrong, theme, 2);
+        UserName.DrawAuto(drawList, "socialprofile.name." + user.Id, displayName, user.Badges, user.ProfileBadges,
+            identityLeft, textY, identityWidth, TextStyles.Title2, theme.TextStrong, theme, 2);
         textY += nameHeight;
         if (metaHeight > 0f)
         {
@@ -492,7 +494,7 @@ internal sealed class SocialProfilePages
             var avatarCenter = new Vector2(avatarOrigin.X + ImGui.GetContentRegionAvail().X * 0.5f,
                 avatarOrigin.Y + avatarRadius);
             DrawAvatar(ImGui.GetWindowDrawList(), avatarCenter, avatarRadius, theme, me.Name, me.World, me.AvatarUrl,
-                1.3f, 48);
+                1.3f, 48, Frames.Of(me.FrameId));
             ImGui.SetCursorScreenPos(new Vector2(avatarOrigin.X, avatarCenter.Y + avatarRadius + 8f * scale));
             var changeWidth = 150f * scale;
             var changeTop = ImGui.GetCursorScreenPos().Y;
@@ -581,7 +583,7 @@ internal sealed class SocialProfilePages
 
     public void DrawUserList(Rect area, PhoneTheme theme, INavigator navigation, string sourceId, UserListKind kind)
     {
-        store.OpenUserList(sourceId, kind);
+        store.EnsureUserList(sourceId, kind);
         var context = new PhoneContext(area, theme, navigation);
         AppHeader.Draw(context, UserListTitle(kind), back);
         var scale = UiScale.Current;
@@ -695,7 +697,8 @@ internal sealed class SocialProfilePages
         var displayName = SocialIdentity.Name(user.DisplayName, user.Handle);
         var portraitName = user.IsMe ? user.Name : displayName;
         var portraitWorld = user.IsMe ? user.World : string.Empty;
-        DrawAvatar(drawList, avatarCenter, radius, theme, portraitName, portraitWorld, user.AvatarUrl, 0.95f, 32);
+        DrawAvatar(drawList, avatarCenter, radius, theme, portraitName, portraitWorld, user.AvatarUrl, 0.95f, 32,
+            Frames.Of(user.FrameId));
         var textLeft = avatarCenter.X + radius + 12f * scale;
         var nameTop = style.CardUserRows ? 12f : 9f;
         var subTop = style.CardUserRows ? 33f : 31f;
@@ -706,7 +709,7 @@ internal sealed class SocialProfilePages
         var nameSize = Typography.Measure(displayName, 1f, FontWeight.SemiBold);
         var nameHovering = UiInteract.Hover(new Vector2(textLeft, nameY),
             new Vector2(textLeft + textMaxWidth, nameY + nameSize.Y));
-        UserName.Draw(drawList, "socialprofile.row.name." + user.Id, displayName, user.Badges, textLeft, nameY,
+        UserName.Draw(drawList, "socialprofile.row.name." + user.Id, displayName, user.Badges, user.ProfileBadges, textLeft, nameY,
             textMaxWidth, new TextStyle(1f, FontWeight.SemiBold), theme.TextStrong, nameHovering, theme);
         var regionCode = user.IsMe
             ? SocialRegion.EffectiveCode(configuration, gameData)
@@ -787,11 +790,12 @@ internal sealed class SocialProfilePages
         var name = SocialIdentity.Name(authorDisplayName, authorHandle);
         confirm.Ask(new ConfirmRequest
         {
-            Message = Loc.T(L.Social.BlockConfirm, name),
+            Title = Loc.T(L.Social.BlockConfirmTitle, name),
+            Message = Loc.T(L.Social.BlockConfirm),
             ConfirmLabel = Loc.T(L.Social.BlockAction),
             CancelLabel = Loc.T(L.Common.Cancel),
             Danger = true,
-            Confirm = () => store.Block(authorId, _ => { }),
+            ConfirmAsync = done => store.Block(authorId, done, confirm.ReportFailure),
         });
     }
 
@@ -829,10 +833,23 @@ internal sealed class SocialProfilePages
         });
     }
 
+    public void AskRemoveComment(string postId, string commentId)
+    {
+        confirm.Ask(new ConfirmRequest
+        {
+            Message = Loc.T(style.RemoveCommentConfirmMessage),
+            ConfirmLabel = Loc.T(style.DeleteConfirm),
+            CancelLabel = Loc.T(style.DeleteCancel),
+            BusyLabel = Loc.T(style.Saving),
+            FailedMessage = Loc.T(style.DeleteCommentFailed),
+            ConfirmAsync = done => store.DeleteComment(postId, commentId, done),
+        });
+    }
+
     private void DrawAvatar(ImDrawListPtr drawList, Vector2 center, float radius, PhoneTheme theme, string name,
-        string world, string? avatarUrl, float monogramScale, int segments)
+        string world, string? avatarUrl, float monogramScale, int segments, FrameStyle? frame = null)
     {
         AvatarView.DrawRemote(drawList, center, radius, theme, name, world, avatarUrl, images, lodestone,
-            monogramScale, segments);
+            monogramScale, segments, 1f, frame);
     }
 }

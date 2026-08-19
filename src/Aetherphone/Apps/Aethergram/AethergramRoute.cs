@@ -6,7 +6,6 @@ internal enum AethergramTab
 {
     Home,
     Search,
-    Activity,
     Profile,
 }
 
@@ -28,6 +27,8 @@ internal enum AethergramScreen
     FollowRequests,
     Saved,
     Encryption,
+    Hashtag,
+    Activity,
 }
 
 internal readonly record struct AethergramRoute(
@@ -43,6 +44,7 @@ internal readonly record struct AethergramRoute(
     public static readonly AethergramRoute FollowRequests = new(AethergramScreen.FollowRequests);
     public static readonly AethergramRoute Saved = new(AethergramScreen.Saved);
     public static readonly AethergramRoute Encryption = new(AethergramScreen.Encryption);
+    public static readonly AethergramRoute Activity = new(AethergramScreen.Activity);
     public static AethergramRoute Detail(string postId) => new(AethergramScreen.Detail, postId);
     public static AethergramRoute Profile(string userId) => new(AethergramScreen.Profile, userId);
     public static AethergramRoute Thread(string userId) => new(AethergramScreen.Thread, userId);
@@ -50,6 +52,7 @@ internal readonly record struct AethergramRoute(
     public static AethergramRoute ImageView(string messageId) => new(AethergramScreen.ImageView, messageId);
     public static AethergramRoute Reactions(string messageId) => new(AethergramScreen.Reactions, messageId);
     public static AethergramRoute Share(string postId) => new(AethergramScreen.Share, postId);
+    public static AethergramRoute Hashtag(string tag) => new(AethergramScreen.Hashtag, tag);
 
     public static AethergramRoute UserList(string sourceId, UserListKind kind) =>
         new(AethergramScreen.UserList, sourceId, kind);

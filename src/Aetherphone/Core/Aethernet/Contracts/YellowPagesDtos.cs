@@ -74,7 +74,9 @@ internal sealed record AdDto(
     long RenewedAtUnix,
     long ExpiresAtUnix,
     bool AllowInquiries = true,
-    int OwnerBadges = 0) : IIdentified;
+    int OwnerBadges = 0,
+    string[]? OwnerBadgeIds = null,
+    string OwnerFrameId = "") : IIdentified;
 
 internal sealed record AdPage(AdDto[] Items, string? NextCursor);
 

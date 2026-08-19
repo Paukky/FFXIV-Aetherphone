@@ -28,6 +28,8 @@ internal sealed class ConfirmOverlay
 
     public bool CapturesPointer => service.Active is not null || !reveal.IsResting(0f, 0.001f, 0.005f);
 
+    public void CancelActive() => service.CancelActive();
+
     public void Draw(Rect screen, PhoneTheme theme)
     {
         var active = service.Active;
@@ -68,9 +70,9 @@ internal sealed class ConfirmOverlay
             var drawList = ImGui.GetWindowDrawList();
             drawList.AddRectFilled(screen.Min, screen.Max,
                 ImGui.GetColorU32(new Vector4(0f, 0f, 0f, MaxDim * opacity)));
-            ConfirmDialog.Draw(screen, theme, shown.Title, shown.Message, shown.ConfirmLabel, shown.CancelLabel,
-                shown.BusyLabel ?? shown.ConfirmLabel, service.Busy, service.Status, shown.Danger, shown.Acknowledge,
-                opacity, cardScale, out var cardRect, out var canceled, out var confirmed);
+            ConfirmDialog.Draw(screen, theme, shown.Title, shown.Message, shown.Sections, shown.ConfirmLabel,
+                shown.CancelLabel, shown.BusyLabel ?? shown.ConfirmLabel, service.Busy, service.Status, shown.Danger,
+                shown.Acknowledge, opacity, cardScale, out var cardRect, out var canceled, out var confirmed);
             if (active is null || opacity <= 0.5f)
             {
                 return;

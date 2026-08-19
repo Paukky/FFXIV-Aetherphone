@@ -1,6 +1,7 @@
 using Aetherphone.Apps.Settings.Pages;
 using Aetherphone.Core;
 using Aetherphone.Core.Apps;
+using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Moderation;
 using Aetherphone.Core.Notifications;
@@ -33,6 +34,7 @@ internal sealed class SettingsApp : IPhoneApp, ISettingsNavigator
     private readonly AccountPage accountPage;
     private readonly SafetyPage safetyPage;
     private readonly SafetyLauncher safetyLauncher;
+    private readonly EncryptionSetupLauncher encryptionSetupLauncher;
     private readonly NamePage namePage;
     private readonly ProfilePage profilePage;
     private readonly EncryptionPage encryptionPage;
@@ -63,14 +65,14 @@ internal sealed class SettingsApp : IPhoneApp, ISettingsNavigator
         profilePage = new ProfilePage(configuration, aethernetSession, aethernet.Account, gameData);
         encryptionPage = new EncryptionPage(aethernetSession, keyVault, confirm);
         namePage = new NamePage(aethernetSession, aethernet.Account, this);
+        var coinPage = new CoinPage(services.Coins);
         accountPage = new AccountPage(configuration, aethernetSession, aethernet.Auth, aethernet.Account,
             services.AccountState, aethernet.Media, gameData, remoteImages, lodestone, this, namePage, profilePage,
-            encryptionPage, photoLibrary, confirm, wallpaperImages);
+            encryptionPage, coinPage, photoLibrary, confirm, wallpaperImages);
         var appearance = new AppearancePage(configuration, themes, this, photoLibrary, confirm, wallpapers,
             wallpaperImages);
         var language = new LanguagePage(configuration);
-        var immersion = new ImmersionPage(configuration);
-        var behavior = new BehaviorPage(configuration);
+        var general = new GeneralPage(configuration);
         var tutorials = new TutorialsPage(configuration);
         var callsPage = new CallsPage(calls, configuration);
         var appNotifications = new AppNotificationPage(configuration, sound);
@@ -85,8 +87,7 @@ internal sealed class SettingsApp : IPhoneApp, ISettingsNavigator
                 configuration.NotificationVolume = volume;
                 configuration.Save();
             });
-        var notifications = new NotificationsPage(configuration, this, appNotifications, sound, notificationSoundPage,
-            services.Installer);
+        var notifications = new NotificationsPage(configuration, this, appNotifications, services.Installer);
         var ringtonePage = new SoundSettingsPage(sound, SoundKind.Ringtone, L.Settings.Ringtone, FontAwesomeIcon.Music,
             new Vector4(0.95f, 0.40f, 0.65f, 1f), "settings.ringtoneVolume",
             () => configuration.RingtoneSound, token =>
@@ -98,23 +99,25 @@ internal sealed class SettingsApp : IPhoneApp, ISettingsNavigator
                 configuration.RingtoneVolume = volume;
                 configuration.Save();
             });
+        var sounds = new SoundsPage(configuration, sound, this, ringtonePage, notificationSoundPage);
         safetyPage = new SafetyPage(aethernetSession, services.ModerationArchive, this);
         safetyLauncher = services.SafetyLauncher;
+        encryptionSetupLauncher = services.EncryptionSetup;
         var commands = new CommandsPage();
-        privacyPage = new PrivacyPage(configuration, aethernetSession, aethernet.Account, aethernet.Safety,
-            confirm);
         tagsMentionsPage = new TagsMentionsPage(aethernetSession, aethernet.Account, this);
-        var about = new AboutPage();
+        privacyPage = new PrivacyPage(configuration, aethernetSession, aethernet.Account, aethernet.Safety,
+            confirm, this, tagsMentionsPage);
+        var about = new AboutPage(configuration, gameData);
         changelogPage = new ChangelogPage(configuration);
         var groups = new[]
         {
-            new SettingsGroup(new ISettingsPage[] { appearance, language, immersion, behavior, tutorials },
-                L.Settings.GeneralFooter),
-            new SettingsGroup(new ISettingsPage[] { callsPage, notifications, ringtonePage }, L.Settings.AlertsFooter),
-            new SettingsGroup(new ISettingsPage[] { commands, privacyPage, tagsMentionsPage, safetyPage, changelogPage, about }),
+            new ISettingsPage[] { general, appearance, sounds, notifications, callsPage, language },
+            new ISettingsPage[] { privacyPage, safetyPage },
+            new ISettingsPage[] { tutorials, commands, changelogPage, about },
         };
         router = new ViewRouter<ISettingsPage>(
-            new RootSettingsPage(this, groups, aethernetSession, remoteImages, lodestone, accountPage));
+            new RootSettingsPage(this, groups, configuration, aethernetSession, remoteImages, lodestone,
+                accountPage));
         drawPage = DrawPage;
         popBack = PopBack;
         assignWallpaper = AssignWallpaper;
@@ -194,6 +197,12 @@ internal sealed class SettingsApp : IPhoneApp, ISettingsNavigator
         {
             router.Reset();
             router.Push(safetyPage);
+        }
+
+        if (encryptionSetupLauncher.TryConsume())
+        {
+            router.Reset();
+            router.Push(encryptionPage);
         }
 
         frameTheme = context.Theme;

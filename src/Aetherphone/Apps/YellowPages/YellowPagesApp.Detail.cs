@@ -264,7 +264,7 @@ internal sealed partial class YellowPagesApp
         if (UiInteract.Click(expandCenter - expandHalf, expandCenter + expandHalf, overExpand))
         {
             var viewerUrl = url;
-            photoViewer.Open(() => images.Get(viewerUrl));
+            photoViewer.Open(this, () => images.Get(viewerUrl));
             return;
         }
 
@@ -302,7 +302,7 @@ internal sealed partial class YellowPagesApp
         if (UiInteract.Click(rect.Min, touchMax, hovered))
         {
             var viewerUrl = url;
-            photoViewer.Open(() => images.Get(viewerUrl));
+            photoViewer.Open(this, () => images.Get(viewerUrl));
         }
     }
 
@@ -756,13 +756,14 @@ internal sealed partial class YellowPagesApp
         var avatarRadius = 17f * scale;
         var avatarCenter = new Vector2(origin.X + pad + avatarRadius, origin.Y + height * 0.5f);
         AvatarView.DrawRemote(drawList, avatarCenter, avatarRadius, theme, AdText.Identity(ad), string.Empty,
-            ad.OwnerAvatarUrl.Length > 0 ? ad.OwnerAvatarUrl : null, images, lodestone, 0.9f, 48);
+            ad.OwnerAvatarUrl.Length > 0 ? ad.OwnerAvatarUrl : null, images, lodestone, 0.9f, 48, 1f,
+            Frames.Of(ad.OwnerFrameId));
         drawList.AddCircle(avatarCenter, avatarRadius + 2.5f * scale,
             ImGui.GetColorU32(Palette.WithAlpha(ui.Accent, 0.55f)), 40, 1.4f * scale);
         var textLeft = avatarCenter.X + avatarRadius + 13f * scale;
         var textWidth = origin.X + width - pad - textLeft;
         UserName.DrawAuto(drawList, "yellowpages.owner." + ad.Id, SocialIdentity.Name(ad.OwnerName, ad.OwnerHandle),
-            ad.OwnerBadges, textLeft, origin.Y + 13f * scale, textWidth, TextStyles.Headline,
+            ad.OwnerBadges, ad.OwnerBadgeIds, textLeft, origin.Y + 13f * scale, textWidth, TextStyles.Headline,
             AppPalettes.YellowPages.TitleInk, theme);
         var handle = ad.OwnerHandle.Length > 0 ? $"@{ad.OwnerHandle}" : string.Empty;
         var renewed = Loc.T(L.YellowPages.RenewedAgo,
@@ -1007,7 +1008,7 @@ internal sealed partial class YellowPagesApp
     {
         Copy("modlink", ad.LinkUrl);
         Windows.UrlActions.OpenInBrowser(ad.LinkUrl,
-            exception => AepLog.Warning($"[YellowPages] mod link failed: {exception.Message}"));
+            exception => AepLog.Warning(exception, "[YellowPages] mod link failed"));
     }
 
     private void OpenInquiry(AdDto ad) => OpenInquiryFor(ad);

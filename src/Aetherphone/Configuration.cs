@@ -1,13 +1,17 @@
+using Aetherphone.Core;
 using Aetherphone.Core.Aethernet;
 using Aetherphone.Core.Calendar;
+using Aetherphone.Core.Casino;
 using Aetherphone.Core.Message;
 using Aetherphone.Core.Clock;
 using Aetherphone.Core.Notes;
 using Aetherphone.Core.Changelog;
 using Aetherphone.Core.ControlCenter;
 using Aetherphone.Core.Dailies;
+using Aetherphone.Core.GameChat;
 using Aetherphone.Core.Games;
 using Aetherphone.Core.Home;
+using Aetherphone.Core.Housing;
 using Aetherphone.Core.Jobs;
 using Aetherphone.Core.Market;
 using Aetherphone.Core.Notifications;
@@ -18,10 +22,32 @@ using Aetherphone.Core.Songs;
 using Aetherphone.Core.Telephony;
 using Aetherphone.Core.Theme;
 using Aetherphone.Core.Venues;
+using Aetherphone.Core.Video;
 using Aetherphone.Core.Wallpapers;
 using Dalamud.Configuration;
 
 namespace Aetherphone;
+
+[Serializable]
+internal sealed class ScreenPositionPreset
+{
+    public string Name { get; set; } = "";
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+    public float Yaw { get; set; }
+    public float Scale { get; set; } = 1.0f;
+}
+
+[Serializable]
+internal sealed class VideoQueueRecord
+{
+    public string Url { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Source { get; set; } = "";
+    public double? DurationSeconds { get; set; }
+    public string? ThumbnailUrl { get; set; }
+}
 
 [Serializable]
 internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, IControlConfiguration
@@ -38,15 +64,26 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public Vector2? MaximizedPosition { get; set; }
     public Vector2? MinimizedPosition { get; set; }
     public bool DoNotDisturb { get; set; }
+    public bool QuietWhileBusy { get; set; } = true;
     public bool Vibration { get; set; } = true;
+    public bool ShowNotificationBanner { get; set; } = true;
     public bool ImportScreenshots { get; set; } = true;
     public bool? UseNativeFileDialog { get; set; }
+    public bool ChirperShowMediaPosts { get; set; } = true;
+    public bool ChirperShowPhotoPosts { get; set; } = true;
+    public bool ChirperShowGifPosts { get; set; } = true;
+    public bool ChirperShowCommentMedia { get; set; } = true;
+    public bool AethergramShowGifPosts { get; set; } = true;
+    public bool AethergramShowCommentMedia { get; set; } = true;
+    public bool ShowSensitiveContent { get; set; }
     public Dictionary<string, AppNotificationSetting> NotificationSettings { get; set; } = new();
     public bool NotifyDailyReset { get; set; }
     public bool NotifyWeeklyReset { get; set; }
     public bool NotifyGrandCompanyReset { get; set; }
     public bool NotifyRetainerVentures { get; set; }
+    public bool ShowWalletBadge { get; set; } = true;
     public bool ShowDailiesBadge { get; set; } = true;
+    public bool ShowActivityBadge { get; set; } = true;
     public List<DailyCheckRecord> DailyChecks { get; set; } = new();
     public float ActivityGoalLevels { get; set; } = 1f;
     public int ActivityGoalDuties { get; set; } = 3;
@@ -55,11 +92,14 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public bool ShowLodestonePortraits { get; set; } = true;
     public int LodestoneIdIndexVersion { get; set; }
     public float TextZoom { get; set; } = 1.0f;
-    public List<string> FontGlyphLedger { get; set; } = new();
+    public string FontGlyphCache { get; set; } = string.Empty;
     public float ScreenBrightness { get; set; } = 1f;
     public float PhoneScale { get; set; } = PhoneSizeCatalog.DefaultWidth / PhoneSizeCatalog.DesignWidth;
     public float PhoneWidth { get; set; }
     public bool CameraLandscape { get; set; }
+    public bool CameraGrid { get; set; }
+    public bool CameraFlash { get; set; } = true;
+    public int PhotosSegment { get; set; }
     public string Language { get; set; } = string.Empty;
     public ThemeMode ThemeMode { get; set; } = ThemeMode.Dark;
     public string AccentName { get; set; } = "Violet";
@@ -77,8 +117,23 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public float NotificationVolume { get; set; } = 0.8f;
     public float MusicVolume { get; set; } = 0.6f;
     public int MusicRepeat { get; set; }
+    public bool SoundSettingsMigrated { get; set; }
+    public float VideoVolume { get; set; } = 0.6f;
+    public int VideoMaxQualityHeight { get; set; } = 720;
+    public bool VideoHideNameplates { get; set; } = true;
+    public bool VideoShareWatchPresence { get; set; } = true;
+    public bool VideoHardwareDecoding { get; set; }
+    public bool VideoAllowInsecureDirectUrls { get; set; }
+    public bool VideoStreamApprovalRequired { get; set; }
+    public bool VideoStreamDiscoverable { get; set; } = true;
+    public List<ScreenPositionPreset> ScreenPresets { get; set; } = new();
+    public List<VideoQueueRecord> VideoQueue { get; set; } = new();
     public bool GameSoundsCleared { get; set; }
+    #if DEBUG
+    public const string DefaultAethernetBaseUrl = "https://aethernet-dev-production.up.railway.app";
+    #else
     public const string DefaultAethernetBaseUrl = "https://api.aetherphone.net";
+    #endif
     private const string LegacyAethernetHost = "ffxiv-aethernet-production.up.railway.app";
     public string AethernetBaseUrl { get; set; } = DefaultAethernetBaseUrl;
     public string AethernetToken { get; set; } = string.Empty;
@@ -108,6 +163,10 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public List<GameStatRecord> GameStats { get; set; } = new();
     public int DailyChallengeStreak { get; set; }
     public int DailyChallengeLastDay { get; set; }
+    public string PendingCoinGameSession { get; set; } = string.Empty;
+    public Dictionary<ulong, string> PendingCasinoSittings { get; set; } = new();
+    public Dictionary<ulong, long> CasinoSittingSeenAtUnix { get; set; } = new();
+    public Dictionary<ulong, PendingCasinoRound> PendingCasinoRounds { get; set; } = new();
     public HomeLayout? Home { get; set; }
     public Dictionary<string, bool> AppFlags { get; set; } = new();
     public int HomeGridRows { get; set; } = 6;
@@ -126,6 +185,26 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public int YellowPagesScope { get; set; }
     public bool YellowPagesAfterDark { get; set; }
     public List<uint> MapFavorites { get; set; } = new();
+    public uint HousingWorldId { get; set; }
+    public uint HousingDistrictId { get; set; } = 339u;
+    public int HousingWard { get; set; } = HousingDefaults.DefaultWard;
+    public bool HousingFollowCurrentWorld { get; set; }
+    public bool HousingAutoRefresh { get; set; } = true;
+    public int HousingRefreshMinutes { get; set; } = HousingDefaults.RefreshMinutes;
+    public bool HousingRefreshFloorApplied { get; set; }
+    public int HousingLiveMinutes { get; set; } = 15;
+    public int HousingRecentMinutes { get; set; } = 60;
+    public bool HousingNotifyEntry { get; set; } = true;
+    public bool HousingNotifyResults { get; set; } = true;
+    public int HousingReminderMinutes { get; set; } = HousingDefaults.ReminderMinutes;
+    public bool HousingFilterSmall { get; set; } = true;
+    public bool HousingFilterMedium { get; set; } = true;
+    public bool HousingFilterLarge { get; set; } = true;
+    public bool HousingShowAllPlots { get; set; }
+    public int HousingListSort { get; set; }
+    public bool HousingMapHintDismissed { get; set; }
+    public List<HousingWatchRecord> HousingWatched { get; set; } = new();
+    public List<HousingReminderRecord> HousingReminders { get; set; } = new();
     public List<RadioStationRecord> RadioFavorites { get; set; } = new();
     public List<string> CustomAlbumOrder { get; set; } = new();
     public Dictionary<string, List<string>> CustomAlbumPhotos { get; set; } = new();
@@ -157,6 +236,11 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public List<string> MutedLinkshells { get; set; } = new();
     public Dictionary<ulong, List<string>> MutedLinkshellsByCharacter { get; set; } = new();
     public bool LinkshellMutesPerCharacterMigrated { get; set; }
+    public List<ChatTab> LinkpearlTabs { get; set; } = new();
+    public int LinkpearlHistory { get; set; } = (int)HistoryPolicy.Days30;
+    public Dictionary<string, int> LinkpearlHistoryByChannel { get; set; } = new();
+    public List<ulong> LinkpearlMigratedCharacters { get; set; } = new();
+    public Dictionary<string, long> LinkpearlSeen { get; set; } = new();
     public long DevChatLastSeenUnix { get; set; }
     public long AnnouncementsSeenUnix { get; set; }
     public long AnnouncementsNotifiedUnix { get; set; }
@@ -178,6 +262,8 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public bool TimerNotified { get; set; }
     public string LastSeenChangelogVersion { get; set; } = string.Empty;
     public bool ChangelogSeenInitialized { get; set; }
+    
+    public bool MarketContextMenu { get; set; } = true;
 
     public bool HasUnseenChangelog => LastSeenChangelogVersion != ChangelogData.LatestVersion;
 
@@ -215,6 +301,20 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
         Save();
     }
 
+    public void MigrateChirperMediaFilters()
+    {
+        if (ChirperShowMediaPosts)
+        {
+            return;
+        }
+
+        ChirperShowPhotoPosts = false;
+        ChirperShowGifPosts = false;
+        ChirperShowCommentMedia = false;
+        ChirperShowMediaPosts = true;
+        Save();
+    }
+
     public void MigratePhoneWidth()
     {
         if (PhoneWidth > 0f)
@@ -235,6 +335,22 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
 
         ControlPanel = null;
         ControlPanelRepacked = true;
+        Save();
+    }
+
+    public void MigrateHousingRefreshFloor()
+    {
+        if (HousingRefreshFloorApplied)
+        {
+            return;
+        }
+
+        HousingRefreshFloorApplied = true;
+        if (HousingRefreshMinutes < HousingDefaults.RefreshMinutes)
+        {
+            HousingRefreshMinutes = HousingDefaults.RefreshMinutes;
+        }
+
         Save();
     }
 
@@ -443,6 +559,9 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public bool IsAppNotificationEnabled(string appId) =>
         !NotificationSettings.TryGetValue(appId, out var setting) || setting.Enabled;
 
+    public bool ShouldShowNotificationBanner(string appId) =>
+        !NotificationSettings.TryGetValue(appId, out var setting) || setting.ShowNotificationBanner;
+
     public string? AppSoundOverride(string appId) =>
         NotificationSettings.TryGetValue(appId, out var setting) && !string.IsNullOrEmpty(setting.Sound)
             ? setting.Sound
@@ -530,12 +649,22 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     {
         if (Plugin.Framework.IsInFrameworkUpdateThread)
         {
-            Plugin.PluginInterface.SavePluginConfig(this);
+            SaveNow();
             return;
         }
 
-        _ = Plugin.Framework.RunOnFrameworkThread(() => Plugin.PluginInterface.SavePluginConfig(this));
+        _ = Plugin.Framework.RunOnFrameworkThread(SaveNow);
     }
 
-    public void SaveNow() => Plugin.PluginInterface.SavePluginConfig(this);
+    public void SaveNow()
+    {
+        try
+        {
+            Plugin.PluginInterface.SavePluginConfig(this);
+        }
+        catch (Exception exception)
+        {
+            AepLog.Error(exception, "Configuration save failed; settings changed this session may be lost");
+        }
+    }
 }

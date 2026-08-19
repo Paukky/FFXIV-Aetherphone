@@ -4,6 +4,7 @@ using Aetherphone.Core.Aethernet.Clients;
 using Aetherphone.Core.Aethernet.Contracts;
 using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Home;
+using Aetherphone.Core.Localization;
 using Aetherphone.Core.Media;
 using Aetherphone.Core.Message;
 using Aetherphone.Core.Net;
@@ -33,12 +34,15 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
     private volatile VelvetProfileDto? me;
     private volatile bool loadingMe;
     private volatile bool accessBlocked;
+    private volatile bool regionBlocked;
     private volatile bool avatarBusy;
     private volatile AvatarUploadOutcome avatarFailure = AvatarUploadOutcome.Unreachable;
     private volatile bool introBusy;
     private volatile VelvetProfileDto[] discoverResults = Array.Empty<VelvetProfileDto>();
+    private volatile string[] notInterestedFromDiscover = Array.Empty<string>();
     private volatile bool loadingDiscover;
     private volatile bool discoverLoaded;
+    private volatile AepFailureBox? discoverFailureBox;
     private volatile string? discoverCursor;
     private volatile bool loadingMoreDiscover;
     private volatile VelvetDiscoverFilter discoverFilter = VelvetDiscoverFilter.Empty;
@@ -88,19 +92,29 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
     private volatile bool likersLoadingMore;
     private volatile bool likersLoading;
     private volatile bool likersFailed;
+    private int likersGeneration;
     private volatile UserDto[] blocked = Array.Empty<UserDto>();
     private volatile bool loadingBlocked;
     private volatile bool blockedLoaded;
+    private volatile VelvetProfileDto[] notInterested = Array.Empty<VelvetProfileDto>();
+    private readonly VelvetNotInterestedArchive notInterestedArchive;
+    private volatile bool notInterestedIdsLoaded;
+    private volatile bool notInterestedLoaded;
+    private volatile bool loadingNotInterested;
+    private Task? notInterestedIdsLoadTask;
+    private readonly object notInterestedIdsSync = new();
 
     public VelvetStore(AethernetSession session, VelvetClient client, AccountClient account, SafetyClient safety,
         MediaClient media, NotificationService notifications, Configuration configuration, KeyVault vault,
-        ConversationKeyStore keys, PhoneVisibility visibility, RealtimeSignalBus signals, AppInstaller installer)
+        ConversationKeyStore keys, PhoneVisibility visibility, RealtimeSignalBus signals, AppInstaller installer,
+        VelvetNotInterestedArchive notInterestedArchive)
         : base("Velvet", session, safety, media, notifications, vault, keys, visibility, installer.Gate("velvet"))
     {
         this.client = client;
         this.account = account;
         this.configuration = configuration;
         this.signals = signals;
+        this.notInterestedArchive = notInterestedArchive;
         signals.VelvetPinged += OnVelvetPinged;
         signals.SocialPinged += OnSocialPinged;
         signals.ConnectedChanged += OnRealtimeConnected;
@@ -142,13 +156,14 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
     private void OnVelvetPinged()
     {
         InboxCadence.RequestImmediate();
-        RefreshThreadIfVisible();
+        RequestThreadRefresh();
     }
 
     public MentionSuggestions NewMentionSuggestions() => new(account, work);
 
     public VelvetProfileDto? Me => me;
     public bool AccessBlocked => accessBlocked;
+    public bool RegionBlocked => regionBlocked;
     public bool HasProfile => me is not null;
     public bool AvatarBusy => avatarBusy;
 
@@ -157,6 +172,10 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
     public VelvetProfileDto[] DiscoverResults => discoverResults;
     public bool LoadingDiscover => loadingDiscover;
     public bool DiscoverLoaded => discoverLoaded;
+
+    public bool DiscoverFailed => discoverFailureBox is not null;
+
+    public AepFailure DiscoverFailure => discoverFailureBox?.Failure ?? AepFailure.None;
     public bool HasMoreDiscover => discoverCursor is not null;
     public bool LoadingMoreDiscover => loadingMoreDiscover;
     public VelvetConnectionDto[] Connections => connections;
@@ -202,6 +221,11 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
     public UserDto[] Blocked => blocked;
     public bool LoadingBlocked => loadingBlocked;
     public bool BlockedLoaded => blockedLoaded;
+
+    public VelvetProfileDto[] NotInterested => notInterested;
+    public bool NotInterestedLoaded => notInterestedLoaded;
+    public bool LoadingNotInterested => loadingNotInterested;
+
     public int UnreadCount => ComputeUnread();
 
     public void RefreshThreads() => RefreshThreadListCore();
@@ -231,10 +255,17 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         discoverEpoch++;
         me = null;
         accessBlocked = false;
+        regionBlocked = false;
         meGate.Reset();
         discoverResults = Array.Empty<VelvetProfileDto>();
+
+        notInterestedFromDiscover = Array.Empty<string>();
+        notInterestedLoaded = false;
+        notInterestedIdsLoaded = false;
+        notInterested = Array.Empty<VelvetProfileDto>();
         discoverCursor = null;
         discoverLoaded = false;
+        discoverFailureBox = null;
         discoverFilter = VelvetDiscoverFilter.Empty;
         discoverTags = string.Empty;
         discoverRegion = string.Empty;
@@ -265,9 +296,11 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         feedLoadedConnections = false;
         fetchedPost = null;
         fetchingPostId = null;
+        Interlocked.Increment(ref likersGeneration);
         likersPostId = null;
         likers = Array.Empty<UserDto>();
         likersCursor = null;
+        likersLoading = false;
         likersFailed = false;
         blocked = Array.Empty<UserDto>();
         blockedLoaded = false;
@@ -284,10 +317,11 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         await keys.HydrateVelvetAsync(token).ConfigureAwait(false);
     }
 
-    protected override async Task<ThreadListPage?> FetchThreadListAsync(string? cursor, CancellationToken token)
+    protected override async Task<ThreadListPage?> FetchThreadListAsync(string? cursor, CancellationToken token,
+        Action<AepFailure>? onFailure = null)
     {
         await EnsureVelvetHydratedAsync(token).ConfigureAwait(false);
-        var page = await client.ThreadsAsync(cursor, token).ConfigureAwait(false);
+        var page = await client.ThreadsAsync(cursor, token, onFailure).ConfigureAwait(false);
         return page is null ? null : new ThreadListPage(page.Items, page.NextCursor);
     }
 
@@ -314,6 +348,9 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
 
     protected override Task<bool> DeleteMessageRequestAsync(string messageId, CancellationToken token) =>
         client.DeleteMessageAsync(messageId, token);
+
+    protected override Task<bool> DeleteThreadRequestAsync(string threadId, CancellationToken token) =>
+        client.DeleteThreadAsync(threadId, token);
 
     protected override Task SetReactionRequestAsync(string messageId, string reactionToken, CancellationToken token) =>
         client.SetReactionAsync(messageId, reactionToken, token);
@@ -457,6 +494,12 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         return decorated ?? items;
     }
 
+    protected override bool IsInboxPreviewReady(VelvetThreadDto thread)
+    {
+        return thread.LastMessageEncVersion != EnvelopeCodec.VersionEnvelope
+            || cipher.IsPreviewResolved(thread.OtherUserId, thread.LastMessageAtUnix);
+    }
+
     public byte[]? DecryptMedia(VelvetMessageDto message, byte[] sealedBytes, string threadPartnerId)
     {
         if (message.EncVersion != EnvelopeCodec.VersionEnvelope
@@ -487,7 +530,9 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         work.Run("profile load", async token =>
         {
             var status = 0;
-            var profile = await client.MeAsync(token, code => status = code).ConfigureAwait(false);
+            var refusal = AepFailure.None;
+            var profile = await client.MeAsync(token, code => status = code, failure => refusal = failure)
+                .ConfigureAwait(false);
             if (epoch != accountEpoch)
             {
                 return;
@@ -497,10 +542,12 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
             {
                 me = profile;
                 accessBlocked = false;
+                regionBlocked = false;
             }
             else if (status == 403)
             {
                 accessBlocked = true;
+                regionBlocked = refusal.Code == FailureCodes.VelvetRegionBlocked;
             }
         }, () => loadingMe = false);
     }
@@ -609,14 +656,29 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         discoverRegion = region;
         discoverCursor = null;
         loadingDiscover = true;
+        EnsureNotInterestedLoaded();
         work.Run("discover", async token =>
         {
-            var page = await client.DiscoverAsync(filter, tags, region, null, token).ConfigureAwait(false);
-            if (page is not null && epoch == discoverEpoch)
+            var reported = AepFailure.None;
+            var page = await client.DiscoverAsync(filter, tags, region, null, token, failure => reported = failure)
+                .ConfigureAwait(false);
+            if (epoch != discoverEpoch)
             {
-                discoverResults = page.Users;
-                discoverCursor = page.NextCursor;
+                return;
             }
+
+            if (page is null)
+            {
+                discoverFailureBox = new AepFailureBox(reported.Failed
+                    ? reported
+                    : AepFailure.Transport(AepFailureKind.Offline));
+                AepLog.Warning($"Velvet discover failed: {discoverFailureBox.Failure.Describe()}");
+                return;
+            }
+
+            discoverFailureBox = null;
+            discoverResults = WithoutNotInterested(page.Users);
+            discoverCursor = page.NextCursor;
         }, () =>
         {
             loadingDiscover = false;
@@ -645,10 +707,39 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
                 .ConfigureAwait(false);
             if (page is not null && epoch == discoverEpoch)
             {
-                discoverResults = AppendUniqueDiscover(discoverResults, page.Users);
+                discoverResults = AppendUniqueDiscover(discoverResults, WithoutNotInterested(page.Users));
                 discoverCursor = page.NextCursor;
             }
         }, () => loadingMoreDiscover = false);
+    }
+
+    private VelvetProfileDto[] WithoutNotInterested(VelvetProfileDto[] incoming)
+    {
+        var notInterested = notInterestedFromDiscover;
+        if (notInterested.Length == 0)
+        {
+            return incoming;
+        }
+
+        var kept = new VelvetProfileDto[incoming.Length];
+        var count = 0;
+        for (var index = 0; index < incoming.Length; index++)
+        {
+            if (Array.IndexOf(notInterested, incoming[index].UserId) < 0)
+            {
+                kept[count] = incoming[index];
+                count++;
+            }
+        }
+
+        if (count == incoming.Length)
+        {
+            return incoming;
+        }
+
+        var trimmed = new VelvetProfileDto[count];
+        Array.Copy(kept, trimmed, count);
+        return trimmed;
     }
 
     private static VelvetProfileDto[] AppendUniqueDiscover(VelvetProfileDto[] existing, VelvetProfileDto[] incoming)
@@ -708,7 +799,7 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         });
     }
 
-    public void Heartbeat(string region, bool isLalafell)
+    public void Heartbeat(string region, bool? isLalafell)
     {
         if (!session.IsSignedIn)
         {
@@ -1088,11 +1179,100 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         work.Run("disconnect", async token => await client.DisconnectAsync(userId, token).ConfigureAwait(false));
     }
 
-    public void Block(string userId, Action<bool> onComplete)
+    public void Block(string userId, Action<bool> onComplete, Action<AepFailure>? onFailure = null)
     {
         blockedLoaded = false;
         ForgetConnection(userId, VelvetConnectionState.Blocked);
-        work.Run("block", async token => await safety.BlockAsync(userId, token).ConfigureAwait(false), onComplete);
+        HideFromDiscover(userId);
+        work.Run("block", async token =>
+        {
+            var blocked = await safety.BlockAsync(userId, token, onFailure).ConfigureAwait(false);
+            if (!blocked)
+            {
+                AepLog.Warning($"Velvet block of {userId} failed; the local hide is being undone");
+                RefreshConnections();
+                RefreshDiscover(discoverFilter, discoverTags, discoverRegion);
+            }
+
+            return blocked;
+        }, onComplete);
+    }
+
+    public void HideFromDiscover(string userId)
+    {
+        notInterestedLoaded = false;
+        discoverResults = RemoveDiscover(discoverResults, userId);
+
+        var accountId = MyUserId;
+        var epoch = accountEpoch;
+        work.Run("discover not interested save", async token =>
+        {
+            await EnsureNotInterestedLoadedAsync(token).ConfigureAwait(false);
+            if (epoch != accountEpoch)
+            {
+                return;
+            }
+
+            var current = notInterestedFromDiscover;
+            if (Array.IndexOf(current, userId) < 0)
+            {
+                var grown = new string[current.Length + 1];
+                Array.Copy(current, grown, current.Length);
+                grown[current.Length] = userId;
+                notInterestedFromDiscover = grown;
+            }
+
+            await Task.Run(() => notInterestedArchive.Save(accountId, notInterestedFromDiscover), token)
+                .ConfigureAwait(false);
+        });
+    }
+
+    public void RemoveFromNotInterested(string userId)
+    {
+        notInterested = RemoveProfile(notInterested, userId);
+        discoverLoaded = false;
+
+        var accountId = MyUserId;
+        var epoch = accountEpoch;
+        work.Run("discover not interested remove", async token =>
+        {
+            await EnsureNotInterestedLoadedAsync(token).ConfigureAwait(false);
+            if (epoch != accountEpoch)
+            {
+                return;
+            }
+
+            var current = notInterestedFromDiscover;
+            var index = Array.IndexOf(current, userId);
+            if (index >= 0)
+            {
+                var trimmed = new string[current.Length - 1];
+                Array.Copy(current, trimmed, index);
+                Array.Copy(current, index + 1, trimmed, index, current.Length - index - 1);
+                notInterestedFromDiscover = trimmed;
+            }
+
+            await Task.Run(() => notInterestedArchive.Save(accountId, notInterestedFromDiscover), token)
+                .ConfigureAwait(false);
+        });
+    }
+
+    private static VelvetProfileDto[] RemoveDiscover(VelvetProfileDto[] source, string userId)
+    {
+        for (var index = 0; index < source.Length; index++)
+        {
+            if (source[index].UserId != userId)
+            {
+                continue;
+            }
+
+            var trimmed = new VelvetProfileDto[source.Length - 1];
+            Array.Copy(source, trimmed, index);
+            Array.Copy(source, index + 1, trimmed, index, source.Length - index - 1);
+            return trimmed;
+        }
+
+        return source;
     }
 
     public void Unblock(string userId)
@@ -1124,7 +1304,63 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         });
     }
 
-    public void CreatePost(string[] sourcePaths, WallpaperCrop[] crops, PostAspect aspect, string caption,
+    public void RefreshNotInterested()
+    {
+        if (!session.IsSignedIn || loadingNotInterested)
+        {
+            return;
+        }
+
+        loadingNotInterested = true;
+        var epoch = accountEpoch;
+        work.Run("notInterested", async token =>
+        {
+            try
+            {
+                await EnsureNotInterestedLoadedAsync(token).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                AepLog.Warning(exception, "Velvet not-interested ids load failed");
+                return false;
+            }
+
+            if (epoch != accountEpoch)
+            {
+                return false;
+            }
+
+            var ids = notInterestedFromDiscover;
+            var list = new List<VelvetProfileDto>(ids.Length);
+            for (var index = 0; index < ids.Length; index++)
+            {
+                var user = await client.UserAsync(ids[index], token).ConfigureAwait(false);
+                if (epoch != accountEpoch)
+                {
+                    return false;
+                }
+
+                if (user is not null)
+                {
+                    list.Add(user);
+                }
+            }
+
+            notInterested = list.ToArray();
+            return true;
+        }, succeeded =>
+        {
+            if (epoch == accountEpoch && succeeded)
+            {
+                notInterestedLoaded = true;
+            }
+
+            loadingNotInterested = false;
+        });
+    }
+
+    // aspects holds one choice per photo, framed exactly as AethergramStore.CreateGram does.
+    public void CreatePost(string[] sourcePaths, WallpaperCrop[] crops, PostAspect[] aspects, string caption,
         string[] tags, int audience, Action<bool> onComplete)
     {
         if (posting || sourcePaths.Length == 0)
@@ -1136,10 +1372,12 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         work.Run("create post", async token =>
         {
             var mediaKeys = new string[sourcePaths.Length];
-            var (bakedWidth, bakedHeight) = PostAspects.Size(aspect, PostSize);
+            var (containerWidth, containerHeight) = PostAspects.Size(aspects[0], PostSize);
             for (var index = 0; index < sourcePaths.Length; index++)
             {
-                var baked = ImageProcessor.BakeCroppedJpeg(sourcePaths[index], crops[index], bakedWidth, bakedHeight);
+                var (bakedWidth, bakedHeight) = PostAspects.Size(aspects[index], PostSize);
+                var baked = ImageProcessor.BakeCroppedJpeg(sourcePaths[index], crops[index], bakedWidth, bakedHeight,
+                    PostAspects.RevealsWholeImage(aspects[index]));
                 var upload = await media.UploadUrlAsync("image/jpeg", "velvet", token).ConfigureAwait(false);
                 if (upload is null)
                 {
@@ -1156,8 +1394,8 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
                 mediaKeys[index] = upload.Key;
             }
 
-            var request =
-                new CreateVelvetPostRequest(mediaKeys[0], bakedWidth, bakedHeight, caption, tags, mediaKeys, audience);
+            var request = new CreateVelvetPostRequest(mediaKeys[0], containerWidth, containerHeight, caption, tags,
+                mediaKeys, audience);
             var created = await client.CreatePostAsync(request, token).ConfigureAwait(false);
             if (created is null)
             {
@@ -1201,27 +1439,35 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
 
     public void OpenLikers(string postId)
     {
-        if (likersPostId == postId && (likers.Length > 0 || likersLoading))
+        if (likersPostId == postId && likersLoading)
         {
             return;
         }
 
+        var generation = Interlocked.Increment(ref likersGeneration);
+        var keepStaleRows = likersPostId == postId && likers.Length > 0;
+        var staleCursor = likersCursor;
         likersPostId = postId;
-        likers = Array.Empty<UserDto>();
+        if (!keepStaleRows)
+        {
+            likers = Array.Empty<UserDto>();
+        }
+
         likersCursor = null;
         likersFailed = false;
-        likersLoading = true;
+        likersLoading = !keepStaleRows;
         work.Run("likers", async token =>
         {
             var page = await client.PostLikersAsync(postId, null, token).ConfigureAwait(false);
-            if (likersPostId != postId)
+            if (Volatile.Read(ref likersGeneration) != generation)
             {
                 return;
             }
 
             if (page is null)
             {
-                likersFailed = true;
+                likersFailed = !keepStaleRows;
+                likersCursor = keepStaleRows ? staleCursor : null;
             }
             else
             {
@@ -1230,7 +1476,7 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
             }
         }, () =>
         {
-            if (likersPostId == postId)
+            if (Volatile.Read(ref likersGeneration) == generation)
             {
                 likersLoading = false;
             }
@@ -1246,11 +1492,12 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
             return;
         }
 
+        var generation = Volatile.Read(ref likersGeneration);
         likersLoadingMore = true;
         work.Run("likers more", async token =>
         {
             var page = await client.PostLikersAsync(postId, cursor, token).ConfigureAwait(false);
-            if (page is null || likersPostId != postId)
+            if (page is null || Volatile.Read(ref likersGeneration) != generation)
             {
                 return;
             }
@@ -1306,7 +1553,8 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         }, () => commentsLoadingMore = false);
     }
 
-    public void AddComment(string postId, string text, Action<bool> onComplete)
+    public void AddComment(string postId, string text, Action<bool> onComplete,
+        Action<AepFailure>? onFailure = null)
     {
         var trimmed = text.Trim();
         if (trimmed.Length == 0 || commenting)
@@ -1317,9 +1565,10 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
         commenting = true;
         work.Run("comment", async token =>
         {
-            var created = await client.AddCommentAsync(postId, trimmed, token).ConfigureAwait(false);
+            var created = await client.AddCommentAsync(postId, trimmed, token, onFailure).ConfigureAwait(false);
             if (created is null)
             {
+                AepLog.Warning($"Velvet comment on {postId} was not accepted");
                 return false;
             }
 
@@ -1538,6 +1787,101 @@ internal sealed class VelvetStore : ChatThreadStoreBase<VelvetMessageDto, Velvet
             detailComments = Array.Empty<VelvetCommentDto>();
             commentsCursor = null;
         }
+    }
+
+    private void EnsureNotInterestedLoaded()
+    {
+        if (!session.IsSignedIn || notInterestedIdsLoaded)
+        {
+            return;
+        }
+
+        work.Run("discover not interested load", token => EnsureNotInterestedLoadedAsync(token));
+    }
+
+    private Task EnsureNotInterestedLoadedAsync(CancellationToken token)
+    {
+        if (notInterestedIdsLoaded)
+        {
+            return Task.CompletedTask;
+        }
+
+        lock (notInterestedIdsSync)
+        {
+            if (notInterestedIdsLoaded)
+            {
+                return Task.CompletedTask;
+            }
+
+            notInterestedIdsLoadTask ??= LoadNotInterestedIdsAsync(token);
+            return notInterestedIdsLoadTask;
+        }
+    }
+
+    private async Task LoadNotInterestedIdsAsync(CancellationToken token)
+    {
+        var epoch = accountEpoch;
+        var loaded = false;
+        try
+        {
+            var accountId = MyUserId;
+            if (accountId.Length == 0)
+            {
+                return;
+            }
+
+            var ids = await Task.Run(() => notInterestedArchive.Load(accountId), token).ConfigureAwait(false);
+            if (epoch != accountEpoch)
+            {
+                return;
+            }
+
+            notInterestedFromDiscover = MergeNotInterested(notInterestedFromDiscover, ids);
+            discoverResults = WithoutNotInterested(discoverResults);
+            loaded = true;
+        }
+        finally
+        {
+            if (loaded && epoch == accountEpoch)
+            {
+                notInterestedIdsLoaded = true;
+            }
+
+            lock (notInterestedIdsSync)
+            {
+                notInterestedIdsLoadTask = null;
+            }
+        }
+    }
+
+    private static string[] MergeNotInterested(string[] existing, string[] incoming)
+    {
+        var set = new HashSet<string>(existing, StringComparer.Ordinal);
+        var added = false;
+        for (var index = 0; index < incoming.Length; index++)
+        {
+            added |= set.Add(incoming[index]);
+        }
+
+        return added ? set.ToArray() : existing;
+    }
+
+    private static VelvetProfileDto[] RemoveProfile(VelvetProfileDto[] source, string userId)
+    {
+        for (var index = 0; index < source.Length; index++)
+        {
+            if (source[index].UserId != userId)
+            {
+                continue;
+            }
+
+            var trimmed = new VelvetProfileDto[source.Length - 1];
+            Array.Copy(source, trimmed, index);
+            Array.Copy(source, index + 1, trimmed, index, source.Length - index - 1);
+            return trimmed;
+        }
+
+        return source;
     }
 
     protected override void DisposeCore()

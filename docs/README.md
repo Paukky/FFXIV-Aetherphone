@@ -41,7 +41,7 @@ Terms that recur across every doc, defined once here:
 
 Every doc opens with one paragraph saying what it covers and when to read it, then a "Key files" table mapping the paths you will open most. Docs end with "Gotchas" (real traps verified in code, worth skimming even if you skip the middle) and "Related docs" links. When any doc and the code disagree, the code wins.
 
-The one exception is [the art asset specification](ART-ASSET-SPEC.md), which is written for artists rather than engineers and keeps its own numbered, table-first format.
+Two exceptions keep their own format: [the art asset specification](ART-ASSET-SPEC.md), written for artists, numbered and table first, and [accent colors](design-accents.md), a short design rationale without the standard sections. Even [the translator guide](translating.md), a step-by-step walkthrough for contributors who are not engineers, follows the standard shape.
 
 ## All docs
 
@@ -60,6 +60,7 @@ The one exception is [the art asset specification](ART-ASSET-SPEC.md), which is 
 | [Creating your own app](creating-an-app.md) | Step-by-step tutorial: folder, class, registration, icon, accent color, localized name, plus a recipe for adding a Settings page |
 | [App framework](app-framework.md) | The `IPhoneApp` contract in full: lifecycle, navigation, theming, badges, sharing, home placement, polling, home widgets, Control Center tiles |
 | [UI toolkit](ui-toolkit.md) | The widget library in src/Aetherphone/Windows/Components: typography, spacing tokens, input, popups, scrolling, common widgets |
+| [Accent colors](design-accents.md) | The generated accent ring: the white-glyph contrast rule, hue spacing, per-app assignment, brand exceptions, and derived palettes |
 | [Mini-games framework](games-framework.md) | The Games app: the `IMiniGame` contract, juice helpers (shake, hit-stop, particles), scoring, and the daily challenge |
 
 ### Platform services
@@ -84,14 +85,15 @@ The one exception is [the art asset specification](ART-ASSET-SPEC.md), which is 
 
 | Doc | What it covers |
 | --- | --- |
-| [Art asset specification](ART-ASSET-SPEC.md) | The spec artists follow to produce app icons and phone cases that drop in without engineering work |
+| [Art asset specification](ART-ASSET-SPEC.md) | The spec artists follow to produce app icons, phone cases, and avatar frames that drop in without engineering work, plus the open art decisions still on the table |
+| [Translator guide](translating.md) | For translators with no code background: editing one language JSON and opening a pull request entirely in the browser |
 
 ## Find it fast
 
 Common first questions, each with the doc and section that answers it:
 
 1. **How do I build the plugin and load it in game?** [Getting started: clone and build](getting-started.md#clone-and-build), then [load it in the game](getting-started.md#load-it-in-the-game).
-2. **Why does my change not show up in game?** Usually the Release versus Debug trap: [getting started: why Release, not Debug?](getting-started.md#why-release-not-debug)
+2. **Why does my change not show up in game?** Usually the Release versus Debug trap: [getting started: Release or Debug?](getting-started.md#release-or-debug)
 3. **How do I create a whole new app?** [Creating your own app](creating-an-app.md), start to finish.
 4. **How do I add a setting that survives restarts?** [State and persistence: the Dalamud config model](state-and-persistence.md#the-dalamud-config-model).
 5. **Where do notification sounds live?** Behavior in [notifications: sounds](notifications.md#sounds); the files and how to add one in [assets and media: sounds](assets-and-media.md#sounds).
@@ -105,6 +107,7 @@ Common first questions, each with the doc and section that answers it:
 13. **How do I add a page to the Settings app?** [Creating your own app: add a Settings page](creating-an-app.md#add-a-settings-page). A common good first issue.
 14. **How do I add a home screen widget or a Control Center tile?** [App framework: home widgets](app-framework.md#home-widgets) and [Control Center tiles](app-framework.md#control-center-tiles).
 15. **How do voice calls work?** [Networking: calls](networking.md#calls) covers the lifecycle, audio pipeline, and UI entry points.
+16. **I want to fix a translation but I do not write code.** [Translator guide](translating.md): edit one JSON file and open the pull request from the browser.
 
 ## Contributing and questions
 
@@ -112,7 +115,7 @@ Read [CONTRIBUTING.md](../CONTRIBUTING.md) at the repo root for the pull request
 
 ## Gotchas
 
-- Dev plugin loading points at a fixed dll path. If you registered `src/Aetherphone/bin/Release/Aetherphone.dll` in Dalamud and then build with `-c Debug`, the output goes to `bin/Debug/` and the game silently keeps loading your previous Release build.
+- Dev plugin loading points at a fixed dll path. Release builds `bin/Release/Aetherphone.dll`, Debug builds the side-by-side `bin/Debug/AetherphoneDev.dll` (`/phonedev`, its own config, development Aethernet instance). Build the configuration you did not register and the game silently keeps loading your previous plugin.
 - Bundled asset folders (Fonts, Emoji, Icons, Images, Sounds, Wallpapers, Cases, Localization) are copied to the build output by `<Content>` items in src/Aetherphone/Aetherphone.csproj. Editing an asset file does nothing in game until you rebuild.
 - These docs cover the client only. The Aethernet backend lives in a separate repository, so server behavior can change without any commit here; where a doc and the code disagree, the code wins.
 

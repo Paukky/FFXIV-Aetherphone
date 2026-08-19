@@ -1,4 +1,5 @@
 using Aetherphone.Core;
+using Aetherphone.Core.Apps;
 using Aetherphone.Core.Animation;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Notifications;
@@ -62,8 +63,6 @@ internal sealed class NotificationBanner : IDisposable
         this.router = router;
         notifications.Presented += OnPresented;
     }
-
-    public event Action? Shown;
 
     public bool IsVisible => stage != Stage.Idle;
 
@@ -269,10 +268,11 @@ internal sealed class NotificationBanner : IDisposable
         var iconCenter = new Vector2(min.X + Padding * scale + iconExtent, (min.Y + max.Y) * 0.5f);
         var iconMin = new Vector2(iconCenter.X - iconExtent, iconCenter.Y - iconExtent);
         var iconMax = new Vector2(iconCenter.X + iconExtent, iconCenter.Y + iconExtent);
-        Squircle.Fill(dl, iconMin, iconMax, iconExtent * 0.52f, Color(notification.Accent, opacity));
-        var ink = Palette.WithAlpha(theme.TextStrong, opacity);
+        var tileFill = IconTile.Surface(notification.Accent);
+        Squircle.Fill(dl, iconMin, iconMax, iconExtent * 0.52f, Color(tileFill, opacity));
+        var ink = Palette.WithAlpha(AccentRing.Ink, opacity);
         if (!AppIconArt.TryDraw(dl, notification.AppId, iconCenter, IconSize * scale, ink,
-                Palette.WithAlpha(notification.Accent, opacity)))
+                Palette.WithAlpha(tileFill, opacity)))
         {
             var initial = notification.Title.Length > 0 ? notification.Title.Substring(0, 1) : "?";
             Typography.DrawCentered(dl, iconCenter, initial, ink, 1.1f);
@@ -292,7 +292,7 @@ internal sealed class NotificationBanner : IDisposable
         var bodyMaxWidth = textRight - textLeft;
         var bodyTop = titleTop + BodyOffset * scale;
         var bodyStyle = new TextStyle(0.88f, FontWeight.Regular);
-        Marquee.DrawLeftAuto(dl, "notificationbanner.body." + notification.Id, notification.Body, textLeft,
+        Marquee.DrawLeftAuto(dl, "notificationbanner.body." + notification.Id, notification.SingleLineBody, textLeft,
             bodyTop, bodyMaxWidth, bodyStyle, Palette.WithAlpha(theme.TextMuted, opacity));
     }
 
@@ -312,7 +312,6 @@ internal sealed class NotificationBanner : IDisposable
         {
             active = notification;
             holdElapsed = 0f;
-            Shown?.Invoke();
             return;
         }
 
@@ -323,7 +322,6 @@ internal sealed class NotificationBanner : IDisposable
         }
 
         pending.Enqueue(notification);
-        Shown?.Invoke();
         if (stage == Stage.Idle)
         {
             BeginNext();

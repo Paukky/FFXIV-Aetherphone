@@ -15,6 +15,7 @@ const map = {
   contacts: "address-book",
   character: "user-circle",
   health: "heartbeat",
+  housing: "building-estate",
   camera: "camera",
   photos: "photo",
   skywatcher: "cloud",
@@ -48,6 +49,7 @@ const map = {
   kupoai: "message-chatbot",
   appstore: "apps",
   shortcuts: "bolt",
+  aetherstream: "device-tv",
 };
 
 function recolor(svg) {
