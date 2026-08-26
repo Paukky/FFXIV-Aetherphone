@@ -317,6 +317,12 @@ internal static class L
         public static readonly LocString RulesTitle = new("kindkupo.rulesTitle", "KindKupo Guidelines");
         public static readonly LocString RulesBody =
             new("kindkupo.rulesBody", "KindKupo is a place for kind, anonymous confessions and supportive listening. Please be thoughtful and gentle.");
+        public static readonly LocString Report = new("kindkupo.report", "Report");
+        public static readonly LocString ReportConfession = new("kindkupo.reportConfession", "Report Confession");
+        public static readonly LocString ReportReply = new("kindkupo.reportReply", "Report Reply");
+        public static readonly LocString SignInTitle = new("kindkupo.signInTitle", "Sign in required");
+        public static readonly LocString SignInHint =
+            new("kindkupo.signInHint", "Sign in to Aethernet in Settings to use KindKupo");
     }
 
     internal static class Shortcuts

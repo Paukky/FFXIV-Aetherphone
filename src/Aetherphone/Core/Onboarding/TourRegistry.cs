@@ -429,7 +429,6 @@ internal static class TourRegistry
             new[]
             {
                 GuideStep.Note(L.Apps.KindKupo, L.Onboarding.KindKupoBody),
-                GuideStep.Point(L.Onboarding.KindKupoStatsTitle, L.Onboarding.KindKupoStatsBody, "kindkupo.stats"),
                 GuideStep.Point(L.Onboarding.KindKupoWriteTitle, L.Onboarding.KindKupoWriteBody, "kindkupo.write"),
                 GuideStep.Point(L.Onboarding.KindKupoRespondTitle, L.Onboarding.KindKupoRespondBody, "kindkupo.respond"),
                 GuideStep.Point(L.Onboarding.KindKupoInboxTitle, L.Onboarding.KindKupoInboxBody, "kindkupo.inbox"),

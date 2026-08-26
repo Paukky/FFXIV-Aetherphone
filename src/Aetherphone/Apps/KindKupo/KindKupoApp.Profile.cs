@@ -1,22 +1,12 @@
 using Aetherphone.Core;
-using Aetherphone.Core.Aethernet;
 using Aetherphone.Core.Aethernet.Contracts;
-using Aetherphone.Core.Animation;
 using Aetherphone.Core.Apps;
-using Aetherphone.Core.Conduct;
-using Aetherphone.Core.Confirm;
-using Aetherphone.Core.Home;
 using Aetherphone.Core.Localization;
-using Aetherphone.Core.Lodestone;
-using Aetherphone.Core.Net;
-using Aetherphone.Core.Notifications;
 using Aetherphone.Core.Onboarding;
-using Aetherphone.Core.Report;
-using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Utility;
+
 
 namespace Aetherphone.Apps.KindKupo;
 
@@ -92,13 +82,13 @@ internal sealed partial class KindKupoApp
 
         using (AppSurface.Begin(body))
         {
-            // 1. Draw the original confession at the top
+
             DrawConfessionCard(confession);
 
             ImGui.Dummy(new Vector2(0f, 8f * scale));
             ui.SectionHeading($"{Loc.T(L.KindKupo.Replies)} ({confession.Responses.Count})");
 
-            // 2. Draw each response card
+
             foreach (var response in confession.Responses)
             {
                 DrawResponseCard(response);

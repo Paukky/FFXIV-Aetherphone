@@ -17,15 +17,13 @@ internal sealed class KindKupoStore : IDisposable
     private volatile string? userCursor;
     private volatile string? activeUserId;
     private volatile bool userLoading;
-    private volatile bool userLoadingMore;
     private volatile ConfessionDto[] confessions = Array.Empty<ConfessionDto>();
     private volatile ConfessionDto[] userConfessions = Array.Empty<ConfessionDto>();
+    public bool IsSignedIn => session.IsSignedIn;
     public ConfessionDto[] UserConfessions => userConfessions;
     public bool UserLoading => userLoading;
     public bool HasMoreUserConfessions => userCursor is not null;
-    public bool UserLoadingMore => userLoadingMore;
     private volatile string? cursor;
-    private volatile bool loading;
     private volatile bool loadingMore;
     public KindKupoStore(AethernetSession session, KupoClient client)
     {

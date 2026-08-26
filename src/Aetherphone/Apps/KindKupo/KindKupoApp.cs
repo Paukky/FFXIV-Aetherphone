@@ -28,9 +28,6 @@ internal sealed partial class KindKupoApp : IPhoneApp
     public string DisplayName => Loc.T(L.Apps.KindKupo);
     public string Glyph => "KK";
     public int BadgeCount => social.UnseenCount(Id);
-    private readonly int writtenCount;
-    private readonly int responseCount;
-    private readonly int kudosCount;
 
     private readonly KindKupoStore store;
     private readonly ViewRouter<KindKupoRoute> router;
@@ -40,6 +37,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
     private readonly AethernetApi net;
     private readonly ConductGateService conduct;
     private readonly SocialNotificationService social;
+    private readonly ReportService report;
     RichTextLayout? bodyLayout = null;
     private PhoneTheme theme = PhoneTheme.Default;
     private string draft = string.Empty;
@@ -50,6 +48,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
     {
         this.session = session;
         this.net = net;
+        this.report = report;
         this.conduct = conduct;
         this.social = social;
         store = new KindKupoStore(session, net.Kupo);
@@ -77,6 +76,24 @@ internal sealed partial class KindKupoApp : IPhoneApp
         theme = context.Theme;
         navigation = context.Navigation;
         ui.Theme = theme;
+
+        var scale = UiScale.Current;
+        var screen = SceneChrome.ScreenFrom(context.Content, theme, scale);
+        ui.Backdrop(screen);
+
+        if (!session.IsSignedIn)
+        {
+            TourHolds.Hold(Id);
+            ui.Body(context.Content);
+            AppHeader.Draw(context, DisplayName, navigation.Back);
+            var top = context.Content.Min.Y + AppHeader.Height * scale;
+            var body = new Rect(new Vector2(context.Content.Min.X, top), context.Content.Max);
+            EmptyState.Draw(body, ui, FontAwesomeIcon.UserLock, Loc.T(L.KindKupo.SignInTitle),
+                Loc.T(L.KindKupo.SignInHint));
+            return;
+        }
+
+        TourHolds.Release(Id);
         router.Draw(context.Content, AppSkin.Transparent, ImGui.GetIO().DeltaTime, drawView);
     }
 
@@ -89,7 +106,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
                 DrawWriteScreen(area);
                 break;
             case KindKupoScreen.Inbox:
-                DrawInbox(area, session.CurrentUser.Id);
+                DrawInbox(area, session.CurrentUser?.Id ?? string.Empty);
                 break;
             case KindKupoScreen.Respond:
                 DrawResponseFeed(area);
@@ -160,39 +177,49 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
     private void DrawCardFooter(ConfessionDto confession, float left, float width, float centerY)
     {
-
         var scale = UiScale.Current;
         var drawList = ImGui.GetWindowDrawList();
         var right = left + width;
-
 
         var stamp = TimeText.Ago(confession.CreatedAt);
         var stampSize = Typography.Measure(stamp, 0.85f, FontWeight.Regular);
         var stampPos = new Vector2(left, centerY - stampSize.Y * 0.5f);
         Typography.Draw(drawList, stampPos, stamp, AppPalettes.KindKupo.MutedInk, 0.85f, FontWeight.Regular);
 
-        var iconWidth = 16f * scale;
-        var iconCenter = new Vector2(right - iconWidth * 0.8f, centerY);
-        if (router.Current == KindKupoRoute.Respond)
-        {
-            if (ui.IconButton(iconCenter, 16f * scale, FontAwesomeIcon.Pen.ToIconString(),
-                    AppPalettes.KindKupo.MutedInk,
-                    new Vector4(0f, 0f, 0f, 0f), 1f, Loc.T(L.KindKupo.Respond)))
-            {
-                router.Push(KindKupoRoute.ComposeResponse(confession));
-            }
-        }
+        var iconSize = 16f * scale;
+        var transparent = Vector4.Zero;
 
-        if (router.Current == KindKupoRoute.Inbox)
+        switch (router.Current.Screen)
         {
-            if (ui.IconButton(iconCenter, 16f * scale, FontAwesomeIcon.CommentDots.ToIconString(),
-                    AppPalettes.KindKupo.MutedInk,
-                    new Vector4(0f, 0f, 0f, 0f), 1f, Loc.T(L.KindKupo.ViewReplies, confession.Responses.Count)))
+            case KindKupoScreen.Respond:
             {
-                router.Push(KindKupoRoute.ViewResponse(confession));
+                var respondPos = new Vector2(right - iconSize * 0.8f, centerY);
+                if (ui.IconButton(respondPos, iconSize, FontAwesomeIcon.Pen.ToIconString(),
+                        AppPalettes.KindKupo.MutedInk, transparent, 1f, Loc.T(L.KindKupo.Respond)))
+                {
+                    router.Push(KindKupoRoute.ComposeResponse(confession));
+                }
+
+                var reportPos = new Vector2(respondPos.X - 24f * scale, centerY);
+                if (ui.IconButton(reportPos, iconSize, FontAwesomeIcon.Flag.ToIconString(),
+                        AppPalettes.KindKupo.MutedInk, transparent, 0.9f, Loc.T(L.KindKupo.Report)))
+                {
+                    OpenReportConfession(confession.Id);
+                }
+                break;
+            }
+
+            case KindKupoScreen.Inbox:
+            {
+                var repliesPos = new Vector2(right - iconSize * 0.8f, centerY);
+                if (ui.IconButton(repliesPos, iconSize, FontAwesomeIcon.CommentDots.ToIconString(),
+                        AppPalettes.KindKupo.MutedInk, transparent, 1f, Loc.T(L.KindKupo.ViewReplies, confession.Responses.Count)))
+                {
+                    router.Push(KindKupoRoute.ViewResponse(confession));
+                }
+                break;
             }
         }
-        //AppSkin.Icon(drawList, iconCenter, icon, AppPalettes.KindKupo.MutedInk, iconScale);
     }
 
     private void DrawResponseCard(ResponseDto response)
@@ -215,11 +242,11 @@ internal sealed partial class KindKupoApp : IPhoneApp
             : (bodyLayout?.Size.Y ?? Typography.MeasureWrapped(response.Text, contentWidth, 1.05f));
         var textToFooterGap = 10f * scale;
         var footerHeight = 24f * scale;
+        var footerCenterY = textTop + textHeight + textToFooterGap + footerHeight * 0.5f;
 
         var cardHeight = pad + textHeight + textToFooterGap + footerHeight + pad;
         var cardBottom = origin.Y + cardHeight;
         ui.Card(drawList, origin, new Vector2(origin.X + width, cardBottom), rounding);
-
 
         if (response.Text.Length > 0 && bodyLayout is null)
         {
@@ -233,96 +260,101 @@ internal sealed partial class KindKupoApp : IPhoneApp
         }
         var stamp = TimeText.Ago(response.CreatedAt);
         var stampSize = Typography.Measure(stamp, 0.85f, FontWeight.Regular);
-        var stampPos = new Vector2(contentLeft, cardBottom - pad - stampSize.Y * 0.5f);
+        var stampPos = new Vector2(contentLeft, footerCenterY - stampSize.Y * 0.5f);
         Typography.Draw(drawList, stampPos, stamp, AppPalettes.KindKupo.MutedInk, 0.85f, FontWeight.Regular);
+
+        var reportIconPos = new Vector2(contentRight - 12f * scale, footerCenterY);
+        if (ui.IconButton(reportIconPos, 16f * scale, FontAwesomeIcon.Flag.ToIconString(),
+                AppPalettes.KindKupo.MutedInk,
+                new Vector4(0f, 0f, 0f, 0f), 0.9f, Loc.T(L.KindKupo.Report)))
+        {
+            OpenReportResponse(response.Id);
+        }
 
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, cardHeight + cardGap));
+    }
+
+    private void OpenReportConfession(string confessionId)
+    {
+        report.Open(new ReportPrompt
+        {
+            Title = Loc.T(L.KindKupo.ReportConfession),
+            Submit = (reason, done) =>
+            {
+                _ = Task.Run(async () =>
+                {
+                    var ok = false;
+                    try
+                    {
+                        ok = await net.Safety.ReportAsync("kupo_confession", confessionId, reason, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        AepLog.Warning(ex, "[KindKupo] report confession failed");
+                    }
+                    done(ok);
+                });
+            },
+        });
+    }
+
+    private void OpenReportResponse(string responseId)
+    {
+        report.Open(new ReportPrompt
+        {
+            Title = Loc.T(L.KindKupo.ReportReply),
+            Submit = (reason, done) =>
+            {
+                _ = Task.Run(async () =>
+                {
+                    var ok = false;
+                    try
+                    {
+                        ok = await net.Safety.ReportAsync("kupo_response", responseId, reason, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        AepLog.Warning(ex, "[KindKupo] report reply failed");
+                    }
+                    done(ok);
+                });
+            },
+        });
     }
 
 
     private void DrawHome(Rect area)
     {
         var scale = UiScale.Current;
-        var drawList = ImGui.GetWindowDrawList();
         var padding = 16f * scale;
         DrawHomeTopBar(area);
 
-        var contentMinY = area.Min.Y + AppHeader.Height * scale;
-        var availableHeight = area.Max.Y - contentMinY;
+        var contentTop = area.Min.Y + AppHeader.Height * scale;
+        var availableHeight = area.Max.Y - contentTop;
 
+        var buttonHeight = 44f * scale;
+        var gap = 12f * scale;
+        var blockHeight = buttonHeight * 2f + gap;
 
-        var statCardHeight = 80f * scale;
-        var buttonHeight = 42f * scale;
-        var gapStatToBtn = 20f * scale;
-        var gapBetweenBtns = 12f * scale;
-        var totalBlockHeight = statCardHeight + gapStatToBtn + buttonHeight + gapBetweenBtns + buttonHeight;
+        var startY = contentTop + MathF.Max(0f, (availableHeight - blockHeight) * 0.5f);
+        var minX = area.Min.X + padding;
+        var maxX = area.Max.X - padding;
 
-        var top = contentMinY + MathF.Max(0f, (availableHeight - totalBlockHeight) * 0.5f);
-        var width = area.Width - padding * 2f;
-
-
-        var statMin = new Vector2(area.Min.X + padding, top);
-        var statMax = new Vector2(statMin.X + width, top + statCardHeight);
-
-        UiAnchors.Report("kindkupo.stats", new Rect(statMin, statMax));
-        ui.Card(drawList, statMin, statMax, 12f * scale, elevated: false);
-
-        var colWidth = width / 3f;
-
-
-        DrawStatColumn(drawList, new Rect(statMin, new Vector2(statMin.X + colWidth, statMax.Y)),
-            writtenCount.ToString(), Loc.T(L.KindKupo.Written), scale);
-
-
-        var div1X = statMin.X + colWidth;
-        drawList.AddLine(new Vector2(div1X, statMin.Y + 12f * scale), new Vector2(div1X, statMax.Y - 12f * scale),
-            ImGui.GetColorU32(AppPalettes.KindKupo.CardStroke));
-
-
-        DrawStatColumn(drawList, new Rect(new Vector2(div1X, statMin.Y), new Vector2(div1X + colWidth, statMax.Y)),
-            responseCount.ToString(), Loc.T(L.KindKupo.Responses), scale);
-
-
-        var div2X = div1X + colWidth;
-        drawList.AddLine(new Vector2(div2X, statMin.Y + 12f * scale), new Vector2(div2X, statMax.Y - 12f * scale),
-            ImGui.GetColorU32(AppPalettes.KindKupo.CardStroke));
-
-
-        DrawStatColumn(drawList, new Rect(new Vector2(div2X, statMin.Y), statMax),
-            kudosCount.ToString(), Loc.T(L.KindKupo.Kudos), scale);
-
-
-        var buttonY = statMax.Y + gapStatToBtn;
-
-
-        var writeRect = new Rect(new Vector2(area.Min.X + padding, buttonY),
-            new Vector2(area.Max.X - padding, buttonY + buttonHeight));
-
+        var writeRect = new Rect(new Vector2(minX, startY), new Vector2(maxX, startY + buttonHeight));
         UiAnchors.Report("kindkupo.write", writeRect);
         if (ui.PillButton(writeRect, Loc.T(L.KindKupo.Write), filled: true))
         {
             router.Push(KindKupoRoute.Write);
         }
 
-
-        var respondY = buttonY + buttonHeight + gapBetweenBtns;
-        var respondRect = new Rect(new Vector2(area.Min.X + padding, respondY),
-            new Vector2(area.Max.X - padding, respondY + buttonHeight));
-
+        var respondRect = new Rect(new Vector2(minX, writeRect.Max.Y + gap), new Vector2(maxX, writeRect.Max.Y + gap + buttonHeight));
         UiAnchors.Report("kindkupo.respond", respondRect);
         if (ui.PillButton(respondRect, Loc.T(L.KindKupo.Respond), filled: false))
         {
             router.Push(KindKupoRoute.Respond);
         }
-    }
-
-    private static void DrawStatColumn(ImDrawListPtr drawList, Rect rect, string value, string label, float scale)
-    {
-        var numberPos = new Vector2(rect.Center.X, rect.Min.Y + 20f * scale);
-        var labelPos = new Vector2(rect.Center.X, rect.Min.Y + 48f * scale);
-
-        Typography.DrawCentered(drawList, numberPos, value, AppPalettes.KindKupo.TitleInk, 1.4f, FontWeight.Bold);
-        Typography.DrawCentered(drawList, labelPos, label, AppPalettes.KindKupo.MutedInk, 0.85f, FontWeight.Medium);
     }
 }
