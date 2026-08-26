@@ -38,7 +38,7 @@ internal static class KindKupoMockData
                 ResponseCount: 1,
                 Responses:
                 [
-                    new ConfessionResponseDto(
+                    new ResponseDto(
                         Id: "resp-101",
                         ConfessionId: "confession-1",
                         ResponderId: "user-201",
@@ -55,21 +55,21 @@ internal static class KindKupoMockData
                 ResponseCount: 3,
                 Responses:
                 [
-                    new ConfessionResponseDto(
+                    new ResponseDto(
                         Id: "resp-201",
                         ConfessionId: "confession-2",
                         ResponderId: "user-301",
                         Text: LoremShort,
                         CreatedAt: now.AddHours(-1).AddMinutes(-40)
                     ),
-                    new ConfessionResponseDto(
+                    new ResponseDto(
                         Id: "resp-202",
                         ConfessionId: "confession-2",
                         ResponderId: "user-302",
                         Text: LoremMedium,
                         CreatedAt: now.AddHours(-1).AddMinutes(-20)
                     ),
-                    new ConfessionResponseDto(
+                    new ResponseDto(
                         Id: "resp-203",
                         ConfessionId: "confession-2",
                         ResponderId: "user-303",
@@ -86,14 +86,14 @@ internal static class KindKupoMockData
                 ResponseCount: 2,
                 Responses:
                 [
-                    new ConfessionResponseDto(
+                    new ResponseDto(
                         Id: "resp-301",
                         ConfessionId: "confession-3",
                         ResponderId: "user-401",
                         Text: LoremMedium,
                         CreatedAt: now.AddHours(-4)
                     ),
-                    new ConfessionResponseDto(
+                    new ResponseDto(
                         Id: "resp-302",
                         ConfessionId: "confession-3",
                         ResponderId: "user-402",
@@ -118,7 +118,7 @@ internal static class KindKupoMockData
                 ResponseCount: 1,
                 Responses:
                 [
-                    new ConfessionResponseDto(
+                    new ResponseDto(
                         Id: "resp-501",
                         ConfessionId: "confession-5",
                         ResponderId: "user-501",
@@ -147,9 +147,9 @@ internal static class KindKupoMockData
         );
     }
 
-    public static ConfessionResponseDto CreateMockResponse(string confessionId, string content, string responderId = "me")
+    public static ResponseDto CreateMockResponse(string confessionId, string content, string responderId = "me")
     {
-        return new ConfessionResponseDto(
+        return new ResponseDto(
             Id: "resp-" + Guid.NewGuid().ToString("N")[..8],
             ConfessionId: confessionId,
             ResponderId: responderId,

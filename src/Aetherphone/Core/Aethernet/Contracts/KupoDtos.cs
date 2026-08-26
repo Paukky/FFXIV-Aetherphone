@@ -6,10 +6,10 @@ internal sealed record ConfessionDto(
     string Text,
     DateTime CreatedAt,
     int ResponseCount,
-    List<ConfessionResponseDto> Responses
+    List<ResponseDto> Responses
     );
 
-internal sealed record ConfessionResponseDto(
+internal sealed record ResponseDto(
     string Id,
     string ConfessionId,
     string ResponderId,
@@ -21,13 +21,13 @@ internal sealed record ConfessionFeeds(ConfessionDto[] Confessions);
 
 internal sealed record KindKupoInboxDto(string AccountId, List<ConfessionDto> KupoInboxes);
 
-internal sealed record CreateConfessionRequest(string Text, int ExpiryDays = 0);
+internal sealed record CreateConfessionRequest(string Text, DateTime? ExpiresAt);
 
-internal sealed record CreateConfessionResponseRequest(string Text);
+internal sealed record CreateResponseRequest(string Text);
 
 internal sealed record ConfessionPage(ConfessionDto[] Items, string? NextCursor);
 
-internal sealed record ConfessionResponsePage(ConfessionResponseDto[] Items, string? NextCursor);
+internal sealed record ConfessionResponsePage(ResponseDto[] Items, string? NextCursor);
 
 internal sealed record KindKupoStatsDto(int WrittenCount, int ResponseCount, int KudosCount);
 

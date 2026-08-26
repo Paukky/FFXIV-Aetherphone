@@ -425,6 +425,16 @@ internal static class TourRegistry
                 GuideStep.Point(L.Onboarding.AetherStreamSettingsTitle, L.Onboarding.AetherStreamSettingsBody,
                     "aetherstream.settings"),
             });
+        Add(tours, "kindkupo", 1,
+            new[]
+            {
+                GuideStep.Note(L.Apps.KindKupo, L.Onboarding.KindKupoBody),
+                GuideStep.Point(L.Onboarding.KindKupoStatsTitle, L.Onboarding.KindKupoStatsBody, "kindkupo.stats"),
+                GuideStep.Point(L.Onboarding.KindKupoWriteTitle, L.Onboarding.KindKupoWriteBody, "kindkupo.write"),
+                GuideStep.Point(L.Onboarding.KindKupoRespondTitle, L.Onboarding.KindKupoRespondBody, "kindkupo.respond"),
+                GuideStep.Point(L.Onboarding.KindKupoInboxTitle, L.Onboarding.KindKupoInboxBody, "kindkupo.inbox"),
+                GuideStep.Point(L.Onboarding.KindKupoRulesTitle, L.Onboarding.KindKupoRulesBody, "kindkupo.rules"),
+            });
         return tours;
     }
 

@@ -11,19 +11,30 @@ internal sealed class KupoClient
         this.net = net;
     }
 
-    // --- Confessions ---
 
-    public Task<ConfessionDto?> CreateConfessionAsync(CreateConfessionRequest request, CancellationToken token,
+
+    public Task<ConfessionDto?> CreateConfessionAsync(string text, int expiryDays, CancellationToken token,
         Action<int>? statusSink = null)
     {
-        return net.PostAsync("/kupo/confessions", request, AethernetJsonContext.Default.CreateConfessionRequest,
+        var now = DateTime.UtcNow;
+        DateTime? expiresAt;
+        switch (expiryDays)
+        {
+            case 1:
+                expiresAt = now.AddDays(1);
+                break;
+            case 2:
+                expiresAt = now.AddDays(3);
+                break;
+            case 3:
+                expiresAt = now.AddDays(7);
+                break;
+            default:
+                expiresAt = null;
+                break;
+        }
+        return net.PostAsync("/kupo/confessions", new CreateConfessionRequest(text, expiresAt), AethernetJsonContext.Default.CreateConfessionRequest,
             AethernetJsonContext.Default.ConfessionDto, token, statusSink);
-    }
-
-    public Task<ConfessionDto?> CreateConfessionAsync(string content, int expiryDays, CancellationToken token,
-        Action<int>? statusSink = null)
-    {
-        return CreateConfessionAsync(new CreateConfessionRequest(content, expiryDays), token, statusSink);
     }
 
     public Task<ConfessionDto?> GetConfessionAsync(string confessionId, CancellationToken token)
@@ -48,9 +59,10 @@ internal sealed class KupoClient
         return net.GetAsync(path, AethernetJsonContext.Default.ConfessionPage, token);
     }
 
-    public Task<ConfessionPage?> UserConfessionsAsync(string userId, string? cursor, CancellationToken token)
+    public Task<ConfessionPage?> MyConfessionsAsync(string userId, string? cursor, CancellationToken token)
     {
-        var path = $"/kupo/users/{Uri.EscapeDataString(userId)}/confessions";
+        var path = $"/kupo/{userId}/confessions";
+
         if (cursor is not null)
         {
             path += $"?cursor={Uri.EscapeDataString(cursor)}";
@@ -59,31 +71,18 @@ internal sealed class KupoClient
         return net.GetAsync(path, AethernetJsonContext.Default.ConfessionPage, token);
     }
 
-    public Task<ConfessionPage?> MyConfessionsAsync(string? cursor, CancellationToken token)
-    {
-        var path = "/kupo/me/confessions";
-        if (cursor is not null)
-        {
-            path += $"?cursor={Uri.EscapeDataString(cursor)}";
-        }
-
-        return net.GetAsync(path, AethernetJsonContext.Default.ConfessionPage, token);
-    }
-
-    // --- Responses / Replies ---
-
-    public Task<ConfessionResponseDto?> RespondAsync(string confessionId, CreateConfessionResponseRequest request,
+    public Task<ResponseDto?> RespondAsync(string confessionId, CreateResponseRequest request,
         CancellationToken token, Action<int>? statusSink = null)
     {
         return net.PostAsync($"/kupo/confessions/{Uri.EscapeDataString(confessionId)}/responses", request,
-            AethernetJsonContext.Default.CreateConfessionResponseRequest,
-            AethernetJsonContext.Default.ConfessionResponseDto, token, statusSink);
+            AethernetJsonContext.Default.CreateResponseRequest,
+            AethernetJsonContext.Default.ResponseDto, token, statusSink);
     }
 
-    public Task<ConfessionResponseDto?> RespondAsync(string confessionId, string content, CancellationToken token,
+    public Task<ResponseDto?> RespondAsync(string confessionId, string content, CancellationToken token,
         Action<int>? statusSink = null)
     {
-        return RespondAsync(confessionId, new CreateConfessionResponseRequest(content), token, statusSink);
+        return RespondAsync(confessionId, new CreateResponseRequest(content), token, statusSink);
     }
 
     public Task<ConfessionResponsePage?> ResponsesAsync(string confessionId, string? cursor, CancellationToken token)
@@ -103,11 +102,13 @@ internal sealed class KupoClient
             $"/kupo/confessions/{Uri.EscapeDataString(confessionId)}/responses/{Uri.EscapeDataString(responseId)}", token);
     }
 
-    // --- Inbox ---
 
-    public Task<KindKupoInboxDto?> InboxAsync(CancellationToken token)
+
+    public Task<KindKupoInboxDto?> InboxAsync(string userId, CancellationToken token)
     {
-        return net.GetAsync("/kupo/inbox", AethernetJsonContext.Default.KindKupoInboxDto, token);
+        var path = $"/kupo/users/{Uri.EscapeDataString(userId)}/confessions";
+
+        return net.GetAsync(path, AethernetJsonContext.Default.KindKupoInboxDto, token);
     }
 
     public Task<KindKupoInboxDto?> UserInboxAsync(string userId, CancellationToken token)
@@ -116,7 +117,7 @@ internal sealed class KupoClient
             AethernetJsonContext.Default.KindKupoInboxDto, token);
     }
 
-    // --- Kudos & Reactions ---
+
 
     public Task<bool> SendKudosAsync(string confessionId, CancellationToken token)
     {
@@ -130,7 +131,7 @@ internal sealed class KupoClient
             token);
     }
 
-    // --- Stats ---
+    // Stats
 
     public Task<KindKupoStatsDto?> StatsAsync(CancellationToken token)
     {

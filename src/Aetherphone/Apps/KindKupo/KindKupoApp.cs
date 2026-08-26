@@ -10,6 +10,7 @@ using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
 using Aetherphone.Core.Net;
 using Aetherphone.Core.Notifications;
+using Aetherphone.Core.Onboarding;
 using Aetherphone.Core.Report;
 using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
@@ -23,10 +24,10 @@ namespace Aetherphone.Apps.KindKupo;
 
 internal sealed partial class KindKupoApp : IPhoneApp
 {
-    public string Id => "KindKupo";
-    public string DisplayName => "KindKupo";
+    public string Id => "kindkupo";
+    public string DisplayName => Loc.T(L.Apps.KindKupo);
     public string Glyph => "KK";
-    public int BadgeCount => 0;
+    public int BadgeCount => social.UnseenCount(Id);
     private readonly int writtenCount;
     private readonly int responseCount;
     private readonly int kudosCount;
@@ -44,7 +45,6 @@ internal sealed partial class KindKupoApp : IPhoneApp
     private string draft = string.Empty;
     private INavigator navigation = null!;
     private readonly Action back;
-    private readonly HashSet<string> renderedUnderlyingIds = new(StringComparer.Ordinal);
     public KindKupoApp(AethernetSession session, AethernetApi net, ConfirmService confirm,
         ReportService report, ConductGateService conduct, SocialNotificationService social)
     {
@@ -63,7 +63,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
     {
         router.Reset();
         draft = string.Empty;
-
+        conduct.NotifyAppOpened(Id);
     }
 
     public void OnClosed()
@@ -89,12 +89,23 @@ internal sealed partial class KindKupoApp : IPhoneApp
                 DrawWriteScreen(area);
                 break;
             case KindKupoScreen.Inbox:
-                // Draw Inbox Screen
+                DrawInbox(area, session.CurrentUser.Id);
                 break;
             case KindKupoScreen.Respond:
-                DrawResponseScreen(area);
+                DrawResponseFeed(area);
                 break;
-
+            case KindKupoScreen.ResponseList:
+                if (route.Confession is not null)
+                {
+                    DrawResponseListScreen(area, route.Confession);
+                }
+                break;
+            case KindKupoScreen.ComposeResponse:
+                if (route.Confession is not null)
+                {
+                    DrawComposeResponse(area, route.Confession);
+                }
+                break;
             default:
                 DrawHome(area);
                 break;
@@ -149,6 +160,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
     private void DrawCardFooter(ConfessionDto confession, float left, float width, float centerY)
     {
+
         var scale = UiScale.Current;
         var drawList = ImGui.GetWindowDrawList();
         var right = left + width;
@@ -161,27 +173,86 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
         var iconWidth = 16f * scale;
         var iconCenter = new Vector2(right - iconWidth * 0.8f, centerY);
-
-        if (ui.IconButton(iconCenter, 16f * scale, FontAwesomeIcon.Pen.ToIconString(),AppPalettes.KindKupo.MutedInk,
-                new Vector4(0f, 0f, 0f, 0f), 1.5f, "Respond"))
+        if (router.Current == KindKupoRoute.Respond)
         {
-            throw new NotImplementedException();
+            if (ui.IconButton(iconCenter, 16f * scale, FontAwesomeIcon.Pen.ToIconString(),
+                    AppPalettes.KindKupo.MutedInk,
+                    new Vector4(0f, 0f, 0f, 0f), 1f, Loc.T(L.KindKupo.Respond)))
+            {
+                router.Push(KindKupoRoute.ComposeResponse(confession));
+            }
+        }
+
+        if (router.Current == KindKupoRoute.Inbox)
+        {
+            if (ui.IconButton(iconCenter, 16f * scale, FontAwesomeIcon.CommentDots.ToIconString(),
+                    AppPalettes.KindKupo.MutedInk,
+                    new Vector4(0f, 0f, 0f, 0f), 1f, Loc.T(L.KindKupo.ViewReplies, confession.Responses.Count)))
+            {
+                router.Push(KindKupoRoute.ViewResponse(confession));
+            }
         }
         //AppSkin.Icon(drawList, iconCenter, icon, AppPalettes.KindKupo.MutedInk, iconScale);
     }
+
+    private void DrawResponseCard(ResponseDto response)
+    {
+        var scale = UiScale.Current;
+        var drawList = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var pad = 14f * scale;
+        var width = ImGui.GetContentRegionAvail().X;
+        var rounding = 16f * scale;
+        var cardGap = 12f * scale;
+
+        var contentLeft = origin.X + pad;
+        var contentRight = origin.X + width - pad;
+        var contentWidth = MathF.Max(1f, contentRight - contentLeft);
+        var textTop = origin.Y + pad;
+
+        var textHeight = response.Text.Length == 0
+            ? 0f
+            : (bodyLayout?.Size.Y ?? Typography.MeasureWrapped(response.Text, contentWidth, 1.05f));
+        var textToFooterGap = 10f * scale;
+        var footerHeight = 24f * scale;
+
+        var cardHeight = pad + textHeight + textToFooterGap + footerHeight + pad;
+        var cardBottom = origin.Y + cardHeight;
+        ui.Card(drawList, origin, new Vector2(origin.X + width, cardBottom), rounding);
+
+
+        if (response.Text.Length > 0 && bodyLayout is null)
+        {
+            ImGui.SetCursorScreenPos(new Vector2(contentLeft, textTop));
+            using (Typography.WrapAt(contentRight))
+            using (Plugin.Fonts.Push(1.05f))
+            using (ImRaii.PushColor(ImGuiCol.Text, AppPalettes.KindKupo.BodyInk))
+            {
+                Typography.Wrapped(response.Text);
+            }
+        }
+        var stamp = TimeText.Ago(response.CreatedAt);
+        var stampSize = Typography.Measure(stamp, 0.85f, FontWeight.Regular);
+        var stampPos = new Vector2(contentLeft, cardBottom - pad - stampSize.Y * 0.5f);
+        Typography.Draw(drawList, stampPos, stamp, AppPalettes.KindKupo.MutedInk, 0.85f, FontWeight.Regular);
+
+        ImGui.SetCursorScreenPos(origin);
+        ImGui.Dummy(new Vector2(width, cardHeight + cardGap));
+    }
+
+
     private void DrawHome(Rect area)
     {
         var scale = UiScale.Current;
-        DrawHomeTopBar(area);
-
         var drawList = ImGui.GetWindowDrawList();
         var padding = 16f * scale;
-        var headerHeight = AppHeader.Height * scale;
-        var contentMinY = area.Min.Y + headerHeight;
+        DrawHomeTopBar(area);
+
+        var contentMinY = area.Min.Y + AppHeader.Height * scale;
         var availableHeight = area.Max.Y - contentMinY;
 
 
-        var statCardHeight = 72f * scale;
+        var statCardHeight = 80f * scale;
         var buttonHeight = 42f * scale;
         var gapStatToBtn = 20f * scale;
         var gapBetweenBtns = 12f * scale;
@@ -194,13 +265,14 @@ internal sealed partial class KindKupoApp : IPhoneApp
         var statMin = new Vector2(area.Min.X + padding, top);
         var statMax = new Vector2(statMin.X + width, top + statCardHeight);
 
+        UiAnchors.Report("kindkupo.stats", new Rect(statMin, statMax));
         ui.Card(drawList, statMin, statMax, 12f * scale, elevated: false);
 
         var colWidth = width / 3f;
 
 
         DrawStatColumn(drawList, new Rect(statMin, new Vector2(statMin.X + colWidth, statMax.Y)),
-            writtenCount.ToString(), "Written", scale);
+            writtenCount.ToString(), Loc.T(L.KindKupo.Written), scale);
 
 
         var div1X = statMin.X + colWidth;
@@ -209,7 +281,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
 
         DrawStatColumn(drawList, new Rect(new Vector2(div1X, statMin.Y), new Vector2(div1X + colWidth, statMax.Y)),
-            responseCount.ToString(), "Responses", scale);
+            responseCount.ToString(), Loc.T(L.KindKupo.Responses), scale);
 
 
         var div2X = div1X + colWidth;
@@ -218,7 +290,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
 
         DrawStatColumn(drawList, new Rect(new Vector2(div2X, statMin.Y), statMax),
-            kudosCount.ToString(), "Kudos", scale);
+            kudosCount.ToString(), Loc.T(L.KindKupo.Kudos), scale);
 
 
         var buttonY = statMax.Y + gapStatToBtn;
@@ -227,7 +299,8 @@ internal sealed partial class KindKupoApp : IPhoneApp
         var writeRect = new Rect(new Vector2(area.Min.X + padding, buttonY),
             new Vector2(area.Max.X - padding, buttonY + buttonHeight));
 
-        if (ui.PillButton(writeRect, "Write", filled: true))
+        UiAnchors.Report("kindkupo.write", writeRect);
+        if (ui.PillButton(writeRect, Loc.T(L.KindKupo.Write), filled: true))
         {
             router.Push(KindKupoRoute.Write);
         }
@@ -237,7 +310,8 @@ internal sealed partial class KindKupoApp : IPhoneApp
         var respondRect = new Rect(new Vector2(area.Min.X + padding, respondY),
             new Vector2(area.Max.X - padding, respondY + buttonHeight));
 
-        if (ui.PillButton(respondRect, "Respond", filled: false))
+        UiAnchors.Report("kindkupo.respond", respondRect);
+        if (ui.PillButton(respondRect, Loc.T(L.KindKupo.Respond), filled: false))
         {
             router.Push(KindKupoRoute.Respond);
         }

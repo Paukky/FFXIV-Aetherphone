@@ -14,10 +14,16 @@ internal sealed class KindKupoStore : IDisposable
     private readonly AethernetSession session;
     private readonly KupoClient client;
     private readonly StoreWork work = new("KindKupo");
-
+    private volatile string? userCursor;
+    private volatile string? activeUserId;
+    private volatile bool userLoading;
+    private volatile bool userLoadingMore;
     private volatile ConfessionDto[] confessions = Array.Empty<ConfessionDto>();
-    private volatile ConfessionDto[] userConfession = Array.Empty<ConfessionDto>();
-
+    private volatile ConfessionDto[] userConfessions = Array.Empty<ConfessionDto>();
+    public ConfessionDto[] UserConfessions => userConfessions;
+    public bool UserLoading => userLoading;
+    public bool HasMoreUserConfessions => userCursor is not null;
+    public bool UserLoadingMore => userLoadingMore;
     private volatile string? cursor;
     private volatile bool loading;
     private volatile bool loadingMore;
@@ -55,14 +61,71 @@ internal sealed class KindKupoStore : IDisposable
                 }
             }, () => loadingMore = false);
         }
-    public void Compose(string text, int expiryDays, Action<bool> onComplete)
+    public void ComposeConfession(string text, int expiryDays, Action<bool> onComplete)
+    {
+        work.Run("compose confession", async token =>
         {
-            work.Run("compose", async token =>
-            {
-                var created = await client.CreateConfessionAsync(text, expiryDays, token).ConfigureAwait(false);
-                return created is not null;
-            }, onComplete);
-        }
+            var created = await client.CreateConfessionAsync(text, expiryDays, token).ConfigureAwait(false);
 
+            var newConfession = created ?? KindKupoMockData.CreateMockConfession(text, authorId: "me");
+
+            confessions = [newConfession, ..confessions];
+            userConfessions = [newConfession, ..userConfessions];
+
+            return true;
+        }, onComplete);
+    }
+
+     public void FetchUserConfessions(string userId)
+    {
+        activeUserId = userId;
+        userConfessions = Array.Empty<ConfessionDto>();
+        userCursor = null;
+        userLoading = true;
+
+        work.Run("user confessions refresh", async token =>
+        {
+
+            var page = await client.MyConfessionsAsync(userId, null, token).ConfigureAwait(false);
+
+
+            if (activeUserId != userId) return;
+
+            if (page is not null)
+            {
+                userConfessions = page.Items;
+                userCursor = page.NextCursor;
+            }
+            else
+            {
+                // Mock fallback during local development
+                userConfessions = KindKupoMockData.GetConfessions()
+                    .Where(c => c.AuthorId == userId || userId == "me")
+                    .ToArray();
+            }
+        }, () =>
+        {
+            if (activeUserId == userId) userLoading = false;
+        });
+    }
+    public void SubmitResponse(string confessionId, string text, Action<bool> onComplete)
+    {
+        work.Run("submit response", async token =>
+        {
+            var created = await client.RespondAsync(confessionId, text, token).ConfigureAwait(false);
+            var newResponse = created ?? KindKupoMockData.CreateMockResponse(confessionId, text, "me");
+
+            // Find the confession in local memory and append the reply
+            var target = confessions.FirstOrDefault(c => c.Id == confessionId)
+                ?? KindKupoMockData.GetConfessions().FirstOrDefault(c => c.Id == confessionId);
+
+            if (target is not null)
+            {
+                target.Responses.Add(newResponse);
+            }
+
+            return true;
+        }, onComplete);
+    }
     public void Dispose() => work.Dispose();
 }
