@@ -1,19 +1,23 @@
+using System.Linq;
+using Aetherphone.Apps.Music.Rolladeck;
 using Aetherphone.Core;
 using Aetherphone.Core.Aethernet;
 using Aetherphone.Core.Animation;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Confirm;
+using Aetherphone.Core.Game;
 using Aetherphone.Core.Localization;
+using Aetherphone.Core.Lodestone;
+using Aetherphone.Core.Media;
 using Aetherphone.Core.Net;
 using Aetherphone.Core.Onboarding;
-using Aetherphone.Core.Playback;
-using Aetherphone.Core.Media;
 using Aetherphone.Core.Photos;
+using Aetherphone.Core.Playback;
 using Aetherphone.Core.Radio;
 using Aetherphone.Core.Report;
-using Aetherphone.Core.Wallpapers;
 using Aetherphone.Core.Songs;
 using Aetherphone.Core.Theme;
+using Aetherphone.Core.Wallpapers;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
@@ -22,7 +26,7 @@ using Dalamud.Plugin.Services;
 
 namespace Aetherphone.Apps.Music;
 
-internal sealed partial class MusicApp : IPhoneApp
+internal sealed partial class MusicApp : IResumableApp
 {
     private enum View : byte
     {
@@ -38,6 +42,9 @@ internal sealed partial class MusicApp : IPhoneApp
         Station,
         MyStation,
         StationArtwork,
+        LiveDjs,
+        LiveDjDetail,
+        VenueDetail,
     }
 
     private enum MusicTab : byte
@@ -77,7 +84,7 @@ internal sealed partial class MusicApp : IPhoneApp
     public Vector4 Accent => AppAccents.For(Id);
     public string DisplayName => Loc.T(L.Apps.Music);
     public string Glyph => "M";
-    public int BadgeCount => community.LiveCount;
+    public int BadgeCount => community.LiveCount + rolladeck.LiveCountWithAddress;
     public bool BadgeAsDot => true;
     private readonly RadioService radio;
     private readonly SongSearchService songSearch;
@@ -97,6 +104,10 @@ internal sealed partial class MusicApp : IPhoneApp
     private readonly Configuration configuration;
     private readonly ArtworkCache artwork;
     private readonly ViewRouter<View>[] routers;
+    private readonly RolladeckService rolladeck;
+    private readonly RemoteImageCache images;
+    private readonly LodestoneService lodestone;
+    private readonly GameData gameData;
     private readonly RouterDraw<View> drawView;
     private readonly BottomTabBar bottomNav = new();
     private readonly NavTab[] navTabs = new NavTab[4];
@@ -146,13 +157,18 @@ internal sealed partial class MusicApp : IPhoneApp
     private Spring sheetPresence;
     private Spring artBreath;
     private float clock;
+    private string viewedStationId = string.Empty;
+    private OverlayMode overlay = OverlayMode.None;
+    private Spring overlayPresence;
+    private readonly ActionSheet playlistSheet = new();
+    private readonly StoreWork resolverWork = new("music.resolver");
 
     public MusicApp(RadioService radio, SongSearchService songSearch, SongLinkResolver songResolver,
         PlaybackHub playback, SongHistory history,
-        PlaylistStore playlists, MediaCache media, HttpService http, ITextureProvider textures,
+        PlaylistStore playlists, MediaCache media, HttpService http, ArtworkCache artwork,
         AethernetApi aethernet, AethernetSession session, ReportService report, PhotoLibrary photoLibrary,
         WallpaperImageCache wallpaperImages, ConfirmService confirm, Configuration configuration,
-        RadioLauncher launcher)
+        RemoteImageCache images, LodestoneService lodestone, GameData gameData, RadioLauncher launcher)
     {
         this.aethernet = aethernet;
         this.launcher = launcher;
@@ -170,7 +186,11 @@ internal sealed partial class MusicApp : IPhoneApp
         this.http = http;
         this.confirm = confirm;
         this.configuration = configuration;
-        artwork = new ArtworkCache(textures);
+        this.images = images;
+        this.lodestone = lodestone;
+        this.gameData = gameData;
+        rolladeck = new RolladeckService(http);
+        this.artwork = artwork;
         routers =
         [
             new ViewRouter<View>(View.Home),
@@ -218,6 +238,26 @@ internal sealed partial class MusicApp : IPhoneApp
         featured = Array.Empty<Song>();
         featuredFetch?.Cancel();
         LoadFavoriteRadioStations();
+        rolladeck.EnsureFresh();
+        OnLiveDjsOpened();
+        if (launcher.TryConsumeStation(out var stationId))
+        {
+            viewedStationId = stationId;
+            community.OpenStation(stationId, null);
+            community.EnsureFresh(true);
+            tab = MusicTab.Live;
+            Router.Push(View.Station, false);
+            return;
+        }
+
+        community.EnsureFresh(false);
+    }
+
+    public void OnResumed()
+    {
+        miniPresence.SnapTo(playback.IsActive ? 1f : 0f);
+        LoadFavoriteRadioStations();
+        rolladeck.EnsureFresh();
         if (launcher.TryConsumeStation(out var stationId))
         {
             viewedStationId = stationId;
@@ -233,10 +273,6 @@ internal sealed partial class MusicApp : IPhoneApp
 
     public void OnClosed()
     {
-        ResetTabs();
-        nowPlayingOpen = false;
-        sheetPresence.SnapTo(0f);
-        DismissOverlay(true);
     }
 
     public void Draw(in PhoneContext context)
@@ -247,7 +283,8 @@ internal sealed partial class MusicApp : IPhoneApp
         navigation = context.Navigation;
         ui.Theme = theme;
         radioSortMenu.Gate();
-        playlistMenu.Gate();
+        playlistSheet.Gate();
+        rolladeck.EnsureFresh();
         CaptureRecent();
         if (!playback.IsActive)
         {
@@ -293,6 +330,7 @@ internal sealed partial class MusicApp : IPhoneApp
         }
 
         DrawPlaylistOverlay(content, scale, overlayValue, delta);
+        DrawPlaylistSheet(screen);
     }
 
     private static Rect StageFrom(Rect content, float scale)
@@ -303,7 +341,7 @@ internal sealed partial class MusicApp : IPhoneApp
     private void DrawTabBar(Rect bar, float scale)
     {
         navTabs[0] = new NavTab(FontAwesomeIcon.Home, Loc.T(L.Music.TabHome));
-        navTabs[1] = new NavTab(FontAwesomeIcon.BroadcastTower, Loc.T(L.Music.TabLive), community.LiveCount);
+        navTabs[1] = new NavTab(FontAwesomeIcon.BroadcastTower, Loc.T(L.Music.TabLive), community.LiveCount + rolladeck.LiveCountWithAddress);
         navTabs[2] = new NavTab(FontAwesomeIcon.Podcast, Loc.T(L.Music.TabRadio), AnchorKey: "music.categories");
         navTabs[3] = new NavTab(FontAwesomeIcon.LayerGroup, Loc.T(L.Music.TabLibrary));
         var tapped = bottomNav.Draw(bar, ui, theme, navTabs, (int)tab, true);
@@ -351,6 +389,15 @@ internal sealed partial class MusicApp : IPhoneApp
                 break;
             case View.StationArtwork:
                 DrawStationArtwork(context);
+                break;
+            case View.LiveDjs:
+                DrawLiveDjs(context);
+                break;
+            case View.LiveDjDetail:
+                DrawLiveDjDetail(context);
+                break;
+            case View.VenueDetail:
+                DrawVenueDetail(context);
                 break;
             default:
                 DrawHome(context);
@@ -909,6 +956,5 @@ internal sealed partial class MusicApp : IPhoneApp
         facetFetch?.Dispose();
         resolverWork.Dispose();
         community.Dispose();
-        artwork.Dispose();
     }
 }

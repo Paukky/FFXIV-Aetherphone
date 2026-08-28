@@ -39,6 +39,11 @@ internal sealed class FontService : IDisposable
         0.60f, 0.72f, 0.80f, 0.88f, 0.95f, 1.00f, 1.10f, 1.20f, 1.32f, 1.45f, 1.65f, 1.90f,
     };
 
+    private static readonly float[] IconSizeMultipliers =
+    {
+        0.60f, 1.00f, 1.60f, 2.60f, 4.20f, 6.00f,
+    };
+
     private static readonly Dalamud.DalamudAsset[] SharedAssets =
     {
         Dalamud.DalamudAsset.NotoSansCjkRegular, Dalamud.DalamudAsset.NotoSansCjkMedium,
@@ -50,6 +55,8 @@ internal sealed class FontService : IDisposable
     private const float TrackingRatio = -0.02f;
     private const float MaxZoom = 1.5f;
     private const int LearnedGlyphCap = 2000;
+    private const int LearnedIconCap = 512;
+    private const string TablerIconFile = "TablerIcons.ttf";
     private const long LearnRebuildDebounceMs = 600;
     private readonly Configuration configuration;
     private readonly LoadingScreen loading;
@@ -58,18 +65,24 @@ internal sealed class FontService : IDisposable
     private readonly float baseSize;
     private readonly float sharedSize;
     private readonly HashSet<ushort> learned = new();
+    private readonly HashSet<ushort> learnedIcons = new();
     private readonly GlyphCoverage nativeCoverage = new();
     private readonly GlyphCoverage sharedCoverage = new();
+    private readonly GlyphCoverage iconCoverage = new();
     private readonly ImFontPtr[,] textFonts = new ImFontPtr[WeightFiles.Length, SizeMultipliers.Length];
+    private readonly IFontHandle dalamudIconHandle;
     private ushort[] nativeRanges;
     private ushort[] sharedRanges;
+    private ushort[] iconRanges;
     private IFontHandle[,] textHandles;
     private IFontHandle[] sharedHandles;
+    private IFontHandle[] iconHandles;
     private float zoom;
     private float phoneZoom;
     private float renderScale;
     private long learnDirtySince;
     private volatile bool learnRebuildInFlight;
+    private int lastRebuildCheckFrame = -1;
     private int generation;
 
     public FontService(IDalamudPluginInterface pluginInterface, Configuration configuration, LoadingScreen loading,
@@ -78,6 +91,7 @@ internal sealed class FontService : IDisposable
         this.configuration = configuration;
         this.loading = loading;
         atlas = pluginInterface.UiBuilder.FontAtlas;
+        dalamudIconHandle = pluginInterface.UiBuilder.IconFontHandle;
         fontDirectory = Path.Combine(pluginInterface.AssemblyLocation.DirectoryName ?? string.Empty, "Fonts");
         baseSize = UiBuilder.DefaultFontSizePx;
         sharedSize = baseSize * SizeMultipliers[SizeMultipliers.Length - 1] * MaxZoom;
@@ -86,11 +100,15 @@ internal sealed class FontService : IDisposable
         renderScale = zoom * phoneZoom / MaxZoom;
         nativeRanges = PlaceholderRanges;
         sharedRanges = PlaceholderRanges;
+        iconRanges = PlaceholderRanges;
         textHandles = null!;
         sharedHandles = null!;
+        iconHandles = null!;
         ApplyNativeRanges(GlyphPlan.Native(Loc.Current));
         SeedLearned();
+        SeedLearnedIcons();
         ComposeSharedRanges();
+        ComposeIconRanges();
         Build();
     }
 
@@ -116,6 +134,14 @@ internal sealed class FontService : IDisposable
             for (var sourceIndex = 0; sourceIndex < sharedHandles.Length; sourceIndex++)
             {
                 if (!sharedHandles[sourceIndex].Available)
+                {
+                    return false;
+                }
+            }
+
+            for (var sizeIndex = 0; sizeIndex < iconHandles.Length; sizeIndex++)
+            {
+                if (!iconHandles[sizeIndex].Available)
                 {
                     return false;
                 }
@@ -172,10 +198,11 @@ internal sealed class FontService : IDisposable
         loading.Show();
         var previousText = textHandles;
         var previousSharedHandles = sharedHandles;
+        var previousIconHandles = iconHandles;
         using (atlas.SuppressAutoRebuild())
         {
             Build();
-            DisposeHandles(previousText, previousSharedHandles);
+            DisposeHandles(previousText, previousSharedHandles, previousIconHandles);
         }
 
         Interlocked.Increment(ref generation);
@@ -185,8 +212,72 @@ internal sealed class FontService : IDisposable
 
     public FontToken Push(float scale, FontWeight weight)
     {
-        MaybeRebuildShared();
+        MaybeRebuildLearned();
         return new FontToken(textHandles[(int)weight, NearestSize(scale)].Push());
+    }
+
+    public FontToken PushIcon(float pixelHeight, string glyph)
+    {
+        MaybeRebuildLearned();
+        if (glyph.Length > 0)
+        {
+            NoticeIcon(glyph[0]);
+            var handle = iconHandles[NearestIconSize(pixelHeight)];
+            if (handle.Available)
+            {
+                var pushed = handle.Push();
+                if (HasGlyph(ImGui.GetFont(), glyph[0]))
+                {
+                    return new FontToken(pushed);
+                }
+
+                pushed.Dispose();
+            }
+        }
+
+        return new FontToken(dalamudIconHandle.Push());
+    }
+
+    private static unsafe bool HasGlyph(ImFontPtr font, char codepoint)
+    {
+        ImFontGlyphPtr found = font.FindGlyphNoFallback(codepoint);
+        return !found.IsNull;
+    }
+
+    private static int NearestIconSize(float pixelHeight)
+    {
+        for (var index = 0; index < IconSizeMultipliers.Length - 1; index++)
+        {
+            if (UiBuilder.DefaultFontSizePx * IconSizeMultipliers[index] >= pixelHeight)
+            {
+                return index;
+            }
+        }
+
+        return IconSizeMultipliers.Length - 1;
+    }
+
+    private void NoticeIcon(char codepoint)
+    {
+        if (codepoint < IconPlan.FirstIconCodepoint || codepoint > IconPlan.LastIconCodepoint)
+        {
+            return;
+        }
+
+        if (iconCoverage.Contains(codepoint))
+        {
+            return;
+        }
+
+        if (learnedIcons.Count >= LearnedIconCap)
+        {
+            return;
+        }
+
+        if (learnedIcons.Add(codepoint))
+        {
+            learnDirtySince = Environment.TickCount64;
+        }
     }
 
     public void NoticeText(ReadOnlySpan<char> text)
@@ -237,13 +328,20 @@ internal sealed class FontService : IDisposable
         }
     }
 
-    private void MaybeRebuildShared()
+    private void MaybeRebuildLearned()
     {
         if (learnDirtySince == 0 || learnRebuildInFlight)
         {
             return;
         }
 
+        var frame = ImGui.GetFrameCount();
+        if (frame == lastRebuildCheckFrame)
+        {
+            return;
+        }
+
+        lastRebuildCheckFrame = frame;
         if (Environment.TickCount64 - learnDirtySince < LearnRebuildDebounceMs)
         {
             return;
@@ -252,6 +350,7 @@ internal sealed class FontService : IDisposable
         learnDirtySince = 0;
         learnRebuildInFlight = true;
         ComposeSharedRanges();
+        ComposeIconRanges();
         PersistLearned();
         _ = atlas.BuildFontsAsync().ContinueWith(_ =>
         {
@@ -280,9 +379,41 @@ internal sealed class FontService : IDisposable
                 shared[sourceIndex] = BuildSharedHandle(sourceIndex);
             }
 
+            var icons = new IFontHandle[IconSizeMultipliers.Length];
+            for (var sizeIndex = 0; sizeIndex < IconSizeMultipliers.Length; sizeIndex++)
+            {
+                icons[sizeIndex] = BuildIconHandle(sizeIndex);
+            }
+
             textHandles = text;
             sharedHandles = shared;
+            iconHandles = icons;
         }
+    }
+
+    private IFontHandle BuildIconHandle(int sizeIndex)
+    {
+        var pixels = UiBuilder.DefaultFontSizePx * IconSizeMultipliers[sizeIndex];
+        var tablerPath = Path.Combine(fontDirectory, TablerIconFile);
+        return atlas.NewDelegateFontHandle(e => e.OnPreBuild(tk =>
+        {
+            var primary = tk.AddDalamudAssetFont(Dalamud.DalamudAsset.FontAwesomeFreeSolid,
+                new SafeFontConfig { SizePx = pixels, GlyphRanges = iconRanges, });
+            if (!File.Exists(tablerPath))
+            {
+                return;
+            }
+
+            try
+            {
+                tk.AddFontFromFile(tablerPath,
+                    new SafeFontConfig { SizePx = pixels, GlyphRanges = iconRanges, MergeFont = primary, });
+            }
+            catch (Exception exception)
+            {
+                AepLog.Warning(exception, $"[Fonts] skipped merging '{TablerIconFile}' at {pixels}px.");
+            }
+        }));
     }
 
     private IFontHandle BuildTextHandle(string path, int weightIndex, int sizeIndex)
@@ -387,6 +518,7 @@ internal sealed class FontService : IDisposable
     private void ComposeSharedRanges()
     {
         sharedCoverage.Clear();
+        sharedCoverage.AddRanges(GlyphPlan.SharedBase, nativeCoverage);
         var catalogGlyphs = Loc.CatalogGlyphs;
         for (var index = 0; index < catalogGlyphs.Length; index++)
         {
@@ -414,6 +546,28 @@ internal sealed class FontService : IDisposable
             : sharedCoverage.ToRanges(GlyphPlan.FirstSharedCodepoint);
     }
 
+    private void ComposeIconRanges()
+    {
+        iconCoverage.Clear();
+        for (var codepoint = IconPlan.FirstTablerCodepoint; codepoint <= IconPlan.LastTablerCodepoint; codepoint++)
+        {
+            iconCoverage.Add(codepoint);
+        }
+
+        var fontAwesome = IconPlan.FontAwesome;
+        for (var index = 0; index < fontAwesome.Length; index++)
+        {
+            iconCoverage.Add(fontAwesome[index]);
+        }
+
+        foreach (var codepoint in learnedIcons)
+        {
+            iconCoverage.Add(codepoint);
+        }
+
+        iconRanges = iconCoverage.ToRanges(IconPlan.FirstIconCodepoint);
+    }
+
     private void SeedLearned()
     {
         var stored = configuration.FontGlyphCache;
@@ -430,21 +584,51 @@ internal sealed class FontService : IDisposable
                 continue;
             }
 
+            if (GlyphPlan.IsSharedBase(codepoint))
+            {
+                continue;
+            }
+
             learned.Add(codepoint);
+        }
+    }
+
+    private void SeedLearnedIcons()
+    {
+        var stored = configuration.IconGlyphCache;
+        for (var index = 0; index < stored.Length && learnedIcons.Count < LearnedIconCap; index++)
+        {
+            var codepoint = stored[index];
+            if (codepoint < IconPlan.FirstIconCodepoint || codepoint > IconPlan.LastIconCodepoint)
+            {
+                continue;
+            }
+
+            if (IconPlan.IsDeclared(codepoint))
+            {
+                continue;
+            }
+
+            learnedIcons.Add(codepoint);
         }
     }
 
     private void PersistLearned()
     {
-        if (learned.Count == 0)
+        configuration.FontGlyphCache = PackGlyphs(learned);
+        configuration.IconGlyphCache = PackGlyphs(learnedIcons);
+        configuration.Save();
+    }
+
+    private static string PackGlyphs(HashSet<ushort> glyphs)
+    {
+        if (glyphs.Count == 0)
         {
-            configuration.FontGlyphCache = string.Empty;
-            configuration.Save();
-            return;
+            return string.Empty;
         }
 
-        var sorted = new ushort[learned.Count];
-        learned.CopyTo(sorted);
+        var sorted = new ushort[glyphs.Count];
+        glyphs.CopyTo(sorted);
         Array.Sort(sorted);
         var chars = new char[sorted.Length];
         for (var index = 0; index < sorted.Length; index++)
@@ -452,8 +636,7 @@ internal sealed class FontService : IDisposable
             chars[index] = (char)sorted[index];
         }
 
-        configuration.FontGlyphCache = new string(chars);
-        configuration.Save();
+        return new string(chars);
     }
 
     private static bool RangesEqual(ushort[] left, ushort[] right)
@@ -474,9 +657,9 @@ internal sealed class FontService : IDisposable
         return true;
     }
 
-    public void Dispose() => DisposeHandles(textHandles, sharedHandles);
+    public void Dispose() => DisposeHandles(textHandles, sharedHandles, iconHandles);
 
-    private static void DisposeHandles(IFontHandle[,] text, IFontHandle[] shared)
+    private static void DisposeHandles(IFontHandle[,] text, IFontHandle[] shared, IFontHandle[] icons)
     {
         for (var weightIndex = 0; weightIndex < text.GetLength(0); weightIndex++)
         {
@@ -489,6 +672,11 @@ internal sealed class FontService : IDisposable
         for (var sourceIndex = 0; sourceIndex < shared.Length; sourceIndex++)
         {
             shared[sourceIndex].Dispose();
+        }
+
+        for (var sizeIndex = 0; sizeIndex < icons.Length; sizeIndex++)
+        {
+            icons[sizeIndex].Dispose();
         }
     }
 }

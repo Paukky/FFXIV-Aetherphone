@@ -22,21 +22,24 @@ internal sealed unsafe class ScreenPainter : IDisposable
 	internal Vector3 WorldPosition;
 	internal float WorldYaw;
 	internal float Scale = 1.0f;
+	internal bool Visible { get; set; } = true;
 
-	private readonly VertexShader _vs;
-	private readonly PixelShader _ps;
-	private readonly SamplerState _sampler;
-	private readonly RasterizerState _rasterState;
-	private readonly DepthStencilState _depthState;
-	private readonly Buffer _cbuf;
+	private readonly VertexShader vertexShader;
+	private readonly PixelShader pixelShader;
+	private readonly SamplerState samplerState;
+	private readonly RasterizerState rasterizerState;
+	private readonly DepthStencilState depthTestState;
+	private readonly DepthStencilState depthOffState;
+	private readonly Buffer constantBuffer;
 
-	private Texture2D? _texture;
-	private ShaderResourceView? _srv;
+	private Texture2D? screenTexture;
+	private ShaderResourceView? shaderResourceView;
 
-	private nint _cachedColorTexture;
-	private nint _cachedDepthTexture;
-	private RenderTargetView? _cachedRtv;
-	private DepthStencilView? _cachedDsv;
+	private nint cachedDepthTexture;
+	private ShaderResourceView? cachedDepthView;
+	private DepthStencilView? cachedDepthStencilView;
+	private bool depthViewUnavailable;
+	private bool scaledDepthSkipLogged;
 
 	private const int MaxUiRects = 64;
 
@@ -50,7 +53,8 @@ internal sealed unsafe class ScreenPainter : IDisposable
 		public NumericsMatrix4x4 WorldViewProj;
 		public int UiRectCount;
 		public float Curvature;
-		private fixed float _pad[2];
+		public float DepthTexelScaleX;
+		public float DepthTexelScaleY;
 		public fixed float UiRects[MaxUiRects * 4];
 	}
 
@@ -64,7 +68,7 @@ internal sealed unsafe class ScreenPainter : IDisposable
 				row_major float4x4 worldViewProj;
 				int uiRectCount;
 				float curvature;
-				float2 _pad;
+				float2 depthTexelScale; //backbuffer pixel -> scene depth texel; zero disables the shader depth test
 				float4 uiRects[MAX_UI_RECTS]; //xy = screen pos, zw = size, in pixels
 			};
 			struct VOut { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
@@ -84,6 +88,7 @@ internal sealed unsafe class ScreenPainter : IDisposable
 			}
 
 			Texture2D tex : register(t0);
+			Texture2D<float> sceneDepth : register(t1);
 			SamplerState smp : register(s0);
 
 			float4 PS(VOut i, bool isFrontFace : SV_IsFrontFace) : SV_TARGET
@@ -93,6 +98,16 @@ internal sealed unsafe class ScreenPainter : IDisposable
 					float4 rect = uiRects[r];
 					if (i.pos.x >= rect.x && i.pos.x < rect.x + rect.z &&
 						i.pos.y >= rect.y && i.pos.y < rect.y + rect.w)
+					{
+						discard;
+					}
+				}
+
+				if (depthTexelScale.x > 0.0)
+				{
+					int2 texel = int2(i.pos.xy * depthTexelScale);
+					float scene = sceneDepth.Load(int3(texel, 0));
+					if (i.pos.z < scene) //reverse-Z: the scene is nearer than the screen here
 					{
 						discard;
 					}
@@ -108,11 +123,11 @@ internal sealed unsafe class ScreenPainter : IDisposable
 		using (var vsb = ShaderBytecode.Compile(hlsl, "VS", "vs_4_0"))
 		using (var psb = ShaderBytecode.Compile(hlsl, "PS", "ps_4_0"))
 		{
-			_vs = new VertexShader(DxHandler.Device, vsb);
-			_ps = new PixelShader(DxHandler.Device, psb);
+			vertexShader = new VertexShader(DxHandler.Device, vsb);
+			pixelShader = new PixelShader(DxHandler.Device, psb);
 		}
 
-		_sampler = new SamplerState(DxHandler.Device, new SamplerStateDescription
+		samplerState = new SamplerState(DxHandler.Device, new SamplerStateDescription
 		{
 			Filter = Filter.MinMagMipLinear,
 			AddressU = TextureAddressMode.Clamp,
@@ -123,20 +138,27 @@ internal sealed unsafe class ScreenPainter : IDisposable
 			MaximumLod = float.MaxValue
 		});
 
-		_rasterState = new RasterizerState(DxHandler.Device, new RasterizerStateDescription
+		rasterizerState = new RasterizerState(DxHandler.Device, new RasterizerStateDescription
 		{
 			FillMode = FillMode.Solid,
 			CullMode = SharpDX.Direct3D11.CullMode.None
 		});
 
-		_depthState = new DepthStencilState(DxHandler.Device, new DepthStencilStateDescription
+		depthTestState = new DepthStencilState(DxHandler.Device, new DepthStencilStateDescription
 		{
 			IsDepthEnabled = true,
 			DepthWriteMask = DepthWriteMask.Zero,
 			DepthComparison = Comparison.GreaterEqual
 		});
 
-		_cbuf = new Buffer(DxHandler.Device, sizeof(ScreenParams), ResourceUsage.Default,
+		depthOffState = new DepthStencilState(DxHandler.Device, new DepthStencilStateDescription
+		{
+			IsDepthEnabled = false,
+			DepthWriteMask = DepthWriteMask.Zero,
+			DepthComparison = Comparison.Always
+		});
+
+		constantBuffer = new Buffer(DxHandler.Device, sizeof(ScreenParams), ResourceUsage.Default,
 			BindFlags.ConstantBuffer, CpuAccessFlags.None, ResourceOptionFlags.None, 0);
 
 		DxHandler.OnPresent += DrawIfReady;
@@ -144,18 +166,18 @@ internal sealed unsafe class ScreenPainter : IDisposable
 
 	internal void SetTarget(Texture2D? texture)
 	{
-		if (ReferenceEquals(texture, _texture))
+		if (ReferenceEquals(texture, screenTexture))
 		{
 			return;
 		}
 
-		_srv?.Dispose();
-		_srv = null;
-		_texture = texture;
+		shaderResourceView?.Dispose();
+		shaderResourceView = null;
+		screenTexture = texture;
 
 		if (texture != null)
 		{
-			_srv = new ShaderResourceView(DxHandler.Device, texture, new ShaderResourceViewDescription
+			shaderResourceView = new ShaderResourceView(DxHandler.Device, texture, new ShaderResourceViewDescription
 			{
 				Format = texture.Description.Format,
 				Dimension = ShaderResourceViewDimension.Texture2D,
@@ -173,76 +195,122 @@ internal sealed unsafe class ScreenPainter : IDisposable
 
 	private void DrawIfReady()
 	{
-		if (!TryGetSceneTargets(out nint colorTexture, out nint depthTexture, out uint targetWidth, out uint targetHeight) || _srv == null)
+		if (!Visible)
 		{
 			return;
 		}
 
-		NumericsMatrix4x4? worldViewProj = ComputeWorldViewProj();
+		if (!TryGetSceneTargets(out var targets) || shaderResourceView == null)
+		{
+			return;
+		}
+
+		var worldViewProj = ComputeWorldViewProj();
 		if (worldViewProj == null)
 		{
 			return;
 		}
 
-		if (colorTexture != _cachedColorTexture || _cachedRtv == null)
+		if (targets.DepthTexture != cachedDepthTexture)
 		{
-			_cachedRtv?.Dispose();
-			_cachedRtv = CreateRenderTargetView(colorTexture);
-			_cachedColorTexture = colorTexture;
-		}
-		if (depthTexture != _cachedDepthTexture || _cachedDsv == null)
-		{
-			_cachedDsv?.Dispose();
-			_cachedDsv = CreateDepthStencilView(depthTexture);
-			_cachedDepthTexture = depthTexture;
+			cachedDepthView?.Dispose();
+			cachedDepthView = null;
+			cachedDepthStencilView?.Dispose();
+			cachedDepthStencilView = null;
+			depthViewUnavailable = false;
+			cachedDepthTexture = targets.DepthTexture;
 		}
 
-		if (_cachedRtv == null || _cachedDsv == null)
+		if (cachedDepthView == null && !depthViewUnavailable)
+		{
+			cachedDepthView = CreateDepthShaderView(targets.DepthTexture);
+			depthViewUnavailable = cachedDepthView == null;
+		}
+
+		var depthMatchesTarget = targets.RenderWidth == targets.Width && targets.RenderHeight == targets.Height;
+		if (cachedDepthView == null)
+		{
+			if (!depthMatchesTarget)
+			{
+				if (!scaledDepthSkipLogged)
+				{
+					scaledDepthSkipLogged = true;
+					AepLog.Warning($"[ScreenPainter] The scene depth cannot be sampled and renders at {targets.RenderWidth}x{targets.RenderHeight} against a {targets.Width}x{targets.Height} swap chain; the world screen stays hidden while the render resolution is scaled.");
+				}
+
+				return;
+			}
+
+			cachedDepthStencilView ??= CreateDepthStencilView(targets.DepthTexture);
+			if (cachedDepthStencilView == null)
+			{
+				return;
+			}
+		}
+
+		Marshal.AddRef(targets.ColorTexture);
+		using var colorResource = new Texture2D(targets.ColorTexture);
+		using var rtv = CreateRenderTargetView(colorResource);
+		if (rtv == null)
 		{
 			return;
 		}
 
-		RenderTargetView rtv = _cachedRtv;
-		DepthStencilView dsv = _cachedDsv;
+		var ctx = DxHandler.Device!.ImmediateContext;
 
-		DeviceContext ctx = DxHandler.Device!.ImmediateContext;
-
-		RenderTargetView[] prevRtvs = ctx.OutputMerger.GetRenderTargets(1, out DepthStencilView? prevDsv);
-		VertexShader? prevVs = ctx.VertexShader.Get();
-		PixelShader? prevPs = ctx.PixelShader.Get();
-		InputLayout? prevIl = ctx.InputAssembler.InputLayout;
-		PrimitiveTopology prevTopo = ctx.InputAssembler.PrimitiveTopology;
-		BlendState? prevBlend = ctx.OutputMerger.BlendState;
-		DepthStencilState? prevDss = ctx.OutputMerger.DepthStencilState;
-		RasterizerState? prevRs = ctx.Rasterizer.State;
+		var prevRtvs = ctx.OutputMerger.GetRenderTargets(1, out var prevDsv);
+		var prevVs = ctx.VertexShader.Get();
+		var prevPs = ctx.PixelShader.Get();
+		var prevIl = ctx.InputAssembler.InputLayout;
+		var prevTopo = ctx.InputAssembler.PrimitiveTopology;
+		var prevBlend = ctx.OutputMerger.BlendState;
+		var prevDss = ctx.OutputMerger.DepthStencilState;
+		var prevRs = ctx.Rasterizer.State;
 
 		try
 		{
 			var p = new ScreenParams { WorldViewProj = worldViewProj.Value, Curvature = Curvature };
-			p.UiRectCount = CollectUiRects(ref p);
-			ScreenParams* pp = &p;
-			ctx.UpdateSubresource(new SharpDX.DataBox((nint)pp), _cbuf);
+			if (cachedDepthView != null)
+			{
+				p.DepthTexelScaleX = (float)targets.RenderWidth / targets.Width;
+				p.DepthTexelScaleY = (float)targets.RenderHeight / targets.Height;
+			}
 
-			ctx.OutputMerger.SetRenderTargets(dsv, rtv);
-			ctx.Rasterizer.SetViewport(0, 0, targetWidth, targetHeight, 0, 1);
+			p.UiRectCount = CollectUiRects(ref p);
+			var pp = &p;
+			ctx.UpdateSubresource(new SharpDX.DataBox((nint)pp), constantBuffer);
+
+			if (cachedDepthView != null)
+			{
+				ctx.OutputMerger.SetRenderTargets((DepthStencilView?)null, rtv);
+				ctx.OutputMerger.DepthStencilState = depthOffState;
+			}
+			else
+			{
+				ctx.OutputMerger.SetRenderTargets(cachedDepthStencilView, rtv);
+				ctx.OutputMerger.DepthStencilState = depthTestState;
+			}
+
+			ctx.Rasterizer.SetViewport(0, 0, targets.Width, targets.Height, 0, 1);
 			ctx.InputAssembler.InputLayout = null;
 			ctx.InputAssembler.PrimitiveTopology = PrimitiveTopology.TriangleStrip;
-			ctx.Rasterizer.State = _rasterState;
+			ctx.Rasterizer.State = rasterizerState;
 			ctx.OutputMerger.BlendState = null;
-			ctx.OutputMerger.DepthStencilState = _depthState;
-			ctx.VertexShader.Set(_vs);
-			ctx.VertexShader.SetConstantBuffer(0, _cbuf);
-			ctx.PixelShader.Set(_ps);
-			ctx.PixelShader.SetConstantBuffer(0, _cbuf);
-			ctx.PixelShader.SetShaderResource(0, _srv);
-			ctx.PixelShader.SetSampler(0, _sampler);
+			ctx.VertexShader.Set(vertexShader);
+			ctx.VertexShader.SetConstantBuffer(0, constantBuffer);
+			ctx.PixelShader.Set(pixelShader);
+			ctx.PixelShader.SetConstantBuffer(0, constantBuffer);
+			ctx.PixelShader.SetShaderResource(0, shaderResourceView);
+			ctx.PixelShader.SetShaderResource(1, cachedDepthView);
+			ctx.PixelShader.SetSampler(0, samplerState);
 			ctx.Draw(VertexCount, 0);
 			ctx.PixelShader.SetShaderResource(0, null);
+			ctx.PixelShader.SetShaderResource(1, null);
 		}
 		finally
 		{
 			ctx.OutputMerger.SetRenderTargets(prevDsv, prevRtvs);
-			foreach (RenderTargetView? prevRtv in prevRtvs)
+			foreach (var prevRtv in prevRtvs)
 			{
 				prevRtv?.Dispose();
 			}
@@ -260,20 +328,20 @@ internal sealed unsafe class ScreenPainter : IDisposable
 
 	private static int CollectUiRects(ref ScreenParams p)
 	{
-		GfxGui.AtkStage* stage = GfxGui.AtkStage.Instance();
+		var stage = GfxGui.AtkStage.Instance();
 		if (stage == null || stage->RaptureAtkUnitManager == null)
 		{
 			return 0;
 		}
 
-		float maxWidth = stage->ScreenSize.Width * 0.9f;
-		float maxHeight = stage->ScreenSize.Height * 0.9f;
+		var maxWidth = stage->ScreenSize.Width * 0.9f;
+		var maxHeight = stage->ScreenSize.Height * 0.9f;
 
-		int count = 0;
-		System.Span<FFXIVClientStructs.Interop.Pointer<GfxGui.AtkUnitBase>> entries = stage->RaptureAtkUnitManager->AllLoadedUnitsList.Entries;
-		for (int i = 0; i < entries.Length && count < MaxUiRects; i++)
+		var count = 0;
+		var entries = stage->RaptureAtkUnitManager->AllLoadedUnitsList.Entries;
+		for (var i = 0; i < entries.Length && count < MaxUiRects; i++)
 		{
-			GfxGui.AtkUnitBase* unit = entries[i].Value;
+			var unit = entries[i].Value;
 			if (unit == null || !unit->IsVisible || unit->Alpha == 0 || unit->RootNode == null || unit->RootNode->Color.A == 0 || unit->WindowNode == null)
 			{
 				continue;
@@ -291,7 +359,7 @@ internal sealed unsafe class ScreenPainter : IDisposable
 				continue;
 			}
 
-			int baseIndex = count * 4;
+			var baseIndex = count * 4;
 			p.UiRects[baseIndex + 0] = x;
 			p.UiRects[baseIndex + 1] = y;
 			p.UiRects[baseIndex + 2] = width;
@@ -302,44 +370,81 @@ internal sealed unsafe class ScreenPainter : IDisposable
 		return count;
 	}
 
-	private static bool TryGetSceneTargets(out nint colorTexture, out nint depthTexture, out uint width, out uint height)
-	{
-		colorTexture = 0;
-		depthTexture = 0;
-		width = 0;
-		height = 0;
+	private readonly record struct SceneTargets(
+		nint ColorTexture,
+		nint DepthTexture,
+		uint Width,
+		uint Height,
+		uint RenderWidth,
+		uint RenderHeight);
 
-		GfxKernel.Device* device = GfxKernel.Device.Instance();
+	private static bool TryGetSceneTargets(out SceneTargets targets)
+	{
+		targets = default;
+
+		var device = GfxKernel.Device.Instance();
 		if (device == null || device->SwapChain == null)
 		{
 			return false;
 		}
 
-		GfxKernel.Texture* backBuffer = device->SwapChain->BackBuffer;
+		var backBuffer = device->SwapChain->BackBuffer;
 		if (backBuffer == null)
 		{
 			return false;
 		}
 
-		FFXIVClientStructs.FFXIV.Client.Graphics.Render.RenderTargetManager* rtm = FFXIVClientStructs.FFXIV.Client.Graphics.Render.RenderTargetManager.Instance();
-		GfxKernel.Texture* sceneDepth = rtm != null ? rtm->DepthStencil : null;
+		var rtm = FFXIVClientStructs.FFXIV.Client.Graphics.Render.RenderTargetManager.Instance();
+		var sceneDepth = rtm != null ? rtm->DepthStencil : null;
 		if (rtm == null || sceneDepth == null)
 		{
 			return false;
 		}
-		if (rtm->Resolution_Width != device->SwapChain->Width || rtm->Resolution_Height != device->SwapChain->Height)
+
+		var width = device->SwapChain->Width;
+		var height = device->SwapChain->Height;
+		if (width == 0 || height == 0)
 		{
 			return false;
 		}
 
-		colorTexture = (nint)backBuffer->D3D11Texture2D;
-		depthTexture = (nint)sceneDepth->D3D11Texture2D;
-		width = device->SwapChain->Width;
-		height = device->SwapChain->Height;
-		return colorTexture != 0 && depthTexture != 0;
+		var renderWidth = sceneDepth->ActualWidth != 0 ? sceneDepth->ActualWidth : rtm->Resolution_Width;
+		var renderHeight = sceneDepth->ActualHeight != 0 ? sceneDepth->ActualHeight : rtm->Resolution_Height;
+		if (renderWidth == 0 || renderHeight == 0)
+		{
+			return false;
+		}
+
+		var colorTexture = (nint)backBuffer->D3D11Texture2D;
+		var depthTexture = (nint)sceneDepth->D3D11Texture2D;
+		if (colorTexture == 0 || depthTexture == 0)
+		{
+			return false;
+		}
+
+		targets = new SceneTargets(colorTexture, depthTexture, width, height, renderWidth, renderHeight);
+		return true;
 	}
 
-	private static RenderTargetView? CreateRenderTargetView(nint texturePtr)
+	private static RenderTargetView? CreateRenderTargetView(Texture2D colorResource)
+	{
+		if (DxHandler.Device == null)
+		{
+			return null;
+		}
+
+		try
+		{
+			return new RenderTargetView(DxHandler.Device, colorResource);
+		}
+		catch (Exception exception)
+		{
+			AepLog.Warning($"[ScreenPainter] Could not view the scene colour target: {exception.Message}");
+			return null;
+		}
+	}
+
+	private static ShaderResourceView? CreateDepthShaderView(nint texturePtr)
 	{
 		if (texturePtr == 0 || DxHandler.Device == null)
 		{
@@ -350,11 +455,23 @@ internal sealed unsafe class ScreenPainter : IDisposable
 		{
 			Marshal.AddRef(texturePtr);
 			using var texture = new Texture2D(texturePtr);
-			return new RenderTargetView(DxHandler.Device, texture);
+			var description = texture.Description;
+			if ((description.BindFlags & BindFlags.ShaderResource) == 0 || description.SampleDescription.Count > 1)
+			{
+				AepLog.Warning($"[ScreenPainter] The scene depth ({description.Format}, {description.SampleDescription.Count}x) cannot be sampled; using the depth stencil path.");
+				return null;
+			}
+
+			return new ShaderResourceView(DxHandler.Device, texture, new ShaderResourceViewDescription
+			{
+				Dimension = ShaderResourceViewDimension.Texture2D,
+				Format = DepthShaderFormat(description.Format),
+				Texture2D = { MipLevels = 1, MostDetailedMip = 0 },
+			});
 		}
 		catch (Exception exception)
 		{
-			AepLog.Warning($"[ScreenPainter] Could not view the scene colour target: {exception.Message}");
+			AepLog.Warning($"[ScreenPainter] Could not sample the scene depth target: {exception.Message}");
 			return null;
 		}
 	}
@@ -384,6 +501,15 @@ internal sealed unsafe class ScreenPainter : IDisposable
 		}
 	}
 
+	private static Format DepthShaderFormat(Format format) => format switch
+	{
+		Format.R32G8X24_Typeless or Format.D32_Float_S8X24_UInt => Format.R32_Float_X8X24_Typeless,
+		Format.R32_Typeless or Format.D32_Float => Format.R32_Float,
+		Format.R24G8_Typeless or Format.D24_UNorm_S8_UInt => Format.R24_UNorm_X8_Typeless,
+		Format.R16_Typeless or Format.D16_UNorm => Format.R16_UNorm,
+		_ => format,
+	};
+
 	private static Format DepthViewFormat(Format format) => format switch
 	{
 		Format.R32G8X24_Typeless or Format.D32_Float_S8X24_UInt => Format.D32_Float_S8X24_UInt,
@@ -395,32 +521,32 @@ internal sealed unsafe class ScreenPainter : IDisposable
 
 	private NumericsMatrix4x4? ComputeWorldViewProj()
 	{
-		GameControl.CameraManager* gameCameraManager = GameControl.CameraManager.Instance();
+		var gameCameraManager = GameControl.CameraManager.Instance();
 		if (gameCameraManager == null)
 		{
 			return null;
 		}
 
-		FFXIVClientStructs.FFXIV.Client.Game.Camera* gameCamera = gameCameraManager->GetActiveCamera();
+		var gameCamera = gameCameraManager->GetActiveCamera();
 		if (gameCamera == null)
 		{
 			return null;
 		}
 
-		GfxScene.Camera* camera = &gameCamera->CameraBase.SceneCamera;
-		FFXIVClientStructs.FFXIV.Client.Graphics.Render.Camera* renderCamera = camera->RenderCamera;
+		var camera = &gameCamera->CameraBase.SceneCamera;
+		var renderCamera = camera->RenderCamera;
 		if (renderCamera == null)
 		{
 			return null;
 		}
 
-		Vector3 camPos = ToNumerics(camera->Position);
-		Vector3 camLookAt = ToNumerics(camera->LookAtVector);
+		var camPos = ToNumerics(camera->Position);
+		var camLookAt = ToNumerics(camera->LookAtVector);
 
-		NumericsMatrix4x4 view = NumericsMatrix4x4.CreateLookAt(camPos, camLookAt, Vector3.UnitY);
-		NumericsMatrix4x4 proj = CreatePerspectiveFieldOfViewReversedZ(renderCamera->FoV, renderCamera->AspectRatio, renderCamera->NearPlane, renderCamera->FarPlane);
+		var view = NumericsMatrix4x4.CreateLookAt(camPos, camLookAt, Vector3.UnitY);
+		var proj = CreatePerspectiveFieldOfViewReversedZ(renderCamera->FoV, renderCamera->AspectRatio, renderCamera->NearPlane, renderCamera->FarPlane);
 
-		NumericsMatrix4x4 world =
+		var world =
 			NumericsMatrix4x4.CreateScale(BaseWidth * Scale, BaseHeight * Scale, Scale) *
 			NumericsMatrix4x4.CreateFromAxisAngle(Vector3.UnitY, WorldYaw) *
 			NumericsMatrix4x4.CreateTranslation(WorldPosition);
@@ -430,8 +556,8 @@ internal sealed unsafe class ScreenPainter : IDisposable
 
 	private static NumericsMatrix4x4 CreatePerspectiveFieldOfViewReversedZ(float fov, float aspect, float near, float far)
 	{
-		float yScale = 1f / MathF.Tan(fov / 2f);
-		float xScale = yScale / aspect;
+		var yScale = 1f / MathF.Tan(fov / 2f);
+		var xScale = yScale / aspect;
 
 		return new NumericsMatrix4x4(
 			xScale, 0, 0, 0,
@@ -447,14 +573,15 @@ internal sealed unsafe class ScreenPainter : IDisposable
 	{
 		DxHandler.OnPresent -= DrawIfReady;
 
-		_srv?.Dispose();
-		_cachedRtv?.Dispose();
-		_cachedDsv?.Dispose();
-		_cbuf.Dispose();
-		_depthState.Dispose();
-		_rasterState.Dispose();
-		_sampler.Dispose();
-		_ps.Dispose();
-		_vs.Dispose();
+		shaderResourceView?.Dispose();
+		cachedDepthView?.Dispose();
+		cachedDepthStencilView?.Dispose();
+		constantBuffer.Dispose();
+		depthOffState.Dispose();
+		depthTestState.Dispose();
+		rasterizerState.Dispose();
+		samplerState.Dispose();
+		pixelShader.Dispose();
+		vertexShader.Dispose();
 	}
 }

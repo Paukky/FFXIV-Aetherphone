@@ -6,7 +6,6 @@ using Aetherphone.Core.Theme;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 
 namespace Aetherphone.Apps.Market;
@@ -96,17 +95,9 @@ internal sealed partial class MarketApp
         var cardMax = new Vector2(origin.X + width, origin.Y + cardHeight);
         Squircle.Fill(drawList, cardMin, cardMax, cardRounding, ImGui.GetColorU32(frameTheme.GroupedCard));
         Material.EdgeSquircle(drawList, cardMin, cardMax, cardRounding, scale);
-        Elevation.Card(drawList, iconMin, iconMax, tileRounding, scale, 0.5f);
-        Squircle.Fill(drawList, iconMin, iconMax, tileRounding, ImGui.GetColorU32(AppPalettes.Market.CardFill));
-        if (view.IconId != 0)
-        {
-            var texture = textures.GetFromGameIcon(new GameIconLookup(view.IconId)).GetWrapOrEmpty();
-            var inset = 4f * scale;
-            drawList.AddImageRounded(texture.Handle, iconMin + new Vector2(inset, inset),
-                iconMax - new Vector2(inset, inset), Vector2.Zero, Vector2.One, 0xFFFFFFFFu, tileRounding - inset);
-        }
-
-        Material.EdgeSquircle(drawList, iconMin, iconMax, tileRounding, scale);
+        GameIconTile.Draw(drawList, textures, view.IconId, iconMin, iconMax, tileRounding, scale,
+            ImGui.GetColorU32(AppPalettes.Market.CardFill), inset: 4f * scale, cardShadow: true, edgeStroke: true,
+            edgeStrokeOpacity: 1f);
         var titleMaxWidth = MathF.Max(1f, origin.X + width - 16f * scale - textX);
         var titleId = "market.detail.hero." + view.ItemId;
         var titleSize = Typography.Measure(view.Name, TextStyles.Title3);
@@ -119,10 +110,10 @@ internal sealed partial class MarketApp
                 view.Name);
         }
         var priceMaxWidth = MathF.Max(1f, origin.X + width - 16f * scale - textX);
-        Marquee.DrawLeftAuto("market.detail.price." + view.ItemId, priceText, textX, priceY,
+        Marquee.DrawLeftAuto(new MarqueeId("market.detail.price.", view.ItemId), priceText, textX, priceY,
             priceMaxWidth, new TextStyle(1.4f, FontWeight.SemiBold), AppPalettes.Market.Accent);
         var labelMaxWidth = MathF.Max(1f, origin.X + width - 16f * scale - textX);
-        Marquee.DrawLeftAuto("market.detail.cheapest." + view.ItemId, cheapestLabel, textX, labelY, labelMaxWidth,
+        Marquee.DrawLeftAuto(new MarqueeId("market.detail.cheapest.", view.ItemId), cheapestLabel, textX, labelY, labelMaxWidth,
             new TextStyle(0.78f, FontWeight.Regular), frameTheme.TextMuted);
         if (hasHq)
         {
@@ -297,8 +288,7 @@ internal sealed partial class MarketApp
             hovered ? Palette.Mix(frameTheme.Accent, frameTheme.TextStrong, 0.10f) : frameTheme.Accent;
         Elevation.Card(drawList, min, max, 12f * scale, scale, 0.6f);
         Squircle.Fill(drawList, min, max, 12f * scale, ImGui.GetColorU32(fill));
-        drawList.AddLine(new Vector2(min.X + 12f * scale, min.Y + 1f * scale),
-            new Vector2(max.X - 12f * scale, min.Y + 1f * scale), ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.12f)),
+        Material.Sheen(drawList, min, max, 12f * scale, ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.12f)), 1f * scale,
             1f * scale);
         Typography.DrawCentered((min + max) * 0.5f, label, new Vector4(0.99f, 0.99f, 1f, 1f), TextStyles.Headline);
         ImGui.SetCursorScreenPos(origin);
@@ -326,7 +316,7 @@ internal sealed partial class MarketApp
         var origin = ImGui.GetCursorScreenPos();
         var height = 60f * scale;
         var graph = new Rect(origin, new Vector2(origin.X + width, origin.Y + height));
-        Span<float> values = count <= 64 ? stackalloc float[count] : new float[count];
+        var values = count <= 64 ? stackalloc float[count] : new float[count];
         var cursor = 0;
         for (var saleIndex = sales.Length - 1; saleIndex >= 0; saleIndex--)
         {
@@ -434,7 +424,7 @@ internal sealed partial class MarketApp
         var scale = UiScale.Current;
         var box = 14f * scale;
         var hovered = UiInteract.Hover(center - new Vector2(box, box), center + new Vector2(box, box));
-        var glyph = icon.ToIconString();
+        var glyph = IconGlyph.Of(icon);
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var size = ImGui.CalcTextSize(glyph);

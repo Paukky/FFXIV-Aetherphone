@@ -20,11 +20,17 @@ internal static class L
         public static readonly LocString LoadFailedHint =
             new("common.loadFailedHint", "Check your connection and try again.");
         public static readonly LocString Close = new("common.close", "Close");
+        public static readonly LocString On = new("common.on", "On");
+        public static readonly LocString Off = new("common.off", "Off");
         public static readonly LocString Alerts = new("common.alerts", "Alerts");
         public static readonly LocString Live = new("common.live", "LIVE");
         public static readonly LocString Hq = new("common.hq", "HQ");
         public static readonly LocString Nq = new("common.nq", "NQ");
         public static readonly LocString OpenInBrowser = new("common.openInBrowser", "Click to open in browser");
+        public static readonly LocString OpenLinkTitle = new("common.openLinkTitle", "Open this link?");
+        public static readonly LocString OpenLinkWarning = new("common.openLinkWarning", "This link will direct you outside of Aetherphone to a third party website. Never trust random links from strangers and use your best judgment before proceeding further.");
+        public static readonly LocString OpenLinkDestination = new("common.openLinkDestination", "Destination");
+        public static readonly LocString OpenLinkConfirm = new("common.openLinkConfirm", "Open link");
         public static readonly LocString OpenInWindow = new("common.openInWindow", "Open in a window");
         public static readonly LocString Next = new("common.next", "Next");
         public static readonly LocString Previous = new("common.previous", "Previous");
@@ -248,6 +254,7 @@ internal static class L
         public static readonly LocString Character = new("app.character", "Character");
         public static readonly LocString Health = new("app.health", "Health");
         public static readonly LocString Housing = new("app.housing", "Housing");
+        public static readonly LocString Hunts = new("app.hunts", "Hunts");
         public static readonly LocString Chirper = new("app.chirper", "Chirper");
         public static readonly LocString Aethergram = new("app.aethergram", "Aethergram");
         public static readonly LocString Velvet = new("app.velvet", "Velvet");
@@ -255,6 +262,7 @@ internal static class L
         public static readonly LocString Photos = new("app.photos", "Photos");
         public static readonly LocString Skywatcher = new("app.skywatcher", "Skywatcher");
         public static readonly LocString Venues = new("app.venues", "Venues");
+        public static readonly LocString Strats = new("app.strats", "Strats");
         public static readonly LocString Market = new("app.market", "Market");
         public static readonly LocString Wallet = new("app.wallet", "Wallet");
         public static readonly LocString Coin = new("app.coin", "Aether Coin");
@@ -470,6 +478,9 @@ internal static class L
         public static readonly LocString AnnouncementsSub = new("storeCopy.announcementsSub", "Word from the team");
         public static readonly LocString AnnouncementsBody = new("storeCopy.announcementsBody",
             "Release notes, downtime warnings and everything else the Aetherphone team wants you to know, delivered straight to your phone.");
+        public static readonly LocString StratsSub = new("storeCopy.stratsSub", "Raid cheatsheets, your spot marked");
+        public static readonly LocString StratsBody = new("storeCopy.stratsBody",
+            "Savage, Ultimate and Extreme strategies from WTFDIG. Pick a fight, a strat and your role to see exactly where to stand for every mechanic.");
         public static readonly LocString VenuesSub = new("storeCopy.venuesSub", "Nightlife, mapped");
         public static readonly LocString VenuesBody = new("storeCopy.venuesBody",
             "Find player-run venues, opening hours and directions without leaving the game.");
@@ -883,6 +894,38 @@ internal static class L
         public static readonly LocString NoWorld = new("travel.noWorld", "You can't travel to {0} from here");
     }
 
+    internal static class Strats
+    {
+        public static readonly LocString Loading = new("strats.loading", "Loading fights");
+        public static readonly LocString LoadFailed = new("strats.loadFailed", "The fight list did not load");
+        public static readonly LocString LoadFailedHint = new("strats.loadFailedHint", "Check your connection and try again.");
+        public static readonly LocString Retry = new("strats.retry", "Retry");
+        public static readonly LocString PoweredBy = new("strats.poweredBy", "Powered by {0}");
+        public static readonly LocString GuideLoading = new("strats.guideLoading", "Loading the guide");
+        public static readonly LocString GuideFailed = new("strats.guideFailed", "This guide did not load");
+        public static readonly LocString GuideFailedHint = new("strats.guideFailedHint", "Check your connection and try again.");
+        public static readonly LocString Strategy = new("strats.strategy", "Strategy");
+        public static readonly LocString Role = new("strats.role", "Your role");
+        public static readonly LocString Section = new("strats.section", "Section");
+        public static readonly LocString Orientation = new("strats.orientation", "Orientation");
+        public static readonly LocString Timeline = new("strats.timeline", "Timeline");
+        public static readonly LocString ShowTimeline = new("strats.showTimeline", "Show");
+        public static readonly LocString HideTimeline = new("strats.hideTimeline", "Hide");
+        public static readonly LocString StratDifferences = new("strats.stratDifferences", "Strat differences");
+        public static readonly LocString Board = new("strats.board", "Strategy board");
+        public static readonly LocString WhatHappens = new("strats.whatHappens", "What happens");
+        public static readonly LocString WhatToDo = new("strats.whatToDo", "What to do");
+        public static readonly LocString ForYou = new("strats.forYou", "Your spot");
+        public static readonly LocString OpenOnSite = new("strats.openOnSite", "View on wtfdig.info");
+        public static readonly LocString Resources = new("strats.resources", "More resources");
+        public static readonly LocString Sources = new("strats.sources", "Sources");
+        public static readonly LocString RoleTank = new("strats.roleTank", "Tank");
+        public static readonly LocString RoleHealer = new("strats.roleHealer", "Healer");
+        public static readonly LocString RoleMelee = new("strats.roleMelee", "Melee");
+        public static readonly LocString RoleRanged = new("strats.roleRanged", "Ranged");
+        public static readonly LocString BackToTop = new("strats.backToTop", "Back to top");
+    }
+
     internal static class Venues
     {
         public static readonly LocString LiveNow = new("venues.liveNow", "Live");
@@ -1184,6 +1227,214 @@ internal static class L
             "The results period ends in {0}. Check the estate placard before the claim or refund window closes.");
     }
 
+    public static class Hunts
+    {
+        public static readonly LocString Empty = new("hunts.empty", "No hunt marks found");
+        public static readonly LocString Failed = new("hunts.failed", "Couldn't load hunt data");
+        public static readonly LocString TryAgain = new("hunts.tryAgain", "Try again");
+        public static readonly LocString Closed = new("hunts.closed", "Closed");
+        public static readonly LocString Open = new("hunts.open", "Open");
+        public static readonly LocString Capped = new("hunts.capped", "Capped");
+        public static readonly LocString Unmet = new("hunts.unmet", "Unmet");
+        public static readonly LocString Spawned = new("hunts.spawned", "Spawned");
+        public static readonly LocString Scheduled = new("hunts.scheduled", "Scheduled");
+        public static readonly LocString NavigateToLocation =
+            new("hunts.navigateToLocation", "Navigate to location");
+        public static readonly LocString PlaceFlagOnMap = new("hunts.placeFlagOnMap", "Place flag on map");
+        public static readonly LocString NoSpawnLocationDetected =
+            new("hunts.noSpawnLocationDetected", "No spawn location detected");
+        public static readonly LocString HistoryTab = new("hunts.historyTab", "History");
+        public static readonly LocString HistoryRequiresLoginTooltip =
+            new("hunts.historyRequiresLoginTooltip", "Log in to Faloop to see hunt history");
+        public static readonly LocString HistoryEmpty = new("hunts.historyEmpty", "No recent hunts found");
+        public static readonly LocString ListTab = new("hunts.listTab", "List");
+        public static readonly LocString NotificationSettingsTab =
+            new("hunts.notificationSettingsTab", "Notifications");
+        public static readonly LocString NotificationSettingsTitle =
+            new("hunts.notificationSettingsTitle", "Notification Settings");
+        public static readonly LocString NotificationSettingsRequiresLoginTooltip =
+            new("hunts.notificationSettingsRequiresLoginTooltip",
+                "Log in to Faloop to receive live spawn notifications");
+        public static readonly LocString ResetToDefault = new("hunts.resetToDefault", "Reset to Default");
+        public static readonly LocString ResetTutorial = new("hunts.resetTutorial", "Reset Tutorial");
+        public static readonly LocString NotifyModeDefault = new("hunts.notifyModeDefault", "Default");
+        public static readonly LocString NotifyModeEnabled = new("hunts.notifyModeEnabled", "Enabled");
+        public static readonly LocString NotifyModeEnabledOnWorldValue =
+            new("hunts.notifyModeEnabledOnWorldValue", "Enabled on {0}");
+        public static readonly LocString NotifyModeDisabled = new("hunts.notifyModeDisabled", "Disabled");
+        public static readonly LocString MarkNotificationsTitle =
+            new("hunts.markNotificationsTitle", "Specific Mark Notification");
+        public static readonly LocString MarkNotificationsCount =
+            new("hunts.markNotificationsCount", "{0} configured");
+        public static readonly LocString MarkNotificationsEmpty =
+            new("hunts.markNotificationsEmpty", "No specific mark notifications configured yet.");
+        public static readonly LocString MarkNotificationsEmptyHint = new("hunts.markNotificationsEmptyHint",
+            "You can configure mark-specific notifications on a mark's detail page.");
+        public static readonly LocString Unknown = new("hunts.unknown", "Unknown");
+        public static readonly LocString FiltersTitle = new("hunts.filtersTitle", "Filters");
+        public static readonly LocString ClearFilters = new("hunts.clearFilters", "Clear filters");
+        public static readonly LocString Submit = new("hunts.submit", "Submit");
+        public static readonly LocString DataCenterLabel = new("hunts.dataCenterLabel", "Data Center");
+        public static readonly LocString ChooseDataCenter = new("hunts.chooseDataCenter", "Choose a data center");
+        public static readonly LocString RanksLabel = new("hunts.ranksLabel", "Ranks");
+        public static readonly LocString WorldsLabel = new("hunts.worldsLabel", "Worlds");
+        public static readonly LocString StatusLabel = new("hunts.statusLabel", "Status");
+        public static readonly LocString ExpansionsLabel = new("hunts.expansionsLabel", "Expansions");
+        public static readonly LocString AllWorlds = new("hunts.allWorlds", "All worlds");
+        public static readonly LocString WorldsSelected = new("hunts.worldsSelected", "{0} selected");
+        public static readonly LocString SpawnConditionSection = new("hunts.spawnConditionSection", "Spawn Condition");
+        public static readonly LocString DescriptionSection = new("hunts.descriptionSection", "Description");
+        public static readonly LocString TipsSection = new("hunts.tipsSection", "Spawn Tips");
+        public static readonly LocString RewardsSection = new("hunts.rewardsSection", "Rewards");
+        public static readonly LocString SpawnInfoSection = new("hunts.spawnInfoSection", "Spawn Information");
+        public static readonly LocString SpawnInfoMinimum = new("hunts.spawnInfoMinimum", "Minimum");
+        public static readonly LocString SpawnInfoAverage = new("hunts.spawnInfoAverage", "Average");
+        public static readonly LocString SpawnInfoMaximum = new("hunts.spawnInfoMaximum", "Maximum");
+        public static readonly LocString SpawnInfoMaintenance = new("hunts.spawnInfoMaintenance", "Post-Maintenance");
+        public static readonly LocString SpawnInfoLineFormat = new("hunts.spawnInfoLineFormat", "{0}: {1}");
+        public static readonly LocString ReportedByLabel = new("hunts.reportedByLabel", "Reported by");
+        public static readonly LocString NoLoreAvailable =
+            new("hunts.noLoreAvailable", "No lore available for this mark yet.");
+        public static readonly LocString LoreNotAvailableInLanguage =
+            new("hunts.loreNotAvailableInLanguage", "This lore is not available in your current language.");
+        public static readonly LocString NoSpecialSpawnCondition =
+            new("hunts.noSpecialSpawnCondition", "No special condition.");
+        public static readonly LocString SearchHint = new("hunts.searchHint", "Search marks");
+        public static readonly LocString AuthenticatedTooltip = new("hunts.authenticatedTooltip", "Authenticated");
+        public static readonly LocString NotAuthenticatedTooltip =
+            new("hunts.notAuthenticatedTooltip", "Not authenticated - Limited functionality mode");
+        public static readonly LocString RealtimeReconnectingTooltip =
+            new("hunts.realtimeReconnectingTooltip", "Realtime updates reconnecting");
+        public static readonly LocString SpawnReleaseNotifyTitle =
+            new("hunts.spawnReleaseNotifyTitle", "Hunt spawn released");
+        public static readonly LocString SpawnReleaseNotifyBody =
+            new("hunts.spawnReleaseNotifyBody", "{0} is up on {1}");
+        public static readonly LocString SignupTitle = new("hunts.signupTitle", "Sign Up");
+        public static readonly LocString SignupIntro = new("hunts.signupIntro",
+            "Aetherphone is an independent client for Faloop's hunt data, it is not affiliated with, endorsed by, or supported by Faloop in any way. A Faloop account is still required to receive live spawn data, if you don't have one, create it with the button below.");
+        public static readonly LocString SignupCreateAccount =
+            new("hunts.signupCreateAccount", "Create a Faloop account");
+        public static readonly LocString SignupLoginIntro = new("hunts.signupLoginIntro",
+            "Once your account is created, log in below to connect it to Faloop and start receiving live spawn data.");
+        public static readonly LocString SignupUsernameLabel = new("hunts.signupUsernameLabel", "Username");
+        public static readonly LocString SignupPasswordLabel = new("hunts.signupPasswordLabel", "Password");
+        public static readonly LocString SignupLoginButton = new("hunts.signupLoginButton", "Log In");
+        public static readonly LocString SignupLoggingIn = new("hunts.signupLoggingIn", "Logging In...");
+        public static readonly LocString SignupFailed = new("hunts.signupFailed",
+            "Login failed. Check your username and password and try again.");
+        public static readonly LocString SignupAuthenticatedMessage =
+            new("hunts.signupAuthenticatedMessage", "You're logged in to Faloop.");
+        public static readonly LocString SignupLogoutButton = new("hunts.signupLogoutButton", "Log Out");
+        public static readonly LocString GuideTab = new("hunts.guideTab", "Hunt Guides");
+        public static readonly LocString GuideHowItWorksTitle =
+            new("hunts.guideHowItWorksTitle", "How does this work?");
+        public static readonly LocString GuideHowItWorksBody = new("hunts.guideHowItWorksBody",
+            "Each mark has a preset window it can spawn in after its last death. A spawn moment gets picked somewhere inside that window, and the mark can only spawn when its condition is met once that moment has passed.\n\nBy tracking these windows, along with when marks spawn and die, we can effectively track every S-rank across every world.\n\nNote that for most marks this isn't random: a window shown at 60% means there's a 60% chance the mark is currently active, not a 60% chance that it will spawn.");
+        public static readonly LocString GuideRanksTitle =
+            new("hunts.guideRanksTitle", "What are the different ranks?");
+        public static readonly LocString GuideRanksBody = new("hunts.guideRanksBody",
+            "F-rank marks, often called FATE marks, come at the end of long FATE chains and only spawn every few hours or days.\n\nB-rank marks are weekly hunt marks. They respawn 5 seconds after the last one is killed, so they're essentially always up.\n\nA-rank marks are rare targets that respawn every few hours with no conditions. They're usually killed together as part of a Hunt Train, a group that works through every A-rank in an expansion. For Stormblood and older expansions, Hunt Trains are rare and marks are typically free-for-all.\n\nS-rank marks have a specific window and only spawn once their condition is met. They're tracked on Faloop and spawn at most every few days.");
+        public static readonly LocString GuideWindowStatusTitle =
+            new("hunts.guideWindowStatusTitle", "What do the window statuses mean?");
+        public static readonly LocString GuideWindowStatusBody = new("hunts.guideWindowStatusBody",
+            "Closed means the mark is certainly outside its window.\nOpen means there's a chance the mark is active.\nCapped means it has reached the end of its window and is certainly active, unless it was sniped.\nUnmet means the window is active, but the mark's spawn condition depends on other factors, like weather, time, or moon phase, that aren't currently in place.");
+        public static readonly LocString GuideSSMarksTitle = new("hunts.guideSSMarksTitle", "What are SS marks?");
+        public static readonly LocString GuideSSMarksBody = new("hunts.guideSSMarksBody",
+            "Every time an S-rank mark dies on a post-Shadowbringers map, there's a chance for 4 minions to spawn. Killing those minions in time spawns a special SS-rank mark, which gives more drops.");
+        public static readonly LocString GuideAffiliationTitle =
+            new("hunts.guideAffiliationTitle", "Is this made by Faloop?");
+        public static readonly LocString GuideAffiliationBody = new("hunts.guideAffiliationBody",
+            "No. Aetherphone is an independent, unofficial client, it is not made, run, sponsored, or endorsed by Faloop in any way. It simply displays hunt data pulled from Faloop's public service. Please send feedback about this app to Aetherphone, not to Faloop.");
+        public static readonly LocString GuideContributeTitle =
+            new("hunts.guideContributeTitle", "How can I contribute to hunt tracking?");
+        public static readonly LocString GuideContributeBody = new("hunts.guideContributeBody",
+            "This app is an independent client that displays hunt data from Faloop's own tracking project. To contribute reports, or to learn more about Faloop itself, join their Discord:\n\nhttps://discord.gg/faloop");
+        public static readonly LocString GuideScheduledTitle =
+            new("hunts.guideScheduledTitle", "What is the Scheduled status?");
+        public static readonly LocString GuideScheduledBody = new("hunts.guideScheduledBody",
+            "Accounts with reporting permissions on Faloop may see some marks as Scheduled. This means a reporter has reported the spawn but hasn't made it public yet. Please respect their decision and wait until the mark is public before advertising it.");
+        public static readonly LocString GuideMaintenanceTitle =
+            new("hunts.guideMaintenanceTitle", "How do maintenances affect mark windows?");
+        public static readonly LocString GuideMaintenanceBody = new("hunts.guideMaintenanceBody",
+            "When maintenance happens and the servers restart, every mark's timer resets to zero, and its window then follows the post-maintenance timing instead of the normal one.\n\nNote that a server crash doesn't always reset S-rank timers, the backend may have stayed up even if players got disconnected.");
+        public static readonly LocString GuideUnlockTitle = new("hunts.guideUnlockTitle", "How do you unlock hunts?");
+        public static readonly LocString GuideUnlockBody = new("hunts.guideUnlockBody",
+            "Hunts unlock through a series of quests, one set per expansion, usually starting partway through that expansion's main scenario. For the full breakdown of every unlock quest, see the wiki:\n\nhttps://ffxiv.consolegameswiki.com/wiki/The_Hunt#Unlock");
+        public static readonly LocString GuideSpawnConditionsTitle =
+            new("hunts.guideSpawnConditionsTitle", "How do people figure out the spawn conditions?");
+        public static readonly LocString GuideSpawnConditionsBody = new("hunts.guideSpawnConditionsBody",
+            "Each area has a specific NPC who shares lore about its S-ranks, and that lore usually hints at how to spawn them.\n\nFor example, Agrippa's lore mentions a hunter being ambushed after searching for treasure, hinting that its spawn condition is opening a treasure map.");
+        public static readonly LocString GuideGlossaryTitle = new("hunts.guideGlossaryTitle", "Glossary");
+        public static readonly LocString GuideGlossaryBody = new("hunts.guideGlossaryBody",
+            "Conductor: Person who leads a Hunt Train.\nET/EzT: Eorzean Time. Pulls are usually scheduled in Eorzean time rather than real-world time.\nLandmine: One of the spots where a mark can spawn.\nPT: Pull Time, the moment the mark will be attacked and killed.\nScouter: Person who locates an A-rank mark ahead of a Hunt Train.\nSniping: Killing a hunt mark without reporting it. Sniping is completely permitted, but is generally considered poor etiquette.\nSpawner/Reporter: Person who first reports a mark's spawn.\nTrain: An organized event where players kill every A-rank mark in an expansion, typically Shadowbringers or later.\ntyfs: Thank You For Spawn, a common way to thank whoever reported the mark.");
+    }
+
+    public static class HuntLore
+    {
+        public static readonly LocString AglaopeSpawn = new("hunts.lore.aglaope.spawn", "May trigger while flying or walking over its spawn locations with the Scarlet Peacock minion summoned.");
+        public static readonly LocString AgrippaTheMightySpawn = new("hunts.lore.agrippa_the_mighty.spawn", "May trigger when a treasure map chest is opened.");
+        public static readonly LocString ArchAethereaterSpawn = new("hunts.lore.arch_aethereater.spawn", "Requires defeating all four Crystal Incarnation.");
+        public static readonly LocString ArmstrongSpawn = new("hunts.lore.armstrong.spawn", "May trigger when a player dies on a spawn location while wearing the Mended Imperial Pot Helm and Mended Imperial Short Robe.");
+        public static readonly LocString AtticusThePrimogenitorSpawn = new("hunts.lore.atticus_the_primogenitor.spawn", "Requires crafting a Rroneek Steak at high quality.");
+        public static readonly LocString BirdOfParadiseSpawn = new("hunts.lore.bird_of_paradise.spawn", "May trigger whenever the zone's B-Rank mark, Squonk, uses its Chirp ability.");
+        public static readonly LocString BoneCrawlerSpawn = new("hunts.lore.bone_crawler.spawn", "May trigger while passing through the zone's midpoint during a Chocobo Porter journey.");
+        public static readonly LocString BonnaconSpawn = new("hunts.lore.bonnacon.spawn", "May trigger while gathering La Noscean Leeks.");
+        public static readonly LocString BrontesSpawn = new("hunts.lore.brontes.spawn", "May trigger when food or drink is consumed on a spawn location.");
+        public static readonly LocString BurfurlurTheCannySpawn = new("hunts.lore.burfurlur_the_canny.spawn", "May trigger while passing over its spawn locations in daylight with the Tiny Troll minion summoned.");
+        public static readonly LocString ChernobogSpawn = new("hunts.lore.chernobog.spawn", "May trigger whenever a player dies.");
+        public static readonly LocString CroakadileSpawn = new("hunts.lore.croakadile.spawn", "Appears when its spawn locations are crossed on nights of the full moon.");
+        public static readonly LocString CroqueMitaineSpawn = new("hunts.lore.croque_mitaine.spawn", "May trigger while mining Grade 3 La Noscean Topsoil.");
+        public static readonly LocString ForgivenPedantrySpawn = new("hunts.lore.forgiven_pedantry.spawn", "Requires 50 successful Dwarven Cotton Boll harvests.");
+        public static readonly LocString ForgivenRebellionSpawn = new("hunts.lore.forgiven_rebellion.spawn", "Requires defeating all four Forgiven Gossip.");
+        public static readonly LocString GammaSpawn = new("hunts.lore.gamma.spawn", "May trigger while passing over its spawn locations at night with the Toy Alexander minion summoned.");
+        public static readonly LocString GandarewaSpawn = new("hunts.lore.gandarewa.spawn", "Requires 50 successful Aurum Regis Ore mining attempts and 50 successful Seventh Heaven harvests.");
+        public static readonly LocString GunittSpawn = new("hunts.lore.gunitt.spawn", "May trigger when a fully grown Clionid uses Buccal Cones on a player.");
+        public static readonly LocString IhnuxokiySpawn = new("hunts.lore.ihnuxokiy.spawn", "May trigger while passing over its spawn locations with the Morpho minion summoned.");
+        public static readonly LocString IxtabSpawn = new("hunts.lore.ixtab.spawn", "Requires defeating 100 each of Cracked Ronkan Doll, Cracked Ronkan Thorn and Cracked Ronkan Vessel.");
+        public static readonly LocString KaiserBehemothSpawn = new("hunts.lore.kaiser_behemoth.spawn", "May trigger while passing over its spawn locations with the Behemoth Heir minion summoned.");
+        public static readonly LocString KerSpawn = new("hunts.lore.ker.spawn", "Requires defeating all four Ker Shroud.");
+        public static readonly LocString KirlirgerTheAbhorrentSpawn = new("hunts.lore.kirlirger_the_abhorrent.spawn", "May trigger while passing over its spawn locations at night during the new moon, in foggy weather.");
+        public static readonly LocString LaideronnetteSpawn = new("hunts.lore.laideronnette.spawn", "Requires 30 real-time minutes of continuous rain in the zone.");
+        public static readonly LocString LeucrottaSpawn = new("hunts.lore.leucrotta.spawn", "Requires defeating 50 each of Allagan Chimera, Lesser Hydra and Meracydian Vouivre.");
+        public static readonly LocString MindflayerSpawn = new("hunts.lore.mindflayer.spawn", "Appears when its spawn locations are crossed on nights of the new moon.");
+        public static readonly LocString MinhocaoSpawn = new("hunts.lore.minhocao.spawn", "Requires defeating 100 Earth Sprites.");
+        public static readonly LocString NandiSpawn = new("hunts.lore.nandi.spawn", "May trigger while passing over its spawn locations with any minion summoned.");
+        public static readonly LocString NarrowRiftSpawn = new("hunts.lore.narrow_rift.spawn", "May trigger when 10 players together cross its spawn locations, each with the wee Ea minion summoned.");
+        public static readonly LocString NeyoozoteelSpawn = new("hunts.lore.neyoozoteel.spawn", "Requires discarding a full stack of 50 Fish Meal.");
+        public static readonly LocString NunyunuwiSpawn = new("hunts.lore.nunyunuwi.spawn", "Requires an unbroken real-time hour of FATE completions, with none allowed to fail.");
+        public static readonly LocString OkinaSpawn = new("hunts.lore.okina.spawn", "Requires defeating 100 Yumemi and 100 Naked Yumemi while the full moon is active.");
+        public static readonly LocString OphioneusSpawn = new("hunts.lore.ophioneus.spawn", "Requires discarding a full stack of 5 Eggs of Elpis.");
+        public static readonly LocString OrghanaSpawn = new("hunts.lore.orghana.spawn", "May trigger while passing over its spawn locations while the Not Just a Tribute FATE is complete.");
+        public static readonly LocString RuminatorSpawn = new("hunts.lore.ruminator.spawn", "Requires defeating 100 each of Thinkers, Wanderers and Weepers.");
+        public static readonly LocString SafatSpawn = new("hunts.lore.safat.spawn", "Requires falling damage that brings a player down to 1 HP.");
+        public static readonly LocString SaltAndLightSpawn = new("hunts.lore.salt_and_light.spawn", "Requires 50 individual item discards.");
+        public static readonly LocString SansheyaSpawn = new("hunts.lore.sansheya.spawn", "Requires three consecutive successful clears of the You Are What You Drink FATE.");
+        public static readonly LocString SenmurvSpawn = new("hunts.lore.senmurv.spawn", "Requires five consecutive successful clears of the Cerf's Up FATE.");
+        public static readonly LocString SphatikaSpawn = new("hunts.lore.sphatika.spawn", "Requires defeating 100 each of Asvattha, Pisaca and Vajralangula.");
+        public static readonly LocString TarchiaSpawn = new("hunts.lore.tarchia.spawn", "May trigger when a player uses Self Destruct on a spawn location.");
+        public static readonly LocString TheForecasterSpawn = new("hunts.lore.the_forecaster.spawn", "May trigger when a player casts Northerlies on a spawn location.");
+        public static readonly LocString TheGarlokSpawn = new("hunts.lore.the_garlok.spawn", "Requires 200 real-time minutes without rain or showers in the zone.");
+        public static readonly LocString ThePaleRiderSpawn = new("hunts.lore.the_pale_rider.spawn", "May trigger when a treasure map chest is opened.");
+        public static readonly LocString ThousandCastThedaSpawn = new("hunts.lore.thousand_cast_theda.spawn", "May trigger after successfully landing a Judgeray.");
+        public static readonly LocString TygerSpawn = new("hunts.lore.tyger.spawn", "Requires discarding a single Rail Tenderloin.");
+        public static readonly LocString UdumbaraSpawn = new("hunts.lore.udumbara.spawn", "Requires defeating 100 Leshy and 100 Diakka.");
+        public static readonly LocString ZonaSeekerSpawn = new("hunts.lore.zona_seeker.spawn", "May trigger after successfully landing a Glimmerscale.");
+
+        public static readonly LocString BattlecraftOrGcLevequestSpawn = new("hunts.lore.battlecraftOrGcLevequest.spawn",
+            "May trigger the moment a Battlecraft or Grand Company levequest is started.");
+
+        public static readonly LocString ArchaeotaniaSpawn = new("hunts.lore.archaeotania.spawn", "Requires clearing two separate FATE chains in The Tempest.");
+        public static readonly LocString ChiSpawn = new("hunts.lore.chi.spawn", "Requires clearing two FATEs in Ultima Thule.");
+        public static readonly LocString DaivadipaSpawn = new("hunts.lore.daivadipa.spawn", "Requires clearing two FATEs in Thavnair.");
+        public static readonly LocString FormidableSpawn = new("hunts.lore.formidable.spawn", "Requires clearing two FATEs in Kholusia.");
+        public static readonly LocString MicaTheMagicalMuSpawn = new("hunts.lore.mica_the_magical_mu.spawn", "Requires clearing two FATEs in Living Memory.");
+        public static readonly LocString TamamoGozenSpawn = new("hunts.lore.tamamo_gozen.spawn", "Requires clearing three FATEs in Yanxia.");
+        public static readonly LocString TtokrroneSpawn = new("hunts.lore.ttokrrone.spawn", "Requires clearing four FATEs in Shaaloani.");
+
+        public static readonly LocString NoSpecificSpawnTrigger = new("hunts.lore.noSpecificSpawnTrigger.spawn",
+            "Has no distinct trigger, it spawns at a random point once its window opens.");
+    }
+
     internal static class Phone
     {
         public static readonly LocString AddToCall = new("phone.addToCall", "Add to Call");
@@ -1345,6 +1596,19 @@ internal static class L
         public static readonly LocString Sound = new("settings.sound", "Sound");
         public static readonly LocString NotificationSound = new("settings.notificationSound", "Notification Sound");
         public static readonly LocString Volume = new("settings.volume", "Volume");
+        public static readonly LocString SilentMode = new("settings.silentMode", "Silent Mode");
+        public static readonly LocString SilentModeHint = new("settings.silentModeHint", "Mutes the ringtone, notifications, and interface sounds in one tap. Media keeps playing.");
+        public static readonly LocString RingtoneHint = new("settings.ringtoneHint", "Play a ringtone when a call comes in.");
+        public static readonly LocString NotificationSoundsHint = new("settings.notificationSoundsHint", "Play a sound when a notification arrives.");
+        public static readonly LocString UiSounds = new("settings.uiSounds", "Interface Sounds");
+        public static readonly LocString UiSoundsHint = new("settings.uiSoundsHint", "Short sounds for key moments: waking the phone, taking a photo, sending a message, earning coins.");
+        public static readonly LocString UiSoundTaps = new("settings.uiSoundTaps", "Taps");
+        public static readonly LocString UiSoundTransitions = new("settings.uiSoundTransitions", "App transitions");
+        public static readonly LocString UiSoundToggles = new("settings.uiSoundToggles", "Toggles");
+        public static readonly LocString UiSoundKeyboard = new("settings.uiSoundKeyboard", "Keyboard");
+        public static readonly LocString UiSoundExtrasHint = new("settings.uiSoundExtrasHint", "Extra feedback for frequent interactions. Turn off any that feel noisy.");
+        public static readonly LocString GameSounds = new("settings.gameSounds", "Game Sounds");
+        public static readonly LocString GameSoundsHint = new("settings.gameSoundsHint", "Sound effects in the arcade mini-games.");
         public static readonly LocString ImportSound = new("settings.importSound", "Import from PC");
         public static readonly LocString SoundImportHint = new("settings.soundImportHint", "Imported files appear in the list below and play at the volume set here, separate from the game's own sound settings.");
         public static readonly LocString Language = new("settings.language", "Language");
@@ -1381,10 +1645,195 @@ internal static class L
         public static readonly LocString CommandMarket = new("settings.commandMarket", "Open the market board, optionally searching an item");
         public static readonly LocString CommandReset = new("settings.commandReset", "Move the phone back to the center of the screen");
         public static readonly LocString CommandTest = new("settings.commandTest", "Send a sample notification");
+        public static readonly LocString TranslateInto = new("settings.translateInto", "Translate into");
+        public static readonly LocString TranslateSameAsPhone = new("settings.translateSameAsPhone", "Same as phone language");
+        public static readonly LocString TranslateIntoHint = new("settings.translateIntoHint", "Posts, comments, and messages written in other languages get a one-tap Translate link that renders them in this language.");
+        public static readonly LocString AutoTranslate = new("settings.autoTranslate", "Auto-translate posts and comments");
+        public static readonly LocString AutoTranslateHint = new("settings.autoTranslateHint", "Posts and comments written in other languages are translated as soon as they appear, without tapping Translate. Private messages keep their own per-chat switch.");
+    }
+
+    internal static class Translate
+    {
+        public static readonly LocString Action = new("translate.action", "Translate");
+        public static readonly LocString Pending = new("translate.pending", "Translating...");
+        public static readonly LocString ShowOriginal = new("translate.showOriginal", "Show original");
+        public static readonly LocString ShowTranslation = new("translate.showTranslation", "Show translation");
+        public static readonly LocString TranslatedFrom = new("translate.translatedFrom", "Translated from {0}");
+        public static readonly LocString Translated = new("translate.translated", "Translated");
+        public static readonly LocString SameLanguage = new("translate.sameLanguage", "Already in your language");
+        public static readonly LocString Failed = new("translate.failed", "Could not translate, tap to retry");
+        public static readonly LocString Quota = new("translate.quota", "Translation limit reached for today");
+        public static readonly LocString ChatToggle = new("translate.chatToggle", "Translate this chat");
+        public static readonly LocString ChatOn = new("translate.chatOn", "New messages in this chat are translated for you");
+        public static readonly LocString DisclosureTitle = new("translate.disclosureTitle", "Translate with Aethernet");
+        public static readonly LocString DisclosureBody = new("translate.disclosureBody", "Translations are made by Aethernet. Only the text you translate is sent. Private messages are never stored.");
+        public static readonly LocString DisclosureContinue = new("translate.disclosureContinue", "Continue");
     }
 
     internal static class Changelog
     {
+        public static readonly LocString[] Release1013 =
+        {
+            new("changelog.r1013.0",
+                "Redesigned Chirper around a new look: Home, Explore, Alerts and Profile tabs, edge to edge post cells with the same layout everywhere, threads with a reply line under each post, a new compose pill, and post actions in a bottom sheet"),
+            new("changelog.r1013.1",
+                "Added profile pictures next to every post, reply and quote in Chirper, and a banner behind a framed avatar on profiles that opens full size when tapped"),
+            new("changelog.r1013.2",
+                "Added sounds across the phone for taps, typing, app transitions, toggles, waking it, taking a photo, sending a message, connecting and ending a call and payouts, on by default on a new phone and off if you already had one, switchable in Settings > Sounds"),
+            new("changelog.r1013.3",
+                "Added sound effects to the mini-games in Games, with their own volume under Game Sounds in Settings > Sounds"),
+            new("changelog.r1013.4",
+                "Added a Silent Mode switch to the main Settings page, so muting the ringtone, notifications and interface sounds is one tap away"),
+            new("changelog.r1013.5",
+                "Added keyboard controls to Beat: the four lanes bind to 1 to 4 with A, S, D and F as alternates, and each key is printed on a cap under its lane"),
+            new("changelog.r1013.6",
+                "Added search to the home screen: pull down on the app grid or tap the Search pill to find apps, settings, messages, notes, shortcuts and more in one place, run a shortcut or flip a setting on the spot, and do quick math right in the search field"),
+            new("changelog.r1013.7",
+                "Added MogCast, Music, News and Hunts to the Chinese game version, so that client gets the same apps as everyone else"),
+            new("changelog.r1013.8",
+                "Added a Trademark document and updated the official Aetherphone documents, including the readme, terms, privacy notice and third-party notices, all readable in the GitHub repository"),
+            new("changelog.r1013.9",
+                "Moved Show in Group Pose off the main Settings page into General settings"),
+            new("changelog.r1013.10",
+                "Improved rendering performance: every screen paints into one transform stage, shared toolkit pieces replace hand rolled copies, and text is rasterised once per orientation instead of once per frame"),
+            new("changelog.r1013.11",
+                "Improved CPU and memory use while the phone is open: app icons, gradient artwork, call state and font checks are cached instead of being rebuilt every frame, and artwork is shared between apps instead of kept twice"),
+            new("changelog.r1013.12",
+                "Improved performance in text heavy screens: wrapped text, formatted clocks and numbers and icon labels are measured once and reused instead of being rebuilt every frame, so long chats and feeds scroll more smoothly"),
+            new("changelog.r1013.13",
+                "Improved the animation when the phone turns into landscape mode: the whole device rotates over a short ramp with the screen fading across the halfway point, instead of stretching through a square shape"),
+        };
+
+        public static readonly LocString[] Release1012 =
+        {
+            new("changelog.r1012.0",
+                "Added Mods, a Heliosphere browser: search the catalog by name or category, sort by trending, downloads or date, and read each mod's images, changelog and permissions without leaving the game"),
+            new("changelog.r1012.1",
+                "Installing and updating from Mods goes through the Heliosphere plugin, so creators keep their download counts and the phone never touches Penumbra's mod folder"),
+            new("changelog.r1012.2",
+                "The Installed tab in Mods lists your Heliosphere mods with their covers, flags the ones with an update, and switches them on or off in your collection"),
+            new("changelog.r1012.3",
+                "NSFW mods stay hidden until you turn them on in Mods settings and confirm you are 18 or older, and sensitive previews stay blurred until tapped"),
+            new("changelog.r1012.4",
+                "The minimized phone is a little phone again: a portrait puck with its case art, a big clock with the date, and music, calls and new notifications stacked underneath like a lock screen"),
+        };
+
+        public static readonly LocString[] Release1011 =
+        {
+            new("changelog.r1011.0",
+                "Added Strats, an app with raid cheatsheets: pick a fight and your role, and every mechanic comes with a diagram that marks your spot"),
+            new("changelog.r1011.1",
+                "Games has a new home: shelves by genre, Latest additions and Jump back in rails, a Play with friends card, and a search across every title"),
+            new("changelog.r1011.2",
+                "Added Uno to Games: an online room for up to six friends, joined with a six-character code"),
+            new("changelog.r1011.3",
+                "Added online Chess to Games: host or join a room by code, with Fischer clocks for both players"),
+            new("changelog.r1011.4",
+                "Added 8-Ball Pool to Games: the phone turns sideways for the table, and you shoot by dragging away from the cue ball"),
+            new("changelog.r1011.5",
+                "Linkpearl has been rebuilt around one chat list: search, filters, pinning and muting, and a new-chat sheet with Free Company, Linkshell, Party and Local presets"),
+            new("changelog.r1011.6",
+                "Linkpearl conversations can pop out into floating windows that keep chatting while the phone is closed or minimized, and new tells open one on their own when the phone is out of sight"),
+            new("changelog.r1011.7",
+                "The minimized phone is now a live capsule: it shows the clock, unread apps, the playing song and any active call, and swells into a card when a notification arrives"),
+            new("changelog.r1011.8",
+                "Chip rows that overflow the screen now show paging arrows on either end"),
+        };
+
+        public static readonly LocString[] Release1010 =
+        {
+            new("changelog.r1010.0",
+                "Posts and comments written in another language now carry a Translate link in Chirper, Aethergram and Velvet: one tap swaps in the translation, a footer names the language it came from, and Show original brings the text back"),
+            new("changelog.r1010.1",
+                "Chats in ChocoChat, Aethergram and Velvet can translate a single message from its menu, and a Translate this chat switch in the thread header translates every new message as it arrives"),
+            new("changelog.r1010.2",
+                "Settings > Language picks the language you translate into, defaulting to your phone language. Translations are made by Aethernet, only the text you translate is sent, and private messages are never stored"),
+            new("changelog.r1010.13",
+                "The Translate link also sits under profile bios and Velvet intros, Yellow Pages ads, Muster descriptions, Venues descriptions, and story captions"),
+            new("changelog.r1010.14",
+                "Settings > General gains Auto-translate posts and comments, which translates posts and comments in another language as soon as they appear, without tapping Translate; chats keep their own per-chat switch"),
+            new("changelog.r1010.3",
+                "A MogCast host can play a local file in a watch party without sharing its path: viewers are asked to locate their own copy, the phone checks it matches the host's, and playback runs in sync from there"),
+            new("changelog.r1010.4",
+                "Viewers in a MogCast watch party keep pace by speeding up or slowing down slightly instead of jumping on every host update, and only seek when they drift more than three seconds"),
+            new("changelog.r1010.5",
+                "When a MogCast video will not play, a card says so with Retry and, for the host, Skip: a stalled stream resumes from where it stopped, and the host sees how many viewers cannot play the current video"),
+            new("changelog.r1010.6",
+                "Added Skyfall to Games: tap the sky to send an interceptor that bursts and sweeps every meteor inside, and keep six settlements standing wave after wave"),
+            new("changelog.r1010.7",
+                "Added Invaders to Games: a rank marches down on your cannon and four bunkers, speeding up as it thins, with a saucer worth 300 crossing the top now and then"),
+            new("changelog.r1010.8",
+                "Added CapMan to Games: eat every dot in the maze, dodge four ghosts with habits of their own, and turn on them for a few seconds with a power pellet"),
+            new("changelog.r1010.9",
+                "Added Hop to Games: hop a critter across traffic and drifting pads to fill five dens before the timer runs out, with faster lanes every level"),
+            new("changelog.r1010.10",
+                "Added Squadron to Games: shoot ships that peel off their formation in dive runs, and free a fighter caught by a tractor beam to fly as a dual fighter"),
+            new("changelog.r1010.15",
+                "Added Doom to Games: the real engine runs on the phone in fullscreen landscape, played on the keyboard with WASD, the arrows or a drag to turn, Space, E and 1 to 7"),
+            new("changelog.r1010.16",
+                "Added Word Run to Games: guess five-letter words one after another until one beats you, faster solves pay more, with word banks in five languages plus names from the game"),
+            new("changelog.r1010.17",
+                "Tetris gains a Modern ruleset beside Classic, with SRS kicks, lock delay, T-spins, back-to-back and combo scoring, and its own best score"),
+            new("changelog.r1010.11",
+                "Tetris now steers with WASD as well as the arrows: A and D move, W rotates, S soft drops"),
+            new("changelog.r1010.12",
+                "Keys pressed in a game now stay in the game: the arrows in Tetris and Sudoku and WASD in the new games no longer walk your character"),
+        };
+
+        public static readonly LocString[] Release1009 =
+        {
+            new("changelog.r1009.0",
+                "Added Hunts, an app that tracks hunt marks across your data center: see at a glance which spawn windows are open, capped or closed, filter by rank, world, status and expansion, and open a mark for its zone map, spawn condition, lore and rewards. One tap travels you there and plants the flag, a notification calls out a spawn the moment it goes up, and a built-in guide explains how the windows work. Live spawn data comes from Faloop and needs a free account, contributed by Deldee"),
+            new("changelog.r1009.1",
+                "Housing now covers the Chinese worlds: all four data centers and their worlds appear in the world picker under China, contributed by NiGuangOwO"),
+            new("changelog.r1009.2",
+                "The MogCast screen in the world shows up for players running DLSS, FSR or a lowered 3D resolution, instead of staying invisible until upscaling was switched off"),
+            new("changelog.r1009.3",
+                "MogCast picks a long video back up when the picture freezes or the sound drops out, and when a link will not play it says why in a plain sentence instead of showing raw error text"),
+            new("changelog.r1009.4",
+                "Dragging to scroll no longer snaps a list to one end when the same tap opens a new screen, or stalls when the drag passes over the Dynamic Island or a notification banner, contributed by Deldee"),
+            new("changelog.r1009.5",
+                "The notifications list in Settings is sorted by app name in your language, contributed by Deldee"),
+        };
+
+        public static readonly LocString[] Release1008 =
+        {
+            new("changelog.r1008.0",
+                "Music now lists live Twitch DJs from XIV Rolladeck on the Live tab, each with the venue they play from and a Teleport button that takes you there through Lifestream, contributed by eggoless"),
+            new("changelog.r1008.1",
+                "Links from other people now open a confirmation first that shows where they lead, with the site name kept whole, before your browser opens: in Chirper, Aethergram, Velvet, ChocoChat, Linkpearl, Announcements, Venues, and Yellow Pages, contributed by Farroness"),
+            new("changelog.r1008.2",
+                "Chirper and Aethergram can narrow the For You feed by region: the filter menu gains NA, EU, JP, OCE, and CN toggles, each app remembers its own pick, and the funnel icon dims while any filter is on"),
+            new("changelog.r1008.3",
+                "The Aether Coin shop is browsed by category: the Shop tab opens on category tiles wearing their own artwork, a tile opens its shelf, and back returns to the tiles instead of leaving the app"),
+            new("changelog.r1008.4",
+                "Polls update on their own the moment one is created, closed, or reopened, and the list can be pulled down to refresh by hand"),
+            new("changelog.r1008.5",
+                "MogCast gains a Show In-game Screen switch in its settings, so the screen placed in the world can be hidden while playback carries on, contributed by Farroness"),
+            new("changelog.r1008.6",
+                "Icons stay sharp at every size: chess pieces, the icons inside apps, and the icons at the center of progress rings no longer look blurry when drawn large"),
+            new("changelog.r1008.7",
+                "Blocking someone in Chirper now also removes their chirps that others rechirped and hides their chirp inside quotes, right away instead of after the next full refresh"),
+            new("changelog.r1008.8",
+                "Trivia no longer asks about skills the game has removed, PvP-only actions, or the same skill twice, and its emote questions stick to emotes that can actually be used"),
+            new("changelog.r1008.9",
+                "Control Center no longer opens while Camera or MogCast hold the phone in landscape, contributed by Farroness"),
+            new("changelog.r1008.10",
+                "The community rules for Chirper, Aethergram, and Velvet have been updated, and they ask to be accepted again on the next open"),
+            new("changelog.r1008.11",
+                "Added seven phone cases: Junior Jinbei, Fox Kit, Namazu, Mad Hatter, Cheshire, Alice in Wonderland, and Suzaku, contributed by Silkie, starpanda, kukkiineko, and tatoz"),
+        };
+
+        public static readonly LocString[] Release1007 =
+        {
+            new("changelog.r1007.0",
+                "The Aether Pot has been rebuilt: it now grows for days instead of hours, pays far bigger when it lands, and restarts from a funded reserve instead of zero. Every chip staked buys the same share of the draw, so small spins and big ones are priced alike"),
+            new("changelog.r1007.1",
+                "Bingo prizes are now sized to the hall: a quiet room pays the same fair return as a packed one, and a stage prize still always grows as more cards join"),
+            new("changelog.r1007.2",
+                "Round verification understands the pot's new draw, so fresh slots rounds check out end to end just like old ones"),
+        };
+
         public static readonly LocString[] Release1006 =
         {
             new("changelog.r1006.0",
@@ -2573,6 +3022,12 @@ internal static class L
         public static readonly LocString FailNetworkBody = new("account.fail.network.body", "We couldn't reach the Aethernet server. Check your connection, then try again.");
         public static readonly LocString FailAccessDeniedTitle = new("account.fail.accessDenied.title", "Sign-in cancelled");
         public static readonly LocString FailAccessDeniedBody = new("account.fail.accessDenied.body", "The request was declined on XIVAuth. Start again whenever you're ready.");
+        public static readonly LocString FailSourceBlockedTitle = new("account.fail.sourceBlocked.title", "Unofficial install blocked");
+        public static readonly LocString FailSourceBlockedBody = new("account.fail.sourceBlocked.body", "This copy of Aetherphone was installed from a repository that isn't allowed to use Aethernet. Reinstall it from the official repository to sign in again.");
+        public static readonly LocString SourceWarnedTitle = new("account.sourceWarned.title", "Unofficial install");
+        public static readonly LocString SourceWarnedBody = new("account.sourceWarned.body", "This copy of Aetherphone came from a repository we don't support, and Aethernet access from it may end without notice. Reinstall it from the official repository to keep everything working.");
+        public static readonly LocString SourceOfficialRepoLabel = new("account.sourceOfficial.label", "Official repository");
+        public static readonly LocString SourceCopyLink = new("account.sourceCopy.link", "Copy link");
         public static readonly LocString FailXivUnavailableTitle = new("account.fail.xivUnavailable.title", "XIVAuth unavailable");
         public static readonly LocString FailXivUnavailableBody = new("account.fail.xivUnavailable.body", "We couldn't reach XIVAuth. Wait a moment and try again, or verify with a Lodestone code instead.");
         public static readonly LocString FailXivCharacterTitle = new("account.fail.xivCharacter.title", "Character not verified");
@@ -2593,12 +3048,12 @@ internal static class L
         public static readonly LocString SettingUp = new("encryption.settingUp", "Setting up encryption…");
         public static readonly LocString UnsupportedSummary = new("encryption.unsupportedSummary", "This PC cannot set up encryption, so messages here are not encrypted.");
         public static readonly LocString ActiveHint = new("encryption.activeHint", "Encryption is active on this device. It works automatically. There is nothing to set up.");
-        public static readonly LocString NewDeviceHint = new("encryption.newDeviceHint", "On a new computer a fresh key is created automatically. Older messages become readable again once your chat partners come online.");
+        public static readonly LocString NewDeviceHint = new("encryption.newDeviceHint", "On another computer this account starts locked, and your recovery code is what opens it there. Keep your code safe and your full history follows you.");
         public static readonly LocString LocalStoreUnavailable = new("encryption.localStoreUnavailable", "This PC can't use the system's secure key store, so your encryption key is saved with basic protection instead. Your chats keep working normally on this device.");
         public static readonly LocString LockedBody = new("encryption.lockedBody", "This device doesn't have the encryption key for this account, so messages here can't be read yet. This usually happens after switching to a different computer. Your messages are safe: open Aetherphone on the computer that already has your key, or create a new key here. If you create a new key, older messages become readable again once your chat partners come online.");
         public static readonly LocString NewKeyButton = new("encryption.newKeyButton", "Create a new key on this device…");
         public static readonly LocString LockedNoRecoveryBody = new("encryption.lockedNoRecoveryBody", "This device doesn't hold an encryption key for this account, and no recovery code was set up, so the old key can't be restored here. You can create a new key to keep chatting, but messages encrypted with the old key will remain unreadable.");
-        public static readonly LocString ForgotNoRecoveryBody = new("encryption.forgotNoRecoveryBody", "A new key will be created. Messages encrypted with the old key will remain unreadable.");
+        public static readonly LocString ForgotNoRecoveryBody = new("encryption.forgotNoRecoveryBody", "A new key will be created. The key it replaces stays on this PC, so older messages keep opening here, but without a recovery code they cannot be opened anywhere else.");
         public static readonly LocString LockedRecoverBody = new("encryption.lockedRecoverBody", "This device doesn't have your encryption key yet. Enter the recovery code you saved to restore your chats here, with your full history.");
         public static readonly LocString LockedBanner = new("encryption.lockedBanner", "Chats are locked on this device. Tap to unlock.");
         public static readonly LocString RecoveryNudgeBanner = new("encryption.recoveryNudgeBanner", "Protect your chat history: set up a recovery code");
@@ -2616,12 +3071,17 @@ internal static class L
         public static readonly LocString RecoveryWrongCode = new("encryption.recoveryWrongCode", "That code didn't work. Check it and try again.");
         public static readonly LocString RecoveryKeyChanged = new("encryption.recoveryKeyChanged", "Your encryption key changed on another device, so this device can't create a recovery code right now. Wait a moment for this device to update, then try again.");
         public static readonly LocString RestoreOlderTitle = new("encryption.restoreOlderTitle", "Older chats");
-        public static readonly LocString RestoreOlderBody = new("encryption.restoreOlderBody", "Messages from before your encryption key changed can be unlocked with the recovery code you had at the time.");
+        public static readonly LocString RestoreOlderBody = new("encryption.restoreOlderBody", "Keys replaced on this PC are tried automatically. Messages sealed to a key that was never here can be unlocked with the recovery code you had at the time.");
+        public static readonly LocString OlderKeysHeldHere = new("encryption.olderKeysHeldHere", "Older keys kept on this PC: {0}");
         public static readonly LocString RestoreOlderButton = new("encryption.restoreOlderButton", "Restore older chats…");
         public static readonly LocString RestoreOlderConfirm = new("encryption.restoreOlderConfirm", "Unlock older chats");
         public static readonly LocString RestoreOlderDone = new("encryption.restoreOlderDone", "Keys restored: {0}. Older messages are now readable on this device.");
         public static readonly LocString RestoreOlderNoMatch = new("encryption.restoreOlderNoMatch", "That code didn't match any older keys.");
-        public static readonly LocString ForgotBody = new("encryption.forgotBody", "A new key will be created. Messages encrypted with the old key become readable again once your chat partners come online.");
+        public static readonly LocString ForgotBody = new("encryption.forgotBody", "A new key will be created. The key it replaces stays on this PC, so older messages keep opening here. Keep your current recovery code: it is what opens them on another PC.");
+        public static readonly LocString LockedNoRecoveryBanner = new("encryption.lockedNoRecoveryBanner", "Your old chats can't be opened on this PC. Tap to see what happened.");
+        public static readonly LocString UnreadableKeyBody = new("encryption.unreadableKeyBody", "Windows could not open the encryption key saved on this PC. This usually means the game is running as a different Windows user, or Windows was reinstalled. Your key is still here and untouched: start the game the way you normally do and it should unlock. Creating a new key would leave your old messages unreadable.");
+        public static readonly LocString SaveCodeBanner = new("encryption.saveCodeBanner", "Save your recovery code so you never lose these chats");
+        public static readonly LocString SaveCodeIntro = new("encryption.saveCodeIntro", "Encryption is set up on this device and your chats are protected. Save this code now: it is the only way to open your chats on another PC, or if this one is reset.");
         public static readonly LocString ForgotConfirm = new("encryption.forgotConfirm", "Reset key");
         public static readonly LocString ResetButton = new("encryption.resetButton", "Reset encryption key…");
         public static readonly LocString KeyVersion = new("encryption.keyVersion", "Key version {0}");
@@ -2629,6 +3089,48 @@ internal static class L
         public static readonly LocString Failed = new("encryption.failed", "Something went wrong. Try again.");
         public static readonly LocString EncryptedPlaceholder = new("encryption.encryptedPlaceholder", "Encrypted message");
         public static readonly LocString NoKeyPlaceholder = new("encryption.noKeyPlaceholder", "Can't decrypt this message");
+        public static readonly LocString DecryptingPlaceholder = new("encryption.decryptingPlaceholder", "Decrypting…");
+        public static readonly LocString LockedPlaceholder = new("encryption.lockedPlaceholder", "Locked on this device");
+        public static readonly LocString OlderKeyPlaceholder = new("encryption.olderKeyPlaceholder", "Sent to an earlier key");
+        public static readonly LocString OlderKeyBanner = new("encryption.olderKeyBanner", "Some messages here were sent to an earlier key. Tap to restore them.");
+        public static readonly LocString LinkButton = new("encryption.linkButton", "Unlock from my other PC");
+        public static readonly LocString LinkBody = new("encryption.linkBody", "If Aetherphone still works on your other computer, it can unlock this one for you. No code to type, and your full history comes with it.");
+        public static readonly LocString LinkWaitingTitle = new("encryption.linkWaitingTitle", "Waiting for your other PC");
+        public static readonly LocString LinkWaitingBody = new("encryption.linkWaitingBody", "Open Aetherphone on your other computer and approve this request. Check that it shows the same number.");
+        public static readonly LocString LinkApproveTitle = new("encryption.linkApproveTitle", "Unlock chats on another PC?");
+        public static readonly LocString LinkApproveBody = new("encryption.linkApproveBody", "Another computer signed in to your account is asking to open your chats. Only approve this if it is you, and only if that computer shows the same number: {0}");
+        public static readonly LocString LinkApproveConfirm = new("encryption.linkApproveConfirm", "Approve");
+        public static readonly LocString GuideSaveTitle = new("encryption.guideSaveTitle", "Save your recovery code");
+        public static readonly LocString GuideSaveBody = new("encryption.guideSaveBody", "Your chats are encrypted. Save the code that unlocks them on another PC.");
+        public static readonly LocString GuideLockedTitle = new("encryption.guideLockedTitle", "Your chats are locked here");
+        public static readonly LocString GuideLockedBody = new("encryption.guideLockedBody", "This PC does not hold your encryption key yet. Open Encrypted Chats to unlock it.");
+        public static readonly LocString GuideWroteItDown = new("encryption.guideWroteItDown", "I've written it down");
+        public static readonly LocString GuideVerifyTitle = new("encryption.guideVerifyTitle", "Check you saved it");
+        public static readonly LocString GuideVerifyBody = new("encryption.guideVerifyBody", "Type the last group of your code to confirm you have it. This is the only step that keeps your chats recoverable.");
+        public static readonly LocString GuideVerifyConfirm = new("encryption.guideVerifyConfirm", "Confirm");
+        public static readonly LocString GuideVerifyWrong = new("encryption.guideVerifyWrong", "That does not match the last group. Check your code and try again.");
+        public static readonly LocString GuideShowAgain = new("encryption.guideShowAgain", "Show me the code again");
+        public static readonly LocString SummaryUnsavedCode = new("encryption.summaryUnsavedCode", "Recovery code not saved yet");
+        public static readonly LocString SummaryNoRecovery = new("encryption.summaryNoRecovery", "No recovery code, chats cannot move to another PC");
+        public static readonly LocString HelpTitle = new("encryption.helpTitle", "If your chats look locked");
+        public static readonly LocString HelpOpen = new("encryption.helpOpen", "What to do if chats stop opening");
+        public static readonly LocString HelpIntro = new("encryption.helpIntro", "Your messages are stored on the server and never deleted. What can go missing is the key on this PC that opens them, so almost every case below is fixable.");
+        public static readonly LocString HelpDecryptingTitle = new("encryption.helpDecryptingTitle", "It says Decrypting");
+        public static readonly LocString HelpDecryptingBody = new("encryption.helpDecryptingBody", "Nothing is wrong. The keys for that chat are still loading and the messages appear within a few seconds. If it stays like this, reopen the phone.");
+        public static readonly LocString HelpLockedTitle = new("encryption.helpLockedTitle", "It says Locked on this device");
+        public static readonly LocString HelpLockedBody = new("encryption.helpLockedBody", "This PC does not hold your key. If your other computer still works, use Unlock from my other PC above and approve it there. Otherwise enter your recovery code. Do not create a new key first: that is what makes old messages unreadable for good.");
+        public static readonly LocString HelpOlderKeyTitle = new("encryption.helpOlderKeyTitle", "It says Sent to an earlier key");
+        public static readonly LocString HelpOlderKeyBody = new("encryption.helpOlderKeyBody", "Those messages were written before your key changed. Keys replaced on this PC are tried automatically, so this usually clears on its own within a few seconds. If it stays, that key was never on this PC: open Older chats below and enter the recovery code you had at the time. Each code only opens the key it was made for, so try the older ones too.");
+        public static readonly LocString HelpUnreadableTitle = new("encryption.helpUnreadableTitle", "Windows will not open the key");
+        public static readonly LocString HelpUnreadableBody = new("encryption.helpUnreadableBody", "The key is still saved here, Windows just refuses to open it. This happens when the game runs as a different Windows user, as administrator when it usually is not, or after Windows was reinstalled. Start the game the way you normally do and it should unlock itself.");
+        public static readonly LocString HelpDamagedTitle = new("encryption.helpDamagedTitle", "It says This message is damaged");
+        public static readonly LocString HelpDamagedBody = new("encryption.helpDamagedBody", "That single message did not arrive intact. It cannot be repaired, but it does not affect the rest of the chat or your key.");
+        public static readonly LocString HelpEyebrow = new("encryption.helpEyebrow", "Encrypted chats");
+        public static readonly LocString HelpNeverTitle = new("encryption.helpNeverTitle", "Never do this first");
+        public static readonly LocString HelpNeverBody = new("encryption.helpNeverBody", "Creating a new key is still the last resort. This PC keeps the key it replaces, so older messages usually keep opening here, but on any other PC they need the recovery code from before. Try unlocking from another PC or with a code first.");
+        public static readonly LocString HelpPreventTitle = new("encryption.helpPreventTitle", "So this never happens again");
+        public static readonly LocString HelpPreventBody = new("encryption.helpPreventBody", "Keep a recovery code saved, and keep every code you have ever generated: each one opens only the key it was made for. This PC also holds on to the keys it replaces, so a reset here does not cost you your history, and messages you have already read stay readable even if the key is lost.");
+        public static readonly LocString DamagedPlaceholder = new("encryption.damagedPlaceholder", "This message is damaged");
         public static readonly LocString SafetyChanged = new("encryption.safetyChanged", "{0}'s security key changed.");
         public static readonly LocString EncryptedIndicator = new("encryption.encryptedIndicator", "End-to-end encrypted");
         public static readonly LocString PlaintextIndicator = new("encryption.plaintextIndicator", "Not encrypted");
@@ -2691,7 +3193,7 @@ internal static class L
         public static readonly LocString OnAirSection = new("music.onAirSection", "On air");
         public static readonly LocString UpNextSection = new("music.upNextSection", "Up next");
         public static readonly LocString FollowingSection = new("music.followingSection", "Following");
-        public static readonly LocString AllStationsSection = new("music.allStationsSection", "All stations");
+        public static readonly LocString AllStationsSection = new("music.allStationsSection", "Offline stations");
         public static readonly LocString OnAirNow = new("music.onAirNow", "On air now");
         public static readonly LocString LastPlayed = new("music.lastPlayed", "Last played");
         public static readonly LocString ShowAll = new("music.showAll", "Show all");
@@ -2813,6 +3315,9 @@ internal static class L
         public static readonly LocString NoPlaylistsYet = new("music.noPlaylistsYet", "No playlists yet");
         public static readonly LocString SongOne = new("music.songOne", "1 song");
         public static readonly LocString SongsMany = new("music.songsMany", "{0} songs");
+        public static readonly LocString LiveDjs          = new("music.liveDjs",           "Live Twitch DJs");
+        public static readonly LocString LiveDjsEmpty     = new("music.liveDjsEmpty",     "No DJs are live right now. Check out Community Radio or Radio Stations.");
+        public static readonly LocString PoweredByRolladeck = new("music.poweredByRolladeck", "Powered by XIV Rolladeck");
     }
 
     internal static class Messages
@@ -2903,6 +3408,50 @@ internal static class L
         public static readonly LocString NewMessages = new("linkpearl.newMessages", "New messages");
         public static readonly LocString ClearHistory = new("linkpearl.clearHistory", "Clear history");
         public static readonly LocString ClearHistoryConfirm = new("linkpearl.clearHistoryConfirm", "Clear the stored history for this conversation? This only affects your phone.");
+        public static readonly LocString Mute = new("linkpearl.mute", "Mute");
+        public static readonly LocString Unmute = new("linkpearl.unmute", "Unmute");
+        public static readonly LocString More = new("linkpearl.more", "More");
+        public static readonly LocString NoMessagesYetPreview = new("linkpearl.noMessagesYetPreview", "No messages yet");
+        public static readonly LocString OpenInPhone = new("linkpearl.openInPhone", "Open in the phone");
+        public static readonly LocString SwitchConversation = new("linkpearl.switchConversation", "Switch conversation");
+        public static readonly LocString NewChat = new("linkpearl.newChat", "New chat");
+        public static readonly LocString StartChat = new("linkpearl.startChat", "Start a chat");
+        public static readonly LocString ChatSettings = new("linkpearl.chatSettings", "Chat settings");
+        public static readonly LocString MarkAllRead = new("linkpearl.markAllRead", "Mark all as read");
+        public static readonly LocString FilterAll = new("linkpearl.filterAll", "All");
+        public static readonly LocString FilterTells = new("linkpearl.filterTells", "Tells");
+        public static readonly LocString FilterTabs = new("linkpearl.filterTabs", "Tabs");
+        public static readonly LocString FilterUnread = new("linkpearl.filterUnread", "Unread");
+        public static readonly LocString Resume = new("linkpearl.resume", "Resume");
+        public static readonly LocString NotificationsPaused = new("linkpearl.notificationsPaused", "Notifications paused");
+        public static readonly LocString PinnedSection = new("linkpearl.pinnedSection", "Pinned");
+        public static readonly LocString NoFilterMatches = new("linkpearl.noFilterMatches", "Nothing here yet.");
+        public static readonly LocString PinLimit = new("linkpearl.pinLimit", "You can pin up to {0} tabs.");
+        public static readonly LocString TabLimit = new("linkpearl.tabLimit", "You can have up to {0} tabs.");
+        public static readonly LocString OpenPopout = new("linkpearl.openPopout", "Open as a pop-out");
+        public static readonly LocString ClosePopout = new("linkpearl.closePopout", "Close the pop-out");
+        public static readonly LocString PopoutLimit = new("linkpearl.popoutLimit", "You can have up to {0} pop-outs open.");
+        public static readonly LocString QuickTabs = new("linkpearl.quickTabs", "Quick tabs");
+        public static readonly LocString OrStartFresh = new("linkpearl.orStartFresh", "Or start fresh");
+        public static readonly LocString CustomTab = new("linkpearl.customTab", "Custom tab");
+        public static readonly LocString CustomTabHint = new("linkpearl.customTabHint", "Pick any channels and name it yourself");
+        public static readonly LocString SendTellHint = new("linkpearl.sendTellHint", "Find a friend or look someone up");
+        public static readonly LocString PresetAdded = new("linkpearl.presetAdded", "Added, tap to open");
+        public static readonly LocString PresetFreeCompanyHint = new("linkpearl.presetFreeCompanyHint", "Free Company and Novice Network");
+        public static readonly LocString PresetLinkshellsHint = new("linkpearl.presetLinkshellsHint", "Every linkshell you belong to");
+        public static readonly LocString PresetPartyHint = new("linkpearl.presetPartyHint", "Party and alliance");
+        public static readonly LocString PresetLocalHint = new("linkpearl.presetLocalHint", "Say, shout, yell and emotes");
+        public static readonly LocString PauseHint = new("linkpearl.pauseHint", "While paused, Linkpearl keeps counting unread messages but stays quiet.");
+        public static readonly LocString PopoutSection = new("linkpearl.popoutSection", "Pop-out chat");
+        public static readonly LocString PopoutTells = new("linkpearl.popoutTells", "Pop up new tells while the phone is closed");
+        public static readonly LocString PopoutOpacity = new("linkpearl.popoutOpacity", "Window opacity");
+        public static readonly LocString PopoutTextSize = new("linkpearl.popoutTextSize", "Text size");
+        public static readonly LocString PopoutHint = new("linkpearl.popoutHint", "Pop-outs are small chat windows that stay on screen while the phone is closed or minimized. Drag them anywhere and resize from the corner.");
+        public static readonly LocString CloseAllPopouts = new("linkpearl.closeAllPopouts", "Close all pop-outs ({0})");
+        public static readonly LocString StoreHistory = new("linkpearl.storeHistory", "Store history on this PC");
+        public static readonly LocString HistoryDefault = new("linkpearl.historyDefault", "Keep history by default");
+        public static readonly LocString ClearAllHistory = new("linkpearl.clearAllHistory", "Clear all history");
+        public static readonly LocString ClearAllHistoryConfirm = new("linkpearl.clearAllHistoryConfirm", "Delete every stored conversation on this PC? Your tabs and settings stay.");
     }
 
     internal static class Character
@@ -2976,11 +3525,11 @@ internal static class L
         public static readonly LocString SearchByName = new("chirper.searchByName", "Search by name, @username, or world");
         public static readonly LocString ForYou = new("chirper.forYou", "For You");
         public static readonly LocString Following = new("chirper.following", "Following");
-        public static readonly LocString MediaFilters = new("chirper.mediaFilters", "Media filters");
+        public static readonly LocString FeedFilters = new("chirper.feedFilters", "Feed filters");
         public static readonly LocString Follow = new("chirper.follow", "Follow");
         public static readonly LocString Unfollow = new("chirper.unfollow", "Unfollow");
         public static readonly LocString NameOrWorld = new("chirper.nameOrWorld", "Name, @username, or world");
-        public static readonly LocString Compose = new("chirper.compose", "What's happening?");
+        public static readonly LocString Compose = new("chirper.compose", "What's happening in Eorzea?");
         public static readonly LocString NewChirp = new("chirper.newChirp", "New Chirp");
         public static readonly LocString Post = new("chirper.post", "Post");
         public static readonly LocString EditProfile = new("chirper.editProfile", "Edit Profile");
@@ -3032,6 +3581,44 @@ internal static class L
         public static readonly LocString ChirpsTitle = new("chirper.chirpsTitle", "Chirps");
         public static readonly LocString Reply = new("chirper.reply", "Reply");
         public static readonly LocString More = new("chirper.more", "More");
+        public static readonly LocString ThreadTitle = new("chirper.threadTitle", "Chirp");
+        public static readonly LocString YouReposted = new("chirper.youReposted", "You rechirped");
+        public static readonly LocString RepostedToast = new("chirper.repostedToast", "Rechirped");
+        public static readonly LocString QuoteChirp = new("chirper.quoteChirp", "Quote chirp");
+        public static readonly LocString FollowHandle = new("chirper.followHandle", "Follow @{0}");
+        public static readonly LocString UnfollowHandle = new("chirper.unfollowHandle", "Unfollow @{0}");
+        public static readonly LocString TranslateChirp = new("chirper.translateChirp", "Translate chirp");
+        public static readonly LocString ReportChirp = new("chirper.reportChirp", "Report chirp");
+        public static readonly LocString BlockHandle = new("chirper.blockHandle", "Block @{0}");
+        public static readonly LocString DeleteChirp = new("chirper.deleteChirp", "Delete chirp");
+        public static readonly LocString DeletedToast = new("chirper.deletedToast", "Chirp deleted");
+        public static readonly LocString CopyChirp = new("chirper.copyChirp", "Copy chirp");
+        public static readonly LocPlural ReactionsLabel = new("chirper.reactionsLabel", "reaction", "reactions");
+        public static readonly LocString OriginalPoster = new("chirper.originalPoster", "OP");
+        public static readonly LocString ChirpAction = new("chirper.chirpAction", "Chirp");
+        public static readonly LocString MediaTab = new("chirper.mediaTab", "Media");
+        public static readonly LocString Regions = new("chirper.regions", "Regions");
+        public static readonly LocString Done = new("chirper.done", "Done");
+        public static readonly LocString ActivityAll = new("chirper.activityAll", "All");
+        public static readonly LocString ReactionsAll = new("chirper.reactionsAll", "All");
+        public static readonly LocString ActivityMentions = new("chirper.activityMentions", "Mentions");
+        public static readonly LocString HandleAvailable = new("chirper.handleAvailable", "Available");
+        public static readonly LocString NameLabel = new("chirper.nameLabel", "Name");
+        public static readonly LocString HandleShort = new("chirper.handleShort", "Handle");
+        public static readonly LocString SuggestedPeople = new("chirper.suggestedPeople", "People");
+        public static readonly LocString TabHome = new("chirper.tabHome", "Home");
+        public static readonly LocString TabExplore = new("chirper.tabExplore", "Explore");
+        public static readonly LocString TabProfile = new("chirper.tabProfile", "Profile");
+        public static readonly LocString LikesTab = new("chirper.likesTab", "Likes");
+        public static readonly LocString LikesEmpty = new("chirper.likesEmpty", "Chirps you react to will show up here");
+        public static readonly LocString ChangeBanner = new("chirper.changeBanner", "Change banner");
+        public static readonly LocPlural Reposts = new("chirper.reposts", "{0} repost", "{0} reposts");
+        public static readonly LocPlural RepliesCount = new("chirper.repliesCount", "{0} reply", "{0} replies");
+        public static readonly LocString ReplyingTo = new("chirper.replyingTo", "Replying to");
+        public static readonly LocString Trending = new("chirper.trending", "Trending");
+        public static readonly LocPlural ChirpsToday = new("chirper.chirpsToday", "{0} chirp today", "{0} chirps today");
+        public static readonly LocString SearchHint = new("chirper.searchHint", "Search people or #tags");
+        public static readonly LocString HashtagsTitle = new("chirper.hashtagsTitle", "Hashtags");
         public static readonly LocString Repost = new("chirper.repost", "Rechirp");
         public static readonly LocString Unrepost = new("chirper.unrepost", "Undo rechirp");
         public static readonly LocString Reposted = new("chirper.reposted", "{0} rechirped");
@@ -3045,7 +3632,7 @@ internal static class L
         public static readonly LocString SetUpAccount = new("aethergram.setUpAccount", "Set up your account in Settings");
         public static readonly LocString ForYou = new("aethergram.forYou", "For You");
         public static readonly LocString Following = new("aethergram.following", "Following");
-        public static readonly LocString MediaFilters = new("aethergram.mediaFilters", "Media filters");
+        public static readonly LocString FeedFilters = new("aethergram.feedFilters", "Feed filters");
         public static readonly LocString Follow = new("aethergram.follow", "Follow");
         public static readonly LocString Unfollow = new("aethergram.unfollow", "Unfollow");
         public static readonly LocString ViewPost = new("aethergram.viewPost", "View post");
@@ -3423,6 +4010,7 @@ internal static class L
             "Not ready");
         public static readonly LocString CastingStateReady = new("aetherstream.castingStateReady", "Ready");
         public static readonly LocString OpenScreenWindow = new("aetherstream.openScreenWindow", "Open in a window");
+        public static readonly LocString InGameScreen = new("aetherstream.inGameScreen", "Show In-game Screen");
         public static readonly LocString CastingScreenPositionHeader = new(
             "aetherstream.castingScreenPositionHeader", "Screen Position");
         public static readonly LocString CastingScreenPositionHint = new(
@@ -3572,6 +4160,18 @@ internal static class L
             "The host removed you from the stream.");
         public static readonly LocString WatchingKick = new("aetherstream.watchingKick", "Remove");
 
+        public static readonly LocString LocalWatchTitle = new("aetherstream.localWatchTitle",
+            "The host is playing a local file");
+        public static readonly LocString LocalWatchHint = new("aetherstream.localWatchHint",
+            "Pick your own copy of this file to watch along in sync.");
+        public static readonly LocString LocalWatchNoFileHint = new("aetherstream.localWatchNoFileHint",
+            "Don't have the file? Ask the host to send it to you, then locate it here.");
+        public static readonly LocString LocalWatchLocate = new("aetherstream.localWatchLocate", "Locate file");
+        public static readonly LocString LocalWatchMismatch = new("aetherstream.localWatchMismatch",
+            "That file does not match the host's copy.");
+        public static readonly LocString LocalWatchUseAnyway = new("aetherstream.localWatchUseAnyway",
+            "Use it anyway");
+
         public static readonly LocString StartParty = new("aetherstream.startParty", "Start a Party");
         public static readonly LocString EndParty = new("aetherstream.endParty", "End Party");
         public static readonly LocString WatchPartyHeader = new("aetherstream.watchPartyHeader", "Watch Party");
@@ -3619,6 +4219,28 @@ internal static class L
             "The video service refused this stream and the link resolver is already the latest release. Try again later.");
         public static readonly LocString ResolverUpdateFailed = new("aetherstream.resolverUpdateFailed",
             "The video service refused this stream and the link resolver update did not go through. Check your connection and try again.");
+        public static readonly LocString StreamStalledRecovering = new("aetherstream.streamStalledRecovering",
+            "The stream stalled. Restarting playback where it left off.");
+        public static readonly LocString PlaybackFailed = new("aetherstream.playbackFailed",
+            "This video could not be played.");
+        public static readonly LocString PlaybackFailedReason = new("aetherstream.playbackFailedReason",
+            "Could not play this link: {0}");
+        public static readonly LocString ComponentsMissing = new("aetherstream.componentsMissing",
+            "The video components are not installed yet.");
+        public static readonly LocString FailureTitle = new("aetherstream.failureTitle", "Can't play this");
+        public static readonly LocString FailureStalledTitle = new("aetherstream.failureStalledTitle",
+            "Playback stalled");
+        public static readonly LocString FailureStalledBody = new("aetherstream.failureStalledBody",
+            "The stream stopped twice in a row. Retry picks it up from where it stopped.");
+        public static readonly LocString FailureRetry = new("aetherstream.failureRetry", "Retry");
+        public static readonly LocString FailureSkip = new("aetherstream.failureSkip", "Skip");
+        public static readonly LocString FailureRetryingIn = new("aetherstream.failureRetryingIn",
+            "Retrying in {0}s");
+        public static readonly LocString FailureViewersTitle = new("aetherstream.failureViewersTitle",
+            "{0} of {1} watching can't play this");
+        public static readonly LocString FailureViewersHint = new("aetherstream.failureViewersHint",
+            "Skip to the next video, or queue a link that works for everyone.");
+        public static readonly LocString FailureDismiss = new("aetherstream.failureDismiss", "Dismiss");
     }
 
     internal static class Clock
@@ -3895,6 +4517,7 @@ internal static class L
         public static readonly LocString RegionFrance = new("news.regionFrance", "France");
         public static readonly LocString RegionGermany = new("news.regionGermany", "Germany");
         public static readonly LocString RegionJapan = new("news.regionJapan", "Japan");
+        public static readonly LocString RegionChina = new("news.regionChina", "China");
     }
 
     internal static class Wallet
@@ -4034,11 +4657,25 @@ internal static class L
         public static readonly LocString Easy = new("games.easy", "Easy");
         public static readonly LocString Medium = new("games.medium", "Medium");
         public static readonly LocString Hard = new("games.hard", "Hard");
-        public static readonly LocString GenreMatch = new("games.genreMatch", "Match 3");
         public static readonly LocString GenrePuzzle = new("games.genrePuzzle", "Puzzle");
-        public static readonly LocString GenreMemory = new("games.genreMemory", "Memory");
-        public static readonly LocString GenreLogic = new("games.genreLogic", "Logic");
         public static readonly LocString GenreArcade = new("games.genreArcade", "Arcade");
+        public static readonly LocString GenreAction = new("games.genreAction", "Action");
+        public static readonly LocString GenreBrain = new("games.genreBrain", "Brain");
+        public static readonly LocString GenreTabletop = new("games.genreTabletop", "Board & Cards");
+        public static readonly LocString GenreFriends = new("games.genreFriends", "With friends");
+        public static readonly LocString FilterAll = new("games.filterAll", "All");
+        public static readonly LocString FilterNew = new("games.filterNew", "New");
+        public static readonly LocString ShelfLatest = new("games.shelfLatest", "Latest additions");
+        public static readonly LocString ShelfRecent = new("games.shelfRecent", "Jump back in");
+        public static readonly LocString LibraryHeading = new("games.libraryHeading", "All games");
+        public static readonly LocString BadgeNew = new("games.badgeNew", "NEW");
+        public static readonly LocString SearchHint = new("games.searchHint", "Search games");
+        public static readonly LocString SearchEmpty = new("games.searchEmpty", "No games match");
+        public static readonly LocString SearchEmptyHint = new("games.searchEmptyHint", "Try another name, or clear the search.");
+        public static readonly LocString OnlineCardHint = new("games.onlineCardHint", "Uno, Chess and 8-Ball Pool. Host a room or join with a code.");
+        public static readonly LocString OnlineHostShort = new("games.onlineHostShort", "Host");
+        public static readonly LocPlural OnlineRoomsOpen = new("games.onlineRoomsOpen", "{0} room open", "{0} rooms open");
+        public static readonly LocPlural GameCount = new("games.gameCount", "{0} game", "{0} games");
         public static readonly LocString Breakout = new("games.breakout", "Breakout");
         public static readonly LocString Bubbles = new("games.bubbles", "Bubbles");
         public static readonly LocString WaterSort = new("games.waterSort", "Water Sort");
@@ -4058,14 +4695,12 @@ internal static class L
         public static readonly LocString Flows = new("games.flows", "Flows");
         public static readonly LocString Filled = new("games.filled", "Filled");
         public static readonly LocString Solitaire = new("games.solitaire", "Solitaire");
-        public static readonly LocString GenreCards = new("games.genreCards", "Cards");
         public static readonly LocString Simon = new("games.simon", "Simon");
         public static readonly LocString Watch = new("games.watch", "Watch");
         public static readonly LocString YourTurn = new("games.yourTurn", "Your Turn");
         public static readonly LocString Flap = new("games.flap", "Flap");
         public static readonly LocString TapToStart = new("games.tapToStart", "Tap to start");
         public static readonly LocString Reversi = new("games.reversi", "Reversi");
-        public static readonly LocString GenreStrategy = new("games.genreStrategy", "Strategy");
         public static readonly LocString You = new("games.you", "You");
         public static readonly LocString Cpu = new("games.cpu", "CPU");
         public static readonly LocString Lose = new("games.lose", "You Lose");
@@ -4104,6 +4739,137 @@ internal static class L
         public static readonly LocString CategoryMinions = new("games.categoryMinions", "Minions");
         public static readonly LocString CategoryActions = new("games.categoryActions", "Actions");
         public static readonly LocString CategoryEmotes = new("games.categoryEmotes", "Emotes");
+        public static readonly LocString Skyfall = new("games.skyfall", "Skyfall");
+        public static readonly LocString Wave = new("games.wave", "Wave");
+        public static readonly LocString Ammo = new("games.ammo", "Ammo");
+        public static readonly LocString WaveClear = new("games.waveClear", "Wave clear");
+        public static readonly LocString Invaders = new("games.invaders", "Invaders");
+        public static readonly LocString CapMan = new("games.capman", "CapMan");
+        public static readonly LocString Ready = new("games.ready", "Ready!");
+        public static readonly LocString Hop = new("games.hop", "Hop");
+        public static readonly LocString Dens = new("games.dens", "Dens");
+        public static readonly LocString Squadron = new("games.squadron", "Squadron");
+        public static readonly LocString Stage = new("games.stage", "Stage");
+        public static readonly LocString ChallengeStage = new("games.challengeStage", "Challenge stage!");
+        public static readonly LocString HitsOf = new("games.hitsOf", "{0} of {1} hit");
+        public static readonly LocString Doom = new("games.doom", "Doom");
+        public static readonly LocString DoomSetupTitle = new("games.doomSetupTitle", "Set up Doom");
+        public static readonly LocString DoomSetupBody = new("games.doomSetupBody",
+            "Doom needs its game data. The shareware episode is fetched from Debian's package archive into your Aetherphone folder; drop a full DOOM.WAD or DOOM2.WAD there to play those instead.");
+        public static readonly LocString DoomGameData = new("games.doomGameData", "Game data");
+        public static readonly LocString DoomGameDataDetail = new("games.doomGameDataDetail", "Knee-Deep in the Dead, the shareware episode");
+        public static readonly LocString DoomMusic = new("games.doomMusic", "Music");
+        public static readonly LocString DoomMusicDetail = new("games.doomMusicDetail", "General MIDI soundfont for the soundtrack");
+        public static readonly LocString DoomControls = new("games.doomControls", "WASD move, drag or arrows turn, Space fires, E uses, 1-7 weapons, Esc opens the menu");
+        public static readonly LocString DoomMenu = new("games.doomMenu", "Menu");
+        public static readonly LocString DoomFire = new("games.doomFire", "Fire");
+        public static readonly LocString DoomUse = new("games.doomUse", "Use");
+        public static readonly LocString DoomFailed = new("games.doomFailed", "Doom could not start");
+        public static readonly LocString DoomChooseGame = new("games.doomChooseGame", "Choose a game");
+        public static readonly LocString DoomShareware = new("games.doomShareware", "Doom (shareware episode)");
+        public static readonly LocString DoomFreedoom = new("games.doomFreedoom", "Freedoom");
+        public static readonly LocString DoomFreedoomDetail = new("games.doomFreedoomDetail", "Four free episodes and thirty-two more maps with their own levels and art");
+        public static readonly LocString WordRun = new("games.wordRun", "Word Run");
+        public static readonly LocString Words = new("games.words", "Words");
+        public static readonly LocString NotInWordList = new("games.notInWordList", "Not in the word list");
+        public static readonly LocString NotEnoughLetters = new("games.notEnoughLetters", "Not enough letters");
+        public static readonly LocString SolvedWord = new("games.solvedWord", "Solved!");
+        public static readonly LocString WordWas = new("games.wordWas", "The word was {0}");
+        public static readonly LocString EndRun = new("games.endRun", "End run");
+        public static readonly LocString Sure = new("games.sure", "Sure?");
+        public static readonly LocString WordBank = new("games.wordBank", "Word list");
+        public static readonly LocString Classic = new("games.classic", "Classic");
+        public static readonly LocString Modern = new("games.modern", "Modern");
+        public static readonly LocString TSpin = new("games.tSpin", "T-Spin");
+        public static readonly LocString TSpinMini = new("games.tSpinMini", "T-Spin Mini");
+        public static readonly LocString BackToBack = new("games.backToBack", "Back-to-Back");
+        public static readonly LocString OnlineTitle = new("games.onlineTitle", "Play with friends");
+        public static readonly LocString OnlineHint = new("games.onlineHint", "Host a room, share the code, play together");
+        public static readonly LocString OnlineEyebrow = new("games.onlineEyebrow", "ONLINE");
+        public static readonly LocString OnlineUno = new("games.onlineUno", "Uno");
+        public static readonly LocString OnlineSignIn = new("games.onlineSignIn", "Sign in to Aethernet in Settings to play with friends");
+        public static readonly LocString OnlineMyRooms = new("games.onlineMyRooms", "Your rooms");
+        public static readonly LocString OnlineNoRooms = new("games.onlineNoRooms", "No rooms yet. Host one or enter a friend's code.");
+        public static readonly LocString OnlineLoading = new("games.onlineLoading", "Looking for your rooms…");
+        public static readonly LocString OnlineHost = new("games.onlineHost", "Host a room");
+        public static readonly LocString OnlineHostHint = new("games.onlineHostHint", "Up to {0} players");
+        public static readonly LocString OnlineJoinHeading = new("games.onlineJoinHeading", "Join with a code");
+        public static readonly LocString OnlineJoinHint = new("games.onlineJoinHint", "Enter code");
+        public static readonly LocString OnlineJoin = new("games.onlineJoin", "Join");
+        public static readonly LocString OnlineHostedBy = new("games.onlineHostedBy", "Hosted by {0}");
+        public static readonly LocString OnlineSeats = new("games.onlineSeats", "{0}/{1} seats");
+        public static readonly LocString OnlinePhaseLobby = new("games.onlinePhaseLobby", "In the lobby");
+        public static readonly LocString OnlinePhasePlaying = new("games.onlinePhasePlaying", "Round in progress");
+        public static readonly LocString OnlinePhaseFinished = new("games.onlinePhaseFinished", "Round finished");
+        public static readonly LocString OnlineRoomCode = new("games.onlineRoomCode", "Room code");
+        public static readonly LocString OnlineCopyCode = new("games.onlineCopyCode", "Copy");
+        public static readonly LocString OnlineCodeCopied = new("games.onlineCodeCopied", "Copied");
+        public static readonly LocString OnlineStart = new("games.onlineStart", "Start round");
+        public static readonly LocString OnlineRematch = new("games.onlineRematch", "Play again");
+        public static readonly LocString OnlineNeedPlayers = new("games.onlineNeedPlayers", "Waiting for at least one more player");
+        public static readonly LocString OnlineWaitingHost = new("games.onlineWaitingHost", "Waiting for the host to start");
+        public static readonly LocString OnlineLeave = new("games.onlineLeave", "Leave room");
+        public static readonly LocString OnlineCloseRoom = new("games.onlineCloseRoom", "Close room");
+        public static readonly LocString OnlineKick = new("games.onlineKick", "Remove");
+        public static readonly LocString OnlineHostBadge = new("games.onlineHostBadge", "Host");
+        public static readonly LocString OnlineAway = new("games.onlineAway", "Away");
+        public static readonly LocString OnlineWins = new("games.onlineWins", "{0} wins");
+        public static readonly LocString OnlineYourTurn = new("games.onlineYourTurn", "Your turn");
+        public static readonly LocString OnlineTheirTurn = new("games.onlineTheirTurn", "{0}'s turn");
+        public static readonly LocString OnlineDraw = new("games.onlineDraw", "Draw");
+        public static readonly LocString OnlinePass = new("games.onlinePass", "Pass");
+        public static readonly LocString OnlineCards = new("games.onlineCards", "{0} cards");
+        public static readonly LocString OnlinePickColor = new("games.onlinePickColor", "Pick a color");
+        public static readonly LocString OnlineWinner = new("games.onlineWinner", "{0} wins the round!");
+        public static readonly LocString OnlineRoundVoid = new("games.onlineRoundVoid", "The round ended with nobody left");
+        public static readonly LocString OnlineDeck = new("games.onlineDeck", "Deck");
+        public static readonly LocString OnlineUnoCall = new("games.onlineUnoCall", "Uno!");
+        public static readonly LocString OnlineSkipped = new("games.onlineSkipped", "Skipped!");
+        public static readonly LocString OnlineReversed = new("games.onlineReversed", "Reverse!");
+        public static readonly LocString OnlineTimedOut = new("games.onlineTimedOut", "Timed out");
+        public static readonly LocString OnlineNoPlayable = new("games.onlineNoPlayable", "No playable card, tap the deck to draw");
+        public static readonly LocString OnlineReconnecting = new("games.onlineReconnecting", "Reconnecting…");
+        public static readonly LocString OnlineRoomEnded = new("games.onlineRoomEnded", "This room has ended");
+        public static readonly LocString OnlineKicked = new("games.onlineKicked", "The host removed you from this room");
+        public static readonly LocString OnlineRestarting = new("games.onlineRestarting", "The server is restarting, hold on…");
+        public static readonly LocString OnlineUnavailable = new("games.onlineUnavailable", "That did not go through, try again");
+        public static readonly LocString OnlineRoomFull = new("games.onlineRoomFull", "That room is full");
+        public static readonly LocString OnlineWrongCode = new("games.onlineWrongCode", "No open room has that code");
+        public static readonly LocString OnlineBanned = new("games.onlineBanned", "The host has closed this room to you");
+        public static readonly LocString OnlineBlocked = new("games.onlineBlocked", "You cannot share a room with someone in it");
+        public static readonly LocString OnlineAlreadyHosting = new("games.onlineAlreadyHosting", "You already have an open room");
+        public static readonly LocString OnlineCooldown = new("games.onlineCooldown", "Give it a moment and try again");
+        public static readonly LocString OnlineNotYourTurn = new("games.onlineNotYourTurn", "Not your turn");
+        public static readonly LocString OnlineStale = new("games.onlineStale", "The table moved on, catching up…");
+        public static readonly LocString OnlineChess = new("games.onlineChess", "Chess");
+        public static readonly LocString OnlineChessHostHint = new("games.onlineChessHostHint", "Head-to-head, 10 minutes on each clock");
+        public static readonly LocString OnlineResign = new("games.onlineResign", "Resign");
+        public static readonly LocString OnlineCheck = new("games.onlineCheck", "Check!");
+        public static readonly LocString OnlineYouPlayWhite = new("games.onlineYouPlayWhite", "You play White");
+        public static readonly LocString OnlineYouPlayBlack = new("games.onlineYouPlayBlack", "You play Black");
+        public static readonly LocString OnlineCheckmateWin = new("games.onlineCheckmateWin", "{0} wins by checkmate!");
+        public static readonly LocString OnlineTimeoutWin = new("games.onlineTimeoutWin", "{0} wins on time!");
+        public static readonly LocString OnlineResignWin = new("games.onlineResignWin", "{0} wins by resignation!");
+        public static readonly LocString OnlineDesertWin = new("games.onlineDesertWin", "{0} wins, the opponent left");
+        public static readonly LocString OnlineStalemateDraw = new("games.onlineStalemateDraw", "Draw by stalemate");
+        public static readonly LocString OnlineFiftyDraw = new("games.onlineFiftyDraw", "Draw by the fifty-move rule");
+        public static readonly LocString OnlineMaterialDraw = new("games.onlineMaterialDraw", "Draw, not enough material to mate");
+        public static readonly LocString OnlinePool = new("games.onlinePool", "8-Ball Pool");
+        public static readonly LocString OnlinePoolHostHint = new("games.onlinePoolHostHint", "Head-to-head, 45 seconds a shot");
+        public static readonly LocString OnlineShootHint = new("games.onlineShootHint", "Drag back from the cue ball and release to shoot");
+        public static readonly LocString OnlineBallInHand = new("games.onlineBallInHand", "Ball in hand: tap the table to place the cue ball");
+        public static readonly LocString OnlineBreakShot = new("games.onlineBreakShot", "Break!");
+        public static readonly LocString OnlineGroupSolids = new("games.onlineGroupSolids", "Solids");
+        public static readonly LocString OnlineGroupStripes = new("games.onlineGroupStripes", "Stripes");
+        public static readonly LocString OnlineGroupOpen = new("games.onlineGroupOpen", "Open table");
+        public static readonly LocString OnlineOnTheEight = new("games.onlineOnTheEight", "On the eight");
+        public static readonly LocString OnlineFoulScratch = new("games.onlineFoulScratch", "Foul: scratch");
+        public static readonly LocString OnlineFoulWrongBall = new("games.onlineFoulWrongBall", "Foul: wrong ball hit first");
+        public static readonly LocString OnlineFoulNoContact = new("games.onlineFoulNoContact", "Foul: nothing was hit");
+        public static readonly LocString OnlineFoulNoRail = new("games.onlineFoulNoRail", "Foul: no ball reached a rail");
+        public static readonly LocString OnlineEightWin = new("games.onlineEightWin", "{0} sinks the eight and wins!");
+        public static readonly LocString OnlineEightEarlyLoss = new("games.onlineEightEarlyLoss", "{0} wins, the eight went down too early");
+        public static readonly LocString OnlineEightScratchLoss = new("games.onlineEightScratchLoss", "{0} wins, the eight fell on a foul");
     }
 
     internal static class Time
@@ -4113,8 +4879,11 @@ internal static class L
         public static readonly LocString MinutesShort = new("time.minutesShort", "{0}m");
         public static readonly LocString HoursShort = new("time.hoursShort", "{0}h");
         public static readonly LocString DaysShort = new("time.daysShort", "{0}d");
+        public static readonly LocString SecondsAgo = new("time.secondsAgo", "{0}s ago");
         public static readonly LocString MinutesAgo = new("time.minutesAgo", "{0}m ago");
+        public static readonly LocString MinutesSecondsAgo = new("time.minutesSecondsAgo", "{0}m {1}s ago");
         public static readonly LocString HoursAgo = new("time.hoursAgo", "{0}h ago");
+        public static readonly LocString HoursMinutesAgo = new("time.hoursMinutesAgo", "{0}h {1}m ago");
         public static readonly LocString DaysAgo = new("time.daysAgo", "{0}d ago");
         public static readonly LocString Today = new("time.today", "Today");
         public static readonly LocString Yesterday = new("time.yesterday", "Yesterday");
@@ -4132,7 +4901,7 @@ internal static class L
         public static readonly LocString ShortcutNotFound = new("plugin.shortcutNotFound", "No shortcut named {0}.");
         public static readonly LocString SearchTheMarket = new("plugin.searchTheMarket", "Search the Market");
         public static readonly LocString SideButtonHint = new("plugin.sideButtonHint", "Tap to minimize · Hold to turn off");
-        public static readonly LocString MaximizeHint = new("plugin.maximizeHint", "Maximize");
+        public static readonly LocString MinimizedHint = new("plugin.minimizedHint", "Tap to open · Hold to turn off");
         public static readonly LocString LockPositionHint = new("plugin.lockPositionHint", "Lock position");
         public static readonly LocString UnlockPositionHint = new("plugin.unlockPositionHint", "Unlock position");
         public static readonly LocString ResizeHint = new("plugin.resizeHint", "Drag to resize");
@@ -4294,6 +5063,9 @@ internal static class L
         public static readonly LocString HelpBody = new("coin.helpBody", "Aether Coin rewards may take up to 30 minutes to appear. If your balance doesn't update immediately, please check again shortly.");
         public static readonly LocString ShopEmptyHint = new("coin.shopEmptyHint", "The shop is still in the works. It opens very soon.");
         public static readonly LocString LeavingSoon = new("coin.leavingSoon", "Leaving {0}");
+        public static readonly LocPlural ShopItemCount = new("coin.shopItemCount", "{0} item", "{0} items");
+        public static readonly LocString ShopUnfiled = new("coin.shopUnfiled", "Everything else");
+        public static readonly LocString ShopShelfEmpty = new("coin.shopShelfEmpty", "Nothing on this shelf yet");
         public static readonly LocString FrozenTitle = new("coin.frozenTitle", "Your wallet is frozen");
         public static readonly LocString FrozenHint = new("coin.frozenHint", "Earning and spending are on hold. Check the Safety page for the reason.");
         public static readonly LocString FrozenAlertTitle = new("coin.frozenAlertTitle", "Wallet frozen");
@@ -4703,7 +5475,7 @@ internal static class L
         public static readonly LocString ReasonNoTables = new("casino.reasonNoTables", "No table has room right now. Try again in a moment.");
         public static readonly LocString JackpotEyebrow = new("casino.jackpot.eyebrow", "JACKPOT");
         public static readonly LocString JackpotUnit = new("casino.jackpot.unit", "coin");
-        public static readonly LocString JackpotHint = new("casino.jackpot.hint", "Five scatters on one spin takes the whole pot");
+        public static readonly LocString JackpotHint = new("casino.jackpot.hint", "Every chip you stake is a ticket for the whole pot");
         public static readonly LocString JackpotWon = new("casino.jackpot.won", "JACKPOT");
         public static readonly LocString JackpotWonAmount = new("casino.jackpot.wonAmount", "{0} coin, the whole pot");
         public static readonly LocString JackpotMeter = new("casino.jackpot.meter", "Every spin on the floor feeds it");
@@ -4849,6 +5621,13 @@ internal static class L
         public static readonly LocString CaseGarlean = new("catalog.case.garlean", "Garlean");
         public static readonly LocString CaseGurrenLagann = new("catalog.case.gurrenlagann", "Gurren Lagann");
         public static readonly LocString CaseAllagan = new("catalog.case.allagan", "Allagan");
+        public static readonly LocString CaseJuniorJinbei = new("catalog.case.juniorjinbei", "Junior Jinbei");
+        public static readonly LocString CaseFoxKit = new("catalog.case.foxkit", "Fox Kit");
+        public static readonly LocString CaseNamazu = new("catalog.case.namazu", "Namazu");
+        public static readonly LocString CaseMadHatter = new("catalog.case.madhatter", "Mad Hatter");
+        public static readonly LocString CaseCheshire = new("catalog.case.cheshire", "Cheshire");
+        public static readonly LocString CaseAliceInWonderland = new("catalog.case.aliceinwonderland", "Alice in Wonderland");
+        public static readonly LocString CaseSuzaku = new("catalog.case.suzaku", "Suzaku");
         public static readonly LocString RingtoneSilent = new("catalog.ringtone.silent", "Silent");
         public static readonly LocString RadioLofi = new("catalog.radio.lofi", "Lofi");
         public static readonly LocString RadioChillout = new("catalog.radio.chillout", "Chillout");
@@ -4888,6 +5667,25 @@ internal static class L
         public static readonly LocString DeleteCancel = new("calendar.deleteCancel", "Cancel");
     }
 
+    internal static class Spotlight
+    {
+        public static readonly LocString Search = new("home.search", "Search");
+        public static readonly LocString Hint = new("spotlight.hint", "Search your phone");
+        public static readonly LocString NoResults = new("spotlight.noResults", "No results");
+        public static readonly LocString Result = new("spotlight.result", "Result");
+        public static readonly LocString Apps = new("spotlight.apps", "Apps");
+        public static readonly LocString Actions = new("spotlight.actions", "Actions");
+        public static readonly LocString TakePhoto = new("spotlight.takePhoto", "Take Photo");
+        public static readonly LocString Contacts = new("spotlight.contacts", "Contacts");
+        public static readonly LocString Messages = new("spotlight.messages", "Messages");
+        public static readonly LocString Settings = new("spotlight.settings", "Settings");
+        public static readonly LocString Shortcuts = new("spotlight.shortcuts", "Shortcuts");
+        public static readonly LocString Conversations = new("spotlight.conversations", "Conversations");
+        public static readonly LocString Notes = new("spotlight.notes", "Notes");
+        public static readonly LocString Items = new("spotlight.items", "Market Items");
+        public static readonly LocString Store = new("spotlight.store", "From the App Store");
+    }
+
     internal static class Onboarding
     {
         public static readonly LocString Continue = new("onboarding.continue", "Continue");
@@ -4897,6 +5695,8 @@ internal static class L
         public static readonly LocString WelcomeTitle = new("onboarding.welcomeTitle", "Welcome to Aetherphone");
         public static readonly LocString AllInOneTitle = new("onboarding.allInOneTitle", "Everything in one place");
         public static readonly LocString AllInOneBody = new("onboarding.allInOneBody", "Chat, music, weather, the market board, mini-games and more, all in your pocket.");
+        public static readonly LocString SearchTourTitle = new("onboarding.searchTourTitle", "Search everything");
+        public static readonly LocString SearchTourBody = new("onboarding.searchTourBody", "Pull down on the Home Screen or tap Search to find apps, contacts, settings, notes, and market items in one place.");
         public static readonly LocString WidgetTourTitle = new("onboarding.widgetTourTitle", "Live at a glance");
         public static readonly LocString WidgetTourBody = new("onboarding.widgetTourBody", "Widgets live on your Home Screen and update on their own. This one shows the Eorzean weather wherever you're standing.");
         public static readonly LocString MyNumberTourTitle = new("onboarding.myNumberTourTitle", "Your very own number");
@@ -4915,7 +5715,7 @@ internal static class L
         public static readonly LocString BatteryTourTitle = new("onboarding.batteryTourTitle", "Real battery");
         public static readonly LocString BatteryTourBody = new("onboarding.batteryTourBody", "And this is your device's actual battery, read straight from your computer.");
         public static readonly LocString MinimizeTitle = new("onboarding.minimizeTitle", "Tuck it away");
-        public static readonly LocString MinimizeBody = new("onboarding.minimizeBody", "This side button shrinks the phone into a corner. Click it to bring the phone back, or hold it to close.");
+        public static readonly LocString MinimizeBody = new("onboarding.minimizeBody", "This side button shrinks the phone into a small one in the corner that keeps showing the time, your music and new alerts. Tap it to bring the phone back, or hold it to turn off.");
         public static readonly LocString LockTitle = new("onboarding.lockTitle", "Lock it in place");
         public static readonly LocString LockBody = new("onboarding.lockBody", "This button locks the phone's position on your screen so it stays put while you play. That's the tour: enjoy your Aetherphone.");
         public static readonly LocString MessagesTitle = new("onboarding.messagesTitle", "Messages");
@@ -4928,6 +5728,14 @@ internal static class L
         public static readonly LocString MarketBody = new("onboarding.marketBody", "Live market board prices from across your world, powered by Universalis. Search any item, or right-click one in game to look it up.");
         public static readonly LocString MarketStatsTitle = new("onboarding.marketStatsTitle", "Know before you sell");
         public static readonly LocString MarketStatsBody = new("onboarding.marketStatsBody", "See the cheapest listings, price history and sale trends, and set an alert to get pinged when a price drops.");
+        public static readonly LocString StratsTitle = new("onboarding.stratsTitle", "Strats");
+        public static readonly LocString StratsBody = new("onboarding.stratsBody", "Raid cheatsheets from WTFDIG, right in your pocket. Pick a fight to see every mechanic with your spot marked.");
+        public static readonly LocString StratsFightsTitle = new("onboarding.stratsFightsTitle", "Pick a fight");
+        public static readonly LocString StratsFightsBody = new("onboarding.stratsFightsBody", "Savage, Ultimate, Extreme and older tiers are grouped here.");
+        public static readonly LocString StratsRoleTitle = new("onboarding.stratsRoleTitle", "Your role");
+        public static readonly LocString StratsRoleBody = new("onboarding.stratsRoleBody", "Choose your role and party. Every diagram highlights where you stand.");
+        public static readonly LocString StratsChipsTitle = new("onboarding.stratsChipsTitle", "Strats and options");
+        public static readonly LocString StratsChipsBody = new("onboarding.stratsChipsBody", "Switch between community strats and their variants. Your choice is remembered per fight.");
         public static readonly LocString VenuesTitle = new("onboarding.venuesTitle", "Venues");
         public static readonly LocString VenuesBody = new("onboarding.venuesBody", "Discover live player-run venues and events, from clubs to photo spots. One tap travels you there with Lifestream.");
         public static readonly LocString MusicTitle = new("onboarding.musicTitle", "Music");
@@ -5267,6 +6075,11 @@ internal static class L
             new("onboarding.kindkupoRulesTitle", "Kindness first");
         public static readonly LocString KindKupoRulesBody =
             new("onboarding.kindkupoRulesBody", "KindKupo is dedicated to positivity and support. Please be thoughtful and gentle.");
+        public static readonly LocString HuntsBody = new("onboarding.huntsBody", "A Faloop account is required for live spawn data. Browsing marks and mob info works without one. Faloop is not affiliated with Aetherphone.");
+        public static readonly LocString HuntsSignInTitle = new("onboarding.huntsSignInTitle", "Sign in to Faloop");
+        public static readonly LocString HuntsSignInBody = new("onboarding.huntsSignInBody", "Tap here to sign in or create a Faloop account and start getting live spawns.");
+        public static readonly LocString HuntsGuideTitle = new("onboarding.huntsGuideTitle", "Learn more");
+        public static readonly LocString HuntsGuideBody = new("onboarding.huntsGuideBody", "Want to learn more about hunts? Check our guide for more information.");
     }
 
     internal static class Setup
@@ -5507,6 +6320,8 @@ internal static class L
             new("conduct.chirper.appropriate.2", "ERP advertisements or sexual solicitation"),
             new("conduct.chirper.appropriate.3", "Fetish content"),
             new("conduct.chirper.appropriate.4", "Graphic sexual language intended for arousal"),
+            new("conduct.chirper.appropriate.5", "Nano bikinis or similar micro-coverage outfits"),
+            new("conduct.chirper.appropriate.6", "See-through or sheer clothing that shows nipples or genitals"),
         };
         public static readonly LocString ChirperRespectTitle = new("conduct.chirper.respect.title", "Be Respectful");
         public static readonly LocString ChirperRespectLead = new("conduct.chirper.respect.lead", "Treat others with respect. Do not engage in:");
@@ -5554,6 +6369,8 @@ internal static class L
             new("conduct.aethergram.sfw.4", "Fetish content"),
             new("conduct.aethergram.sfw.5", "Explicit sexual language in posts, profiles, or comments"),
             new("conduct.aethergram.sfw.6", "Graphic violence or gore"),
+            new("conduct.aethergram.sfw.7", "Nano bikinis or similar micro-coverage outfits"),
+            new("conduct.aethergram.sfw.8", "See-through or sheer clothing that shows nipples or genitals"),
         };
         public static readonly LocString AethergramContextTitle = new("conduct.aethergram.context.title", "Context Matters");
         public static readonly LocString AethergramContextLead = new("conduct.aethergram.context.lead", "Some content may be reviewed based on presentation, including:");
@@ -5626,6 +6443,12 @@ internal static class L
             new("conduct.velvet.allowed.3", "Adult-oriented discussions"),
             new("conduct.velvet.allowed.4", "Relationship communities"),
             new("conduct.velvet.allowed.5", "Character storytelling"),
+        };
+        public static readonly LocString VelvetLimitsTitle = new("conduct.velvet.limits.title", "Content Limits");
+        public static readonly LocString VelvetLimitsLead = new("conduct.velvet.limits.lead", "Velvet is an adult space, but some content is still off-limits:");
+        public static readonly LocString[] VelvetLimitsItems =
+        {
+            new("conduct.velvet.limits.1", "Animal genitalia, including animal genitals on humanoid or beast-race characters"),
         };
         public static readonly LocString VelvetConsentTitle = new("conduct.velvet.consent.title", "Consent First");
         public static readonly LocString VelvetConsentLead = new("conduct.velvet.consent.lead", "Respect other users. Do not engage in:");
@@ -6246,5 +7069,26 @@ internal static class L
         public static readonly LocString PatreonAlreadyLinked = new("failure.patreonAlreadyLinked", "That Patreon account is already linked.");
         public static readonly LocString FeedbackLength = new("failure.feedbackLength", "Keep your feedback to {0} characters.");
         public static readonly LocString FeedbackTooManyImages = new("failure.feedbackTooManyImages", "You can attach at most {0} images.");
+    }
+
+    internal static class Rolladeck
+    {
+        public static readonly LocString FilterAtVenue       = new("rolladeck.filterAtVenue",       "At Venue");
+        public static readonly LocString FilterAllDjs        = new("rolladeck.filterAllDjs",        "All DJs");
+        public static readonly LocString EmptyDjsHeading     = new("rolladeck.emptyDjsHeading",     "No DJs Live");
+        public static readonly LocString Viewers             = new("rolladeck.viewers",             "♪  {0} viewers");
+        public static readonly LocString VenueUnknown        = new("rolladeck.venueUnknown",        "Venue Unknown");
+        public static readonly LocString Teleport            = new("rolladeck.teleport",            "Teleport");
+        public static readonly LocString LifestreamNotInstalled = new("rolladeck.lifestreamNotInstalled", "Lifestream not installed, address copied to clipboard");
+        public static readonly LocString SectionGenres       = new("rolladeck.sectionGenres",       "GENRES");
+        public static readonly LocString SectionLinks        = new("rolladeck.sectionLinks",        "LINKS");
+        public static readonly LocString SectionAbout        = new("rolladeck.sectionAbout",        "ABOUT");
+        public static readonly LocString SectionAmenities    = new("rolladeck.sectionAmenities",    "AMENITIES");
+        public static readonly LocString LiveNow             = new("rolladeck.liveNow",             "♪ LIVE NOW");
+        public static readonly LocString EventLabel          = new("rolladeck.eventLabel",          "♦ EVENT");
+        public static readonly LocString DiscordEventLabel   = new("rolladeck.discordEventLabel",   "♦ DISCORD EVENT");
+        public static readonly LocString Website             = new("rolladeck.website",             "Website");
+        public static readonly LocString Visit               = new("rolladeck.visit",               "Visit");
+        public static readonly LocString Discord             = new("rolladeck.discord",             "Discord");
     }
 }

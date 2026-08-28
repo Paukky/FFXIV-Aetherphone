@@ -44,6 +44,12 @@ internal sealed class ViewRouter<TView>
         }
     }
 
+    public void Replace(TView view)
+    {
+        stack[stack.Count - 1] = view;
+        viewIds[viewIds.Count - 1] = NewId();
+    }
+
     public bool Pop() => Pop(true);
 
     public bool Pop(bool animate)
@@ -90,7 +96,8 @@ internal sealed class ViewRouter<TView>
     {
         if (transitioning)
         {
-            slide.Step(1f, TransitionTiming.PushSmoothTime, MathF.Min(deltaSeconds, TransitionTiming.MaxFrameSeconds));
+            slide.Step(1f, TransitionTiming.PushSmoothTime,
+                MathF.Min(deltaSeconds, TransitionTiming.MotionFrameSeconds));
 
             if (slide.IsResting(1f, TransitionTiming.RestPositionEpsilon, TransitionTiming.RestVelocityEpsilon))
             {
@@ -145,7 +152,7 @@ internal sealed class ViewRouter<TView>
 
     private void StartSlide()
     {
-        slide.SnapTo(0f);
+        slide.Launch(0f, TransitionTiming.LaunchVelocity(TransitionTiming.PushSmoothTime));
         transitioning = true;
     }
 

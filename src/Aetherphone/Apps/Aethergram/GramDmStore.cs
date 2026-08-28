@@ -7,9 +7,10 @@ using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Home;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Media;
-using Aetherphone.Core.Net;
 using Aetherphone.Core.Message;
+using Aetherphone.Core.Net;
 using Aetherphone.Core.Notifications;
+using Aetherphone.Core.Runtime;
 using Aetherphone.Windows.Components;
 
 namespace Aetherphone.Apps.Aethergram;
@@ -25,8 +26,9 @@ internal sealed class GramDmStore : ChatThreadStoreBase<GramMessageDto, GramThre
 
     public GramDmStore(AethernetSession session, GramDmClient client, SocialClient social, SafetyClient safety,
         MediaClient media, NotificationService notifications, KeyVault vault, ConversationKeyStore keys,
-        PhoneVisibility visibility, RealtimeSignalBus signals, AppInstaller installer)
-        : base("AethergramDm", session, safety, media, notifications, vault, keys, visibility,
+        DecryptedHistoryStore chatHistory, PhoneVisibility visibility, RealtimeSignalBus signals,
+        AppInstaller installer)
+        : base("AethergramDm", session, safety, media, notifications, vault, keys, chatHistory, visibility,
             installer.Gate("aethergram"))
     {
         this.client = client;

@@ -42,6 +42,7 @@ internal sealed class ShellOverlayCoordinator
     private readonly ReportOverlay reportOverlay;
     private readonly ShareSheet shareSheet;
     private readonly ConductGateOverlay conductOverlay;
+    private readonly EncryptionHelpOverlay encryptionHelpOverlay;
     private readonly OnboardingDirector director;
     private readonly SetupOverlay setup;
 
@@ -50,7 +51,8 @@ internal sealed class ShellOverlayCoordinator
         ShortcutRunPill shortcutPill, CoinEarnPill coinPill, CoinEarnFloats coinFloats,
         IncomingCallOverlay incomingOverlay, BanOverlay banOverlay,
         ConfirmOverlay confirmOverlay, ReportOverlay reportOverlay, ShareSheet shareSheet,
-        ConductGateOverlay conductOverlay, OnboardingDirector director, SetupOverlay setup)
+        ConductGateOverlay conductOverlay, EncryptionHelpOverlay encryptionHelpOverlay,
+        OnboardingDirector director, SetupOverlay setup)
     {
         this.coinPill = coinPill;
         this.coinFloats = coinFloats;
@@ -68,6 +70,7 @@ internal sealed class ShellOverlayCoordinator
         this.reportOverlay = reportOverlay;
         this.shareSheet = shareSheet;
         this.conductOverlay = conductOverlay;
+        this.encryptionHelpOverlay = encryptionHelpOverlay;
         this.director = director;
         this.setup = setup;
     }
@@ -76,6 +79,7 @@ internal sealed class ShellOverlayCoordinator
     {
         var banNotice = !loading.IsActive && banOverlay.IsActive;
         var conductActive = !loading.IsActive && !banNotice && conductOverlay.Captures;
+        var helpActive = !loading.IsActive && !banNotice && encryptionHelpOverlay.Captures;
         var setupActive = setup.IsActive;
         var confirming = !loading.IsActive &&
                          (confirmOverlay.CapturesPointer || reportOverlay.CapturesPointer ||
@@ -84,14 +88,15 @@ internal sealed class ShellOverlayCoordinator
         var overlaysCapture = controlCenterCaptures && !director.WantsControlCenter;
         var ringing = !loading.IsActive && incomingOverlay.IsRinging;
         var islandCaptures = !loading.IsActive && !controlCenterCaptures && !ringing && !confirming &&
-                             !setupActive && !conductActive && !banNotice &&
-                             (island.CapturesPointer(screen) ||
+                             !setupActive && !conductActive && !helpActive && !banNotice &&
+                             !DragScrollHost.AnyDragging &&
+                             (island.CapturesPointer() ||
                               (!director.CapturesPointer &&
                                (banner.CapturesPointer(screen) || shortcutPill.CapturesPointer())));
         var busy = loading.IsActive || overlaysCapture || ringing || confirming || navigation.IsTransitioning ||
-                   setupActive || banNotice || conductActive;
+                   setupActive || banNotice || conductActive || helpActive;
         var shieldBase = loading.IsActive || islandCaptures || controlCenterCaptures || ringing || confirming ||
-                         setupActive || banNotice || conductActive;
+                         setupActive || banNotice || conductActive || helpActive;
         return new ShellOverlayState(setupActive, confirming, islandCaptures, busy, shieldBase);
     }
 
@@ -102,8 +107,9 @@ internal sealed class ShellOverlayCoordinator
             return;
         }
 
-        if (!confirmOverlay.CapturesPointer && !reportOverlay.CapturesPointer && !shareSheet.CapturesPointer &&
-            !controlCenter.IsActive)
+        var helpActive = encryptionHelpOverlay.Captures;
+        if (!helpActive && !confirmOverlay.CapturesPointer && !reportOverlay.CapturesPointer &&
+            !shareSheet.CapturesPointer && !controlCenter.IsActive)
         {
             return;
         }
@@ -136,10 +142,17 @@ internal sealed class ShellOverlayCoordinator
             return;
         }
 
+        if (helpActive)
+        {
+            encryptionHelpOverlay.Dismiss();
+            return;
+        }
+
         controlCenter.Dismiss();
     }
 
-    public void DrawOverlays(in ChassisGeometry chassis, PhoneTheme theme, float delta, in ShellOverlayState state)
+    public void DrawOverlays(in ChassisGeometry chassis, PhoneTheme theme, float delta, in ShellOverlayState state,
+        bool seals)
     {
         var screen = chassis.Screen;
         if (state.SetupActive)
@@ -150,17 +163,17 @@ internal sealed class ShellOverlayCoordinator
         if (loading.IsActive)
         {
             loading.Draw(screen, theme);
-            DeviceChrome.SealScreen(chassis, theme, configuration.ScreenBrightness);
+            SealScreen(chassis, theme, seals);
             return;
         }
 
         if (state.SetupActive)
         {
             HoverTooltip.Flush();
-            CopyToast.Flush();
+            ShellToast.Draw(screen, theme);
             banOverlay.Draw(screen, theme);
             confirmOverlay.Draw(screen, theme);
-            DeviceChrome.SealScreen(chassis, theme, configuration.ScreenBrightness);
+            SealScreen(chassis, theme, seals);
             return;
         }
 
@@ -191,20 +204,39 @@ internal sealed class ShellOverlayCoordinator
             controlCenter.Dismiss();
         }
 
+        var landscapeHeld = navigation.Current is { } landscapeApp && AppLandscape.Held(landscapeApp.Id);
+        if (landscapeHeld && controlCenter.IsActive)
+        {
+            controlCenter.Dismiss();
+        }
+
         HandleEscape();
+
         controlCenter.Draw(screen, theme, delta,
             !navigation.IsTransitioning && !director.CapturesPointer && !state.IslandCaptures &&
-            !banOverlay.IsActive && navigation.Current?.Id != "camera",
+            !banOverlay.IsActive && navigation.Current?.Id != "camera" && !landscapeHeld,
             !director.CapturesPointer);
+            
         HoverTooltip.Flush();
-        CopyToast.Flush();
+        ShellToast.Draw(screen, theme);
         shareSheet.Draw(screen, theme);
         reportOverlay.Draw(screen, theme);
         confirmOverlay.Draw(screen, theme);
         director.Draw(screen, theme);
         conductOverlay.Draw(screen, theme);
+        encryptionHelpOverlay.Draw(screen, theme);
         banOverlay.Draw(screen, theme);
         coinFloats.Draw(screen, theme, delta);
+        SealScreen(chassis, theme, seals);
+    }
+
+    private void SealScreen(in ChassisGeometry chassis, PhoneTheme theme, bool seals)
+    {
+        if (!seals)
+        {
+            return;
+        }
+
         DeviceChrome.SealScreen(chassis, theme, configuration.ScreenBrightness);
     }
 }

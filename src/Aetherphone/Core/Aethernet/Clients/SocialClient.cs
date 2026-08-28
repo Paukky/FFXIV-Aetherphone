@@ -12,10 +12,15 @@ internal sealed class SocialClient
         this.net = net;
     }
 
-    public Task<FeedPage?> FeedAsync(string scope, string? cursor, CancellationToken token,
+    public Task<FeedPage?> FeedAsync(string scope, string? cursor, string? regions, CancellationToken token,
         Action<AepFailure>? onFailure = null)
     {
         var path = $"/feed?scope={scope}";
+        if (regions is not null)
+        {
+            path += $"&regions={Uri.EscapeDataString(regions)}";
+        }
+
         if (cursor is not null)
         {
             path += $"&cursor={Uri.EscapeDataString(cursor)}";
@@ -77,9 +82,15 @@ internal sealed class SocialClient
     }
 
     public Task<UserListPage?> PostLikersAsync(string postId, string? cursor, CancellationToken token,
-        Action<AepFailure>? onFailure = null)
+        int reactionKind = -1, Action<AepFailure>? onFailure = null)
     {
-        return UserListAsync($"/posts/{Uri.EscapeDataString(postId)}/likers", cursor, token, onFailure);
+        var path = $"/posts/{Uri.EscapeDataString(postId)}/likers";
+        if (reactionKind >= 0)
+        {
+            path += $"?kind={reactionKind}";
+        }
+
+        return UserListAsync(path, cursor, token, onFailure);
     }
 
     public Task<UserListPage?> MutualFollowersAsync(string userId, string? cursor, CancellationToken token,
@@ -93,7 +104,8 @@ internal sealed class SocialClient
     {
         if (cursor is not null)
         {
-            path += $"?cursor={Uri.EscapeDataString(cursor)}";
+            path += path.Contains('?') ? "&" : "?";
+            path += $"cursor={Uri.EscapeDataString(cursor)}";
         }
 
         return net.GetAsync(path, AethernetJsonContext.Default.UserListPage, token, null, onFailure);
@@ -144,6 +156,24 @@ internal sealed class SocialClient
         return net.SendJsonAsync(HttpMethod.Put, $"/posts/{Uri.EscapeDataString(postId)}/sensitive",
             new SetSensitiveRequest(sensitive), AethernetJsonContext.Default.SetSensitiveRequest,
             AethernetJsonContext.Default.PostDto, token, null, onFailure);
+    }
+
+    public Task<TagSearchResult?> TagSearchAsync(string query, CancellationToken token,
+        Action<AepFailure>? onFailure = null)
+    {
+        var path = query.Length > 0 ? $"/tags/search?q={Uri.EscapeDataString(query)}" : "/tags/search";
+        return net.GetAsync(path, AethernetJsonContext.Default.TagSearchResult, token, null, onFailure);
+    }
+
+    public Task<FeedPage?> LikedAsync(string? cursor, CancellationToken token, Action<AepFailure>? onFailure = null)
+    {
+        var path = "/me/liked";
+        if (cursor is not null)
+        {
+            path += $"?cursor={Uri.EscapeDataString(cursor)}";
+        }
+
+        return net.GetAsync(path, AethernetJsonContext.Default.FeedPage, token, null, onFailure);
     }
 
     public Task<FeedPage?> SavedAsync(string? cursor, CancellationToken token, Action<AepFailure>? onFailure = null)

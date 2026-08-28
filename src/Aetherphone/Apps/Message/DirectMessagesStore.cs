@@ -1,5 +1,4 @@
 using Aetherphone.Core;
-using Aetherphone.Core.Net;
 using Aetherphone.Core.Aethernet;
 using Aetherphone.Core.Aethernet.Clients;
 using Aetherphone.Core.Aethernet.Contracts;
@@ -7,7 +6,9 @@ using Aetherphone.Core.Crypto;
 using Aetherphone.Core.Home;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Message;
+using Aetherphone.Core.Net;
 using Aetherphone.Core.Notifications;
+using Aetherphone.Core.Runtime;
 using Aetherphone.Windows.Components;
 
 namespace Aetherphone.Apps.Message;
@@ -23,8 +24,10 @@ internal sealed class DirectMessagesStore : ChatThreadStoreBase<ChatMessageDto, 
 
     public DirectMessagesStore(AethernetSession session, ChatClient client, SafetyClient safety, MediaClient media,
         NotificationService notifications, KeyVault vault, ConversationKeyStore keys, PeerKeyDirectory peers,
-        PhoneVisibility visibility, RealtimeSignalBus signals, AppInstaller installer)
-        : base("Messages", session, safety, media, notifications, vault, keys, visibility, installer.Gate("message"))
+        DecryptedHistoryStore chatHistory, PhoneVisibility visibility, RealtimeSignalBus signals,
+        AppInstaller installer)
+        : base("Messages", session, safety, media, notifications, vault, keys, chatHistory, visibility,
+            installer.Gate("message"))
     {
         this.client = client;
         this.peers = peers;
@@ -52,6 +55,7 @@ internal sealed class DirectMessagesStore : ChatThreadStoreBase<ChatMessageDto, 
             return;
         }
 
+        RequestThreadKeyRefresh();
         RequestThreadRefresh(signal.ConversationId);
     }
 
@@ -240,15 +244,7 @@ internal sealed class DirectMessagesStore : ChatThreadStoreBase<ChatMessageDto, 
             || cipher.IsPreviewResolved(thread.Id, thread.LastMessageAtUnix);
     }
 
-    public static string DisplayTitle(ConversationDto item)
-    {
-        if (item.IsGroup)
-        {
-            return item.Title.Length > 0 ? item.Title : Loc.T(L.DirectMessages.GroupFallback);
-        }
-
-        return item.OtherDisplayName.Length > 0 ? item.OtherDisplayName : item.OtherHandle;
-    }
+    public static string DisplayTitle(ConversationDto item) => ConversationTitle.Of(item);
 
     private static string PreviewText(ConversationDto item)
     {

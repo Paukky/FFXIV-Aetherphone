@@ -19,6 +19,7 @@ internal static class AppAccents
         ["collections"] = AccentRing.Indigo,
         ["skywatcher"] = AccentRing.Cyan,
         ["venues"] = AccentRing.Orchid,
+        ["strats"] = AccentRing.Rose,
         ["maps"] = AccentRing.Teal,
         ["news"] = AccentRing.Slate,
         ["market"] = AccentRing.Gold,
@@ -65,12 +66,23 @@ internal static class AppAccents
         ["minesweeper"] = AccentRing.Red,
         ["sudoku"] = AccentRing.Azure,
         ["chess"] = AccentRing.Gold,
+        ["uno"] = AccentRing.Rose,
+        ["pool"] = AccentRing.Green,
         ["stack"] = AccentRing.Indigo,
         ["crystaldrop"] = AccentRing.Violet,
         ["beat"] = AccentRing.Rose,
         ["blade"] = AccentRing.Red,
         ["trivia"] = AccentRing.Indigo,
         ["kindkupo"] = AccentRing.Rose,
+        ["skyfall"] = AccentRing.Orange,
+        ["invaders"] = AccentRing.Violet,
+        ["capman"] = AccentRing.Gold,
+        ["hop"] = AccentRing.Green,
+        ["squadron"] = AccentRing.Azure,
+        ["doom"] = AccentRing.Red,
+        ["wordrun"] = AccentRing.Emerald,
+        ["rolladeck"] = AccentRing.Violet,
+        ["hunts"] = AccentRing.Indigo
     }.ToFrozenDictionary();
 
     private static readonly FrozenSet<string> BrandLocked =

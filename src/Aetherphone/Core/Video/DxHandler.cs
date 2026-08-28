@@ -14,13 +14,14 @@ internal static class DxHandler
 
 	private const int PrologueDumpBytes = 16;
 
-	private static readonly ConcurrentDictionary<string, Action> _pendingRenderWork = new();
+	private static readonly ConcurrentDictionary<string, Action> pendingRenderWork = new();
+	private static readonly Lock drainLock = new();
 
 	internal static event Action? OnPresent;
 
 	private unsafe delegate int PresentDelegate(void* swapChain, uint syncInterval, uint flags);
-	private static Hook<PresentDelegate>? _presentHook;
-	private static IUiBuilder? _pumpBuilder;
+	private static Hook<PresentDelegate>? presentHook;
+	private static IUiBuilder? pumpBuilder;
 
 	internal static void Initialise(IDalamudPluginInterface pluginInterface)
 	{
@@ -31,26 +32,29 @@ internal static class DxHandler
 			return;
 		}
 
-		_pumpBuilder = pluginInterface.UiBuilder;
-		_pumpBuilder.Draw += PumpRenderThread;
+		pumpBuilder = pluginInterface.UiBuilder;
+		pumpBuilder.Draw += PumpRenderThread;
 	}
 
 	internal static void RunOnRenderThread(string key, Action work)
 	{
-		_pendingRenderWork[key] = work;
+		pendingRenderWork[key] = work;
 	}
 
 	internal static void CancelRenderThreadWork(string key)
 	{
-		_pendingRenderWork.TryRemove(key, out _);
+		lock (drainLock)
+		{
+			pendingRenderWork.TryRemove(key, out _);
+		}
 	}
 
 	private static unsafe bool TryHookPresent()
 	{
 		try
 		{
-			GfxKernel.Device* device = GfxKernel.Device.Instance();
-			nint swapChainPtr = device is null || device->SwapChain is null
+			var device = GfxKernel.Device.Instance();
+			var swapChainPtr = device is null || device->SwapChain is null
 				? 0
 				: (nint)device->SwapChain->DXGISwapChain;
 			if (swapChainPtr == 0)
@@ -59,8 +63,8 @@ internal static class DxHandler
 				return false;
 			}
 
-			nint* vtable = *(nint**)swapChainPtr;
-			nint presentAddress = vtable[8];
+			var vtable = *(nint**)swapChainPtr;
+			var presentAddress = vtable[8];
 
 			if (TryInstallPresentHook(presentAddress))
 			{
@@ -79,9 +83,9 @@ internal static class DxHandler
 
 	private static unsafe string DescribePrologue(nint presentAddress)
 	{
-		byte* prologue = (byte*)presentAddress;
+		var prologue = (byte*)presentAddress;
 		var hex = new StringBuilder(PrologueDumpBytes * 3);
-		for (int byteIndex = 0; byteIndex < PrologueDumpBytes; byteIndex++)
+		for (var byteIndex = 0; byteIndex < PrologueDumpBytes; byteIndex++)
 		{
 			hex.Append(prologue[byteIndex].ToString("X2"));
 			hex.Append(' ');
@@ -94,14 +98,14 @@ internal static class DxHandler
 	{
 		try
 		{
-			_presentHook = Plugin.InteropProvider.HookFromAddress<PresentDelegate>(presentAddress, PresentDetour);
-			_presentHook.Enable();
+			presentHook = Plugin.InteropProvider.HookFromAddress<PresentDelegate>(presentAddress, PresentDetour);
+			presentHook.Enable();
 			return true;
 		}
 		catch (Exception e)
 		{
-			_presentHook?.Dispose();
-			_presentHook = null;
+			presentHook?.Dispose();
+			presentHook = null;
 			AepLog.Warning($"[DxHandler] Present hook unavailable, using the UI render pump: {e.Message}");
 			return false;
 		}
@@ -118,22 +122,30 @@ internal static class DxHandler
 		DrainRenderWork();
 		NotifyPresent();
 
-		return _presentHook!.Original(swapChain, syncInterval, flags);
+		return presentHook!.Original(swapChain, syncInterval, flags);
 	}
 
 	private static void DrainRenderWork()
 	{
-		foreach (string key in _pendingRenderWork.Keys)
+		if (pendingRenderWork.IsEmpty)
 		{
-			if (_pendingRenderWork.TryRemove(key, out Action? work))
+			return;
+		}
+
+		lock (drainLock)
+		{
+			foreach (var key in pendingRenderWork.Keys)
 			{
-				try
+				if (pendingRenderWork.TryRemove(key, out var work))
 				{
-					work();
-				}
-				catch (Exception e)
-				{
-					AepLog.Error($"[DxHandler] Render-thread callback '{key}' failed: {e}");
+					try
+					{
+						work();
+					}
+					catch (Exception e)
+					{
+						AepLog.Error($"[DxHandler] Render-thread callback '{key}' failed: {e}");
+					}
 				}
 			}
 		}
@@ -153,16 +165,16 @@ internal static class DxHandler
 
 	public static void Dispose()
 	{
-		if (_pumpBuilder is not null)
+		if (pumpBuilder is not null)
 		{
-			_pumpBuilder.Draw -= PumpRenderThread;
-			_pumpBuilder = null;
+			pumpBuilder.Draw -= PumpRenderThread;
+			pumpBuilder = null;
 		}
 
-		_presentHook?.Disable();
-		_presentHook?.Dispose();
-		_presentHook = null;
-		_pendingRenderWork.Clear();
+		presentHook?.Disable();
+		presentHook?.Dispose();
+		presentHook = null;
+		pendingRenderWork.Clear();
 		OnPresent = null;
 
 		Device = null;

@@ -51,6 +51,12 @@ internal sealed class CallSignalRouter : IDisposable
             return;
         }
 
+        if (message.Type.StartsWith(SignalType.GamePrefix, StringComparison.Ordinal))
+        {
+            signals.PublishGame(new GameSignal(message.Type, message.Reason, message.Game));
+            return;
+        }
+
         switch (message.Type)
         {
             case SignalType.ChatPing:
@@ -70,6 +76,9 @@ internal sealed class CallSignalRouter : IDisposable
                 return;
             case SignalType.AnnouncePing:
                 signals.PublishAnnouncements();
+                return;
+            case SignalType.PollPing:
+                signals.PublishPolls();
                 return;
             case SignalType.ContentRemoved:
                 if (message.ContentId is { Length: > 0 } removedContentId)

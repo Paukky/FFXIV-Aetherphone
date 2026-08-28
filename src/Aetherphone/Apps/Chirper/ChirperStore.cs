@@ -28,9 +28,9 @@ internal sealed class ChirperStore : SocialFeedStore
 
     public bool AvatarBusy => avatarBusy;
 
-    protected override Task<FeedPage?> FetchFeedAsync(string feedKey, string? cursor, CancellationToken token,
-        Action<AepFailure>? onFailure = null) =>
-        client.FeedAsync(feedKey, cursor, token, onFailure);
+    protected override Task<FeedPage?> FetchFeedAsync(string feedKey, string? cursor, string? regions,
+        CancellationToken token, Action<AepFailure>? onFailure = null) =>
+        client.FeedAsync(feedKey, cursor, regions, token, onFailure);
 
     protected override Task<FeedPage?> FetchProfilePostsAsync(string userId, string? cursor, CancellationToken token) =>
         client.UserPostsAsync(userId, cursor, token);
@@ -187,6 +187,18 @@ internal sealed class ChirperStore : SocialFeedStore
             AcceptCreatedPost(created);
             return true;
         }, onComplete, () => posting = false);
+    }
+
+    public void UpdateBanner(string sourcePath, WallpaperCrop crop, Action<bool> onComplete)
+    {
+        if (avatarBusy)
+        {
+            return;
+        }
+
+        avatarBusy = true;
+        work.Run("banner update", token => UploadBannerAsync(sourcePath, crop, token), onComplete,
+            () => avatarBusy = false);
     }
 
     public void UpdateAvatar(string sourcePath, WallpaperCrop crop, Action<bool> onComplete)
