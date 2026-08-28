@@ -254,12 +254,12 @@ namespace Aetherphone.Core.Aethernet;
 [JsonSerializable(typeof(CasinoTableActionDto))]
 [JsonSerializable(typeof(CasinoDailySpinDto))]
 [JsonSerializable(typeof(ConfessionDto))]
-[JsonSerializable(typeof(ResponseDto))]
+[JsonSerializable(typeof(ConfessionResponseDto))]
 [JsonSerializable(typeof(CreateConfessionRequest))]
-[JsonSerializable(typeof(CreateResponseRequest))]
+[JsonSerializable(typeof(CreateConfessionResponseRequest))]
 [JsonSerializable(typeof(ConfessionPage))]
 [JsonSerializable(typeof(ConfessionResponsePage))]
-[JsonSerializable(typeof(KindKupoStatsDto))]
+[JsonSerializable(typeof(KupoStatsDto))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class AethernetJsonContext : JsonSerializerContext
 {

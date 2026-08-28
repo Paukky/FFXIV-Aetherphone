@@ -112,11 +112,11 @@ internal sealed class KindKupoStore : IDisposable
         });
     }
 
-    public void ComposeConfession(string text, DateTime? expiresAt, Action<bool> onComplete)
+    public void ComposeConfession(string text, long expiresAtUnix, Action<bool> onComplete)
     {
         work.Run("compose confession", async token =>
         {
-            var created = await client.CreateConfessionAsync(text, expiresAt, token).ConfigureAwait(false);
+            var created = await client.CreateConfessionAsync(text, expiresAtUnix, token).ConfigureAwait(false);
             if (created is null)
             {
                 return false;
@@ -165,7 +165,8 @@ internal sealed class KindKupoStore : IDisposable
         return null;
     }
 
-    private static ConfessionDto[] WithResponse(ConfessionDto[] source, string confessionId, ResponseDto response)
+    private static ConfessionDto[] WithResponse(ConfessionDto[] source, string confessionId,
+        ConfessionResponseDto response)
     {
         for (var index = 0; index < source.Length; index++)
         {
@@ -175,9 +176,9 @@ internal sealed class KindKupoStore : IDisposable
                 continue;
             }
 
-            var responses = new List<ResponseDto>(current.Responses.Count + 1);
-            responses.AddRange(current.Responses);
-            responses.Add(response);
+            var responses = new ConfessionResponseDto[current.Responses.Length + 1];
+            Array.Copy(current.Responses, responses, current.Responses.Length);
+            responses[^1] = response;
 
             var updated = new ConfessionDto[source.Length];
             Array.Copy(source, updated, source.Length);

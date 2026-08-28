@@ -107,15 +107,15 @@ internal sealed partial class KindKupoApp
             DrawConfessionCard(confession, KindKupoScreen.ResponseList);
 
             ImGui.Dummy(new Vector2(0f, 8f * scale));
-            ui.SectionHeading($"{Loc.T(L.KindKupo.Replies)} ({confession.Responses.Count})");
+            ui.SectionHeading($"{Loc.T(L.KindKupo.Replies)} ({confession.ResponseCount})");
 
-            if (confession.Responses.Count == 0)
+            if (confession.Responses.Length == 0)
             {
                 Typography.Plain(Loc.T(L.KindKupo.NoReplies));
                 return;
             }
 
-            for (var index = 0; index < confession.Responses.Count; index++)
+            for (var index = 0; index < confession.Responses.Length; index++)
             {
                 DrawResponseCard(confession.Responses[index]);
             }

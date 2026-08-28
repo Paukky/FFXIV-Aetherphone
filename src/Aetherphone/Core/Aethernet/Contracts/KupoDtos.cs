@@ -2,28 +2,30 @@ namespace Aetherphone.Core.Aethernet.Contracts;
 
 internal sealed record ConfessionDto(
     string Id,
-    string AuthorId,
     string Text,
-    DateTime CreatedAt,
+    long CreatedAtUnix,
+    long ExpiresAtUnix,
     int ResponseCount,
-    List<ResponseDto> Responses
-    );
+    int KudosCount,
+    bool Mine,
+    bool GaveKudos,
+    ConfessionResponseDto[] Responses);
 
-internal sealed record ResponseDto(
+internal sealed record ConfessionResponseDto(
     string Id,
     string ConfessionId,
-    string ResponderId,
     string Text,
-    DateTime CreatedAt
-    );
+    long CreatedAtUnix,
+    int LikeCount,
+    bool Liked,
+    bool Mine);
 
-internal sealed record CreateConfessionRequest(string Text, DateTime? ExpiresAt);
+internal sealed record CreateConfessionRequest(string Text, long ExpiresAtUnix);
 
-internal sealed record CreateResponseRequest(string Text);
+internal sealed record CreateConfessionResponseRequest(string Text);
 
 internal sealed record ConfessionPage(ConfessionDto[] Items, string? NextCursor);
 
-internal sealed record ConfessionResponsePage(ResponseDto[] Items, string? NextCursor);
+internal sealed record ConfessionResponsePage(ConfessionResponseDto[] Items, string? NextCursor);
 
-internal sealed record KindKupoStatsDto(int WrittenCount, int ResponseCount, int KudosCount);
-
+internal sealed record KupoStatsDto(int WrittenCount, int ResponseCount, int KudosCount);

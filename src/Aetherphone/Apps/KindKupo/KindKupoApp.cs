@@ -189,7 +189,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
         var drawList = ImGui.GetWindowDrawList();
         var right = left + width;
 
-        var stamp = TimeText.Ago(confession.CreatedAt);
+        var stamp = TimeText.Ago(confession.CreatedAtUnix);
         var stampSize = Typography.Measure(stamp, 0.85f, FontWeight.Regular);
         var stampPos = new Vector2(left, centerY - stampSize.Y * 0.5f);
         Typography.Draw(drawList, stampPos, stamp, AppPalettes.KindKupo.MutedInk, 0.85f, FontWeight.Regular);
@@ -221,7 +221,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
             {
                 var repliesPos = new Vector2(right - iconSize * 0.8f, centerY);
                 if (ui.IconButton(repliesPos, iconSize, FontAwesomeIcon.CommentDots.ToIconString(),
-                        AppPalettes.KindKupo.MutedInk, transparent, 1f, Loc.T(L.KindKupo.ViewReplies, confession.Responses.Count)))
+                        AppPalettes.KindKupo.MutedInk, transparent, 1f, Loc.T(L.KindKupo.ViewReplies, confession.ResponseCount)))
                 {
                     router.Push(KindKupoRoute.ViewResponse(confession.Id));
                 }
@@ -230,7 +230,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
         }
     }
 
-    private void DrawResponseCard(ResponseDto response)
+    private void DrawResponseCard(ConfessionResponseDto response)
     {
         var scale = UiScale.Current;
         var drawList = ImGui.GetWindowDrawList();
@@ -266,7 +266,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
                 Typography.Wrapped(response.Text);
             }
         }
-        var stamp = TimeText.Ago(response.CreatedAt);
+        var stamp = TimeText.Ago(response.CreatedAtUnix);
         var stampSize = Typography.Measure(stamp, 0.85f, FontWeight.Regular);
         var stampPos = new Vector2(contentLeft, footerCenterY - stampSize.Y * 0.5f);
         Typography.Draw(drawList, stampPos, stamp, AppPalettes.KindKupo.MutedInk, 0.85f, FontWeight.Regular);

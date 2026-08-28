@@ -31,12 +31,12 @@ internal sealed partial class KindKupoApp
     private volatile int composeOutcome;
     private volatile int replyOutcome;
 
-    private static DateTime? ExpiryFromTab(int tab) => tab switch
+    private static long ExpiryFromTab(int tab) => tab switch
     {
-        1 => DateTime.UtcNow.AddDays(1),
-        2 => DateTime.UtcNow.AddDays(3),
-        3 => DateTime.UtcNow.AddDays(7),
-        _ => null,
+        1 => DateTimeOffset.UtcNow.AddDays(1).ToUnixTimeSeconds(),
+        2 => DateTimeOffset.UtcNow.AddDays(3).ToUnixTimeSeconds(),
+        3 => DateTimeOffset.UtcNow.AddDays(7).ToUnixTimeSeconds(),
+        _ => 0L,
     };
 
     private void DrawWriteScreen(Rect area)
