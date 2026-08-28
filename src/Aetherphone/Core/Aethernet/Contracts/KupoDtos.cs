@@ -17,10 +17,6 @@ internal sealed record ResponseDto(
     DateTime CreatedAt
     );
 
-internal sealed record ConfessionFeeds(ConfessionDto[] Confessions);
-
-internal sealed record KindKupoInboxDto(string AccountId, List<ConfessionDto> KupoInboxes);
-
 internal sealed record CreateConfessionRequest(string Text, DateTime? ExpiresAt);
 
 internal sealed record CreateResponseRequest(string Text);

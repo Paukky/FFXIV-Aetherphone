@@ -6,7 +6,7 @@ using Aetherphone.Core.Onboarding;
 using Aetherphone.Windows.Components;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
-
+using Dalamud.Interface.Utility;
 
 namespace Aetherphone.Apps.KindKupo;
 
@@ -45,27 +45,49 @@ internal sealed partial class KindKupoApp
                 AppPalettes.KindKupo.Accent, AppSkin.Transparent, 1.1f, Loc.T(L.KindKupo.Inbox),
                 HoverLabelSide.Below))
         {
-            router.Push(KindKupoRoute.Inbox);
+            OpenInbox();
         }
     }
 
-    private void DrawInbox(Rect area, string userId)
+    private void OpenInbox()
     {
         social.MarkSeen(Id);
+        store.FetchUserConfessions(session.CurrentUser?.Id ?? string.Empty);
+        router.Push(KindKupoRoute.Inbox);
+    }
+
+    private void DrawInbox(Rect area)
+    {
         var scale = UiScale.Current;
         var padding = 16f * scale;
         var context = new PhoneContext(area, theme, navigation);
         AppHeader.Draw(context, Loc.T(L.KindKupo.YourInbox), back);
+
         var top = area.Min.Y + AppHeader.Height * scale + 8f * scale;
+        var confessions = store.UserConfessions;
+
+        if (confessions.Length == 0)
+        {
+            var empty = new Rect(new Vector2(area.Min.X, top), area.Max);
+            if (store.UserLoading)
+            {
+                LoadingPulse.Spinner(empty.Center, 14f * scale, ui.Accent);
+            }
+            else
+            {
+                EmptyState.Draw(empty, ui, FontAwesomeIcon.Inbox, Loc.T(L.KindKupo.NoConfessions), string.Empty);
+            }
+
+            return;
+        }
+
         var body = new Rect(new Vector2(area.Min.X + padding, top), new Vector2(area.Max.X - padding, area.Max.Y));
         using (AppSurface.Begin(body))
         {
             ImGui.Dummy(new Vector2(0f, 4f * scale));
-            //var confessions = store.UserConfessions;
-            var confessions = KindKupoMockData.GetInbox().KupoInboxes;
-            foreach (var confession in confessions)
+            for (var index = 0; index < confessions.Length; index++)
             {
-                DrawConfessionCard(confession);
+                DrawConfessionCard(confessions[index], KindKupoScreen.Inbox);
             }
         }
     }
@@ -82,18 +104,21 @@ internal sealed partial class KindKupoApp
 
         using (AppSurface.Begin(body))
         {
-
-            DrawConfessionCard(confession);
+            DrawConfessionCard(confession, KindKupoScreen.ResponseList);
 
             ImGui.Dummy(new Vector2(0f, 8f * scale));
             ui.SectionHeading($"{Loc.T(L.KindKupo.Replies)} ({confession.Responses.Count})");
 
-
-            foreach (var response in confession.Responses)
+            if (confession.Responses.Count == 0)
             {
-                DrawResponseCard(response);
+                Typography.Plain(Loc.T(L.KindKupo.NoReplies));
+                return;
             }
 
+            for (var index = 0; index < confession.Responses.Count; index++)
+            {
+                DrawResponseCard(confession.Responses[index]);
+            }
         }
     }
 }

@@ -461,6 +461,9 @@ internal static class L
         public static readonly LocString VelvetSub = new("storeCopy.velvetSub", "After dark, adults only");
         public static readonly LocString VelvetBody = new("storeCopy.velvetBody",
             "An 18+ space for connections, collaborative writing and private messages, kept well apart from the rest of your phone.");
+        public static readonly LocString KindKupoSub = new("storeCopy.kindKupoSub", "Anonymous, and kind");
+        public static readonly LocString KindKupoBody = new("storeCopy.kindKupoBody",
+            "Share what is on your mind without a name attached, and answer other players with the kind of reply you would want back.");
         public static readonly LocString PollsSub = new("storeCopy.pollsSub", "Ask the whole server");
         public static readonly LocString PollsBody = new("storeCopy.pollsBody",
             "Put a question to Eorzea and watch the votes land while you wait.");
@@ -5888,7 +5891,7 @@ internal static class L
             new("conduct.coin.scams.3", "Giveaways that ask for gil or items up front"),
         };
 
-        public static readonly LocString KindKupoTitle = new("conduct.kindkupo.title", "KindKupo Guidelines");
+        public static readonly LocString KindKupoTitle = new("conduct.kindkupo.title", "KindKupo Community Rules");
         public static readonly LocString KindKupoIntro = new("conduct.kindkupo.intro", "KindKupo is a place for kind, anonymous confessions and supportive listening. Please read the community rules before posting.");
         public static readonly LocString KindKupoAllowedTitle = new("conduct.kindkupo.allowed.title", "What Is Encouraged");
         public static readonly LocString KindKupoAllowedLead = new("conduct.kindkupo.allowed.lead", "Examples of positive contributions include:");

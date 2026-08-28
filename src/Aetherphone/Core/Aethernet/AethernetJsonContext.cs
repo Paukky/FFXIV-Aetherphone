@@ -255,8 +255,6 @@ namespace Aetherphone.Core.Aethernet;
 [JsonSerializable(typeof(CasinoDailySpinDto))]
 [JsonSerializable(typeof(ConfessionDto))]
 [JsonSerializable(typeof(ResponseDto))]
-[JsonSerializable(typeof(ConfessionFeeds))]
-[JsonSerializable(typeof(KindKupoInboxDto))]
 [JsonSerializable(typeof(CreateConfessionRequest))]
 [JsonSerializable(typeof(CreateResponseRequest))]
 [JsonSerializable(typeof(ConfessionPage))]

@@ -13,27 +13,11 @@ internal sealed class KupoClient
 
 
 
-    public Task<ConfessionDto?> CreateConfessionAsync(string text, int expiryDays, CancellationToken token,
+    public Task<ConfessionDto?> CreateConfessionAsync(string text, DateTime? expiresAt, CancellationToken token,
         Action<int>? statusSink = null)
     {
-        var now = DateTime.UtcNow;
-        DateTime? expiresAt;
-        switch (expiryDays)
-        {
-            case 1:
-                expiresAt = now.AddDays(1);
-                break;
-            case 2:
-                expiresAt = now.AddDays(3);
-                break;
-            case 3:
-                expiresAt = now.AddDays(7);
-                break;
-            default:
-                expiresAt = null;
-                break;
-        }
-        return net.PostAsync("/kupo/confessions", new CreateConfessionRequest(text, expiresAt), AethernetJsonContext.Default.CreateConfessionRequest,
+        return net.PostAsync("/kupo/confessions", new CreateConfessionRequest(text, expiresAt),
+            AethernetJsonContext.Default.CreateConfessionRequest,
             AethernetJsonContext.Default.ConfessionDto, token, statusSink);
     }
 
@@ -61,7 +45,7 @@ internal sealed class KupoClient
 
     public Task<ConfessionPage?> MyConfessionsAsync(string userId, string? cursor, CancellationToken token)
     {
-        var path = $"/kupo/{userId}/confessions";
+        var path = $"/kupo/users/{Uri.EscapeDataString(userId)}/confessions";
 
         if (cursor is not null)
         {
@@ -103,19 +87,6 @@ internal sealed class KupoClient
     }
 
 
-
-    public Task<KindKupoInboxDto?> InboxAsync(string userId, CancellationToken token)
-    {
-        var path = $"/kupo/users/{Uri.EscapeDataString(userId)}/confessions";
-
-        return net.GetAsync(path, AethernetJsonContext.Default.KindKupoInboxDto, token);
-    }
-
-    public Task<KindKupoInboxDto?> UserInboxAsync(string userId, CancellationToken token)
-    {
-        return net.GetAsync($"/kupo/users/{Uri.EscapeDataString(userId)}/inbox",
-            AethernetJsonContext.Default.KindKupoInboxDto, token);
-    }
 
 
 

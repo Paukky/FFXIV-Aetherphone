@@ -4,7 +4,6 @@ using Aetherphone.Core.Aethernet.Contracts;
 using Aetherphone.Core.Animation;
 using Aetherphone.Core.Apps;
 using Aetherphone.Core.Conduct;
-using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Home;
 using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
@@ -38,13 +37,12 @@ internal sealed partial class KindKupoApp : IPhoneApp
     private readonly ConductGateService conduct;
     private readonly SocialNotificationService social;
     private readonly ReportService report;
-    RichTextLayout? bodyLayout = null;
     private PhoneTheme theme = PhoneTheme.Default;
     private string draft = string.Empty;
     private INavigator navigation = null!;
     private readonly Action back;
-    public KindKupoApp(AethernetSession session, AethernetApi net, ConfirmService confirm,
-        ReportService report, ConductGateService conduct, SocialNotificationService social)
+    public KindKupoApp(AethernetSession session, AethernetApi net, ReportService report,
+        ConductGateService conduct, SocialNotificationService social)
     {
         this.session = session;
         this.net = net;
@@ -106,23 +104,29 @@ internal sealed partial class KindKupoApp : IPhoneApp
                 DrawWriteScreen(area);
                 break;
             case KindKupoScreen.Inbox:
-                DrawInbox(area, session.CurrentUser?.Id ?? string.Empty);
+                DrawInbox(area);
                 break;
             case KindKupoScreen.Respond:
                 DrawResponseFeed(area);
                 break;
             case KindKupoScreen.ResponseList:
-                if (route.Confession is not null)
+            {
+                var confession = ResolveConfession(route);
+                if (confession is not null)
                 {
-                    DrawResponseListScreen(area, route.Confession);
+                    DrawResponseListScreen(area, confession);
                 }
                 break;
+            }
             case KindKupoScreen.ComposeResponse:
-                if (route.Confession is not null)
+            {
+                var confession = ResolveConfession(route);
+                if (confession is not null)
                 {
-                    DrawComposeResponse(area, route.Confession);
+                    DrawComposeResponse(area, confession);
                 }
                 break;
+            }
             default:
                 DrawHome(area);
                 break;
@@ -130,7 +134,10 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
     }
 
-    private void DrawConfessionCard(ConfessionDto confession)
+    private ConfessionDto? ResolveConfession(KindKupoRoute route) =>
+        route.ConfessionId is null ? null : store.FindConfession(route.ConfessionId);
+
+    private void DrawConfessionCard(ConfessionDto confession, KindKupoScreen screen)
     {
         var scale = UiScale.Current;
         var drawList = ImGui.GetWindowDrawList();
@@ -147,7 +154,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
         var textHeight = confession.Text.Length == 0
             ? 0f
-            : (bodyLayout?.Size.Y ?? Typography.MeasureWrapped(confession.Text, contentWidth, 1.05f));
+            : Typography.MeasureWrapped(confession.Text, contentWidth, 1.05f);
 
         var textToFooterGap = 10f * scale;
         var footerHeight = 24f * scale;
@@ -158,7 +165,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
         ui.Card(drawList, origin, new Vector2(origin.X + width, cardBottom), rounding);
 
-        if (confession.Text.Length > 0 && bodyLayout is null)
+        if (confession.Text.Length > 0)
         {
             ImGui.SetCursorScreenPos(new Vector2(contentLeft, textTop));
             using (Typography.WrapAt(contentRight))
@@ -169,13 +176,14 @@ internal sealed partial class KindKupoApp : IPhoneApp
             }
         }
 
-        DrawCardFooter(confession, contentLeft, contentWidth, footerCenterY);
+        DrawCardFooter(confession, screen, contentLeft, contentWidth, footerCenterY);
 
         ImGui.SetCursorScreenPos(origin);
         ImGui.Dummy(new Vector2(width, cardHeight + cardGap));
     }
 
-    private void DrawCardFooter(ConfessionDto confession, float left, float width, float centerY)
+    private void DrawCardFooter(ConfessionDto confession, KindKupoScreen screen, float left, float width,
+        float centerY)
     {
         var scale = UiScale.Current;
         var drawList = ImGui.GetWindowDrawList();
@@ -189,7 +197,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
         var iconSize = 16f * scale;
         var transparent = Vector4.Zero;
 
-        switch (router.Current.Screen)
+        switch (screen)
         {
             case KindKupoScreen.Respond:
             {
@@ -197,7 +205,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
                 if (ui.IconButton(respondPos, iconSize, FontAwesomeIcon.Pen.ToIconString(),
                         AppPalettes.KindKupo.MutedInk, transparent, 1f, Loc.T(L.KindKupo.Respond)))
                 {
-                    router.Push(KindKupoRoute.ComposeResponse(confession));
+                    router.Push(KindKupoRoute.ComposeResponse(confession.Id));
                 }
 
                 var reportPos = new Vector2(respondPos.X - 24f * scale, centerY);
@@ -215,7 +223,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
                 if (ui.IconButton(repliesPos, iconSize, FontAwesomeIcon.CommentDots.ToIconString(),
                         AppPalettes.KindKupo.MutedInk, transparent, 1f, Loc.T(L.KindKupo.ViewReplies, confession.Responses.Count)))
                 {
-                    router.Push(KindKupoRoute.ViewResponse(confession));
+                    router.Push(KindKupoRoute.ViewResponse(confession.Id));
                 }
                 break;
             }
@@ -239,7 +247,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
 
         var textHeight = response.Text.Length == 0
             ? 0f
-            : (bodyLayout?.Size.Y ?? Typography.MeasureWrapped(response.Text, contentWidth, 1.05f));
+            : Typography.MeasureWrapped(response.Text, contentWidth, 1.05f);
         var textToFooterGap = 10f * scale;
         var footerHeight = 24f * scale;
         var footerCenterY = textTop + textHeight + textToFooterGap + footerHeight * 0.5f;
@@ -248,7 +256,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
         var cardBottom = origin.Y + cardHeight;
         ui.Card(drawList, origin, new Vector2(origin.X + width, cardBottom), rounding);
 
-        if (response.Text.Length > 0 && bodyLayout is null)
+        if (response.Text.Length > 0)
         {
             ImGui.SetCursorScreenPos(new Vector2(contentLeft, textTop));
             using (Typography.WrapAt(contentRight))
@@ -354,6 +362,7 @@ internal sealed partial class KindKupoApp : IPhoneApp
         UiAnchors.Report("kindkupo.respond", respondRect);
         if (ui.PillButton(respondRect, Loc.T(L.KindKupo.Respond), filled: false))
         {
+            store.Refresh();
             router.Push(KindKupoRoute.Respond);
         }
     }
