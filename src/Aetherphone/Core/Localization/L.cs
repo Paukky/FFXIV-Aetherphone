@@ -415,6 +415,13 @@ internal static class L
         public static readonly LocString Symbol = new("shortcuts.symbol", "Symbol");
         public static readonly LocString PluginIcon = new("shortcuts.pluginIcon", "Plugin icon");
         public static readonly LocString PluginIconNone = new("shortcuts.pluginIconNone", "None");
+        public static readonly LocString CustomIcon = new("shortcuts.customIcon", "Custom image");
+        public static readonly LocString CustomIconTitle = new("shortcuts.customIconTitle", "Choose Image");
+        public static readonly LocString CustomIconMoveAndScale = new("shortcuts.customIconMoveAndScale", "Move and Scale");
+        public static readonly LocString CustomIconUse = new("shortcuts.customIconUse", "Use");
+        public static readonly LocString CustomIconSaving = new("shortcuts.customIconSaving", "Saving…");
+        public static readonly LocString CustomIconGestureHint = new("shortcuts.customIconGestureHint", "Drag to move · scroll to zoom");
+        public static readonly LocString CustomIconFailed = new("shortcuts.customIconFailed", "That image could not be used. Try a different one.");
         public static readonly LocString LimitReached = new("shortcuts.limitReached", "You can keep up to {0} shortcuts.");
         public static readonly LocString StepLimitReached = new("shortcuts.stepLimitReached", "A shortcut can hold up to {0} steps.");
         public static readonly LocString Ok = new("shortcuts.ok", "OK");
@@ -1675,33 +1682,103 @@ internal static class L
         public static readonly LocString[] Release1013 =
         {
             new("changelog.r1013.0",
-                "Redesigned Chirper around a new look: Home, Explore, Alerts and Profile tabs, edge to edge post cells with the same layout everywhere, threads with a reply line under each post, a new compose pill, and post actions in a bottom sheet"),
+                "Redesigned Chirper around Home, Explore, Activity and Profile tabs, with edge to edge posts, threaded replies and a new compose pill"),
             new("changelog.r1013.1",
-                "Added profile pictures next to every post, reply and quote in Chirper, and a banner behind a framed avatar on profiles that opens full size when tapped"),
+                "Chirper now shows profile pictures on posts, a banner on profiles, and which reaction each person left in the likers list"),
             new("changelog.r1013.2",
-                "Added sounds across the phone for taps, typing, app transitions, toggles, waking it, taking a photo, sending a message, connecting and ending a call and payouts, on by default on a new phone and off if you already had one, switchable in Settings > Sounds"),
+                "Chirper tabs now refresh when you come back to them, and name effects play everywhere in the app"),
             new("changelog.r1013.3",
-                "Added sound effects to the mini-games in Games, with their own volume under Game Sounds in Settings > Sounds"),
+                "Added search to the home screen: pull down on the app grid to find apps, settings, messages, notes and shortcuts, or do quick math"),
             new("changelog.r1013.4",
-                "Added a Silent Mode switch to the main Settings page, so muting the ringtone, notifications and interface sounds is one tap away"),
+                "Apps now come back where you left them, keeping their tab, draft, screen and scroll"),
             new("changelog.r1013.5",
-                "Added keyboard controls to Beat: the four lanes bind to 1 to 4 with A, S, D and F as alternates, and each key is printed on a cap under its lane"),
+                "Apps now draw placeholder rows while their first page loads, instead of a spinner"),
             new("changelog.r1013.6",
-                "Added search to the home screen: pull down on the app grid or tap the Search pill to find apps, settings, messages, notes, shortcuts and more in one place, run a shortcut or flip a setting on the spot, and do quick math right in the search field"),
+                "Added MogCast, Music, News and Hunts to the Chinese game version"),
+            new("changelog.r1013.46",
+                "The Simplified Chinese translation has been polished across the phone, from app names to Eorzean units and the moderation wording, contributed by Nero0421"),
             new("changelog.r1013.7",
-                "Added MogCast, Music, News and Hunts to the Chinese game version, so that client gets the same apps as everyone else"),
+                "Mods has been taken out of the phone, browsing and installing Heliosphere mods happens in the Heliosphere plugin"),
             new("changelog.r1013.8",
-                "Added a Trademark document and updated the official Aetherphone documents, including the readme, terms, privacy notice and third-party notices, all readable in the GitHub repository"),
+                "Beat can now be played with the keyboard, on 1 to 4 or A, S, D and F"),
             new("changelog.r1013.9",
-                "Moved Show in Group Pose off the main Settings page into General settings"),
+                "Added a Trademark document and refreshed the official Aetherphone documents in the GitHub repository"),
             new("changelog.r1013.10",
-                "Improved rendering performance: every screen paints into one transform stage, shared toolkit pieces replace hand rolled copies, and text is rasterised once per orientation instead of once per frame"),
+                "Chat pop-outs now hold several conversations as tabs, merge when you drag one window onto another, and fold down to their title bar"),
             new("changelog.r1013.11",
-                "Improved CPU and memory use while the phone is open: app icons, gradient artwork, call state and font checks are cached instead of being rebuilt every frame, and artwork is shared between apps instead of kept twice"),
+                "Chat pop-outs can now hide in combat and in duties, fade while you are away, and come back when you are free"),
             new("changelog.r1013.12",
-                "Improved performance in text heavy screens: wrapped text, formatted clocks and numbers and icon labels are measured once and reused instead of being rebuilt every frame, so long chats and feeds scroll more smoothly"),
+                "A hotkey now opens your recent chats as pop-outs, and right clicking a player in the game starts one"),
             new("changelog.r1013.13",
-                "Improved the animation when the phone turns into landscape mode: the whole device rotates over a short ramp with the screen fading across the halfway point, instead of stretching through a square shape"),
+                "The game chat composer now takes several lines, splits a message too long for the game into paced parts, keeps a draft per conversation and runs slash commands"),
+            new("changelog.r1013.14",
+                "Emoji shortcodes now draw as emoji in game chat, with a picker and favourites in the composer. Other players still receive the shortcode"),
+            new("changelog.r1013.15",
+                "Every game chat channel can now carry its own colors, stay out of your unread count, hide your own lines, or show only on the phone"),
+            new("changelog.r1013.16",
+                "The player menu on a chat line now also offers a friend request, the adventurer plate, targeting and the blacklist"),
+            new("changelog.r1013.17",
+                "Chat settings now open as a list of screens instead of one long scroll"),
+            new("changelog.r1013.18",
+                "The game's boxed numbers, arrows and quality marks now draw in Linkpearl instead of being stripped out"),
+            new("changelog.r1013.19",
+                "Fixed a link clicked in a chat pop-out asking on the phone screen instead of in that window"),
+            new("changelog.r1013.20",
+                "You can now unlock a new PC from one that already opens your chats, with your key and full history following"),
+            new("changelog.r1013.21",
+                "Messages you have already read are now kept on this PC, sealed the same way your key is"),
+            new("changelog.r1013.22",
+                "Saving your recovery code is now two steps, with a notification while a code is waiting to be saved"),
+            new("changelog.r1013.23",
+                "Added an encryption help panel that explains what each message state means and what to do about it"),
+            new("changelog.r1013.24",
+                "Fixed the phone losing or replacing your encryption key, the cause behind conversations turning unreadable"),
+            new("changelog.r1013.25",
+                "A chat this device cannot decrypt no longer sends in the clear"),
+            new("changelog.r1013.26",
+                "A fresh phone now starts with a curated Control Center"),
+            new("changelog.r1013.27",
+                "A fresh install now opens the phone minimized at login"),
+            new("changelog.r1013.28",
+                "The minimized phone is now yours to arrange: pick which pieces it shows and in what order, with widgets for Eorzea time, weather, resets, gil and ventures"),
+            new("changelog.r1013.29",
+                "A running Clock timer now shows in the Dynamic Island"),
+            new("changelog.r1013.47",
+                "A shortcut can now use a picture from your PC as its icon, moved and scaled to fit the tile, contributed by Deldee"),
+            new("changelog.r1013.30",
+                "Added sounds across the phone and the mini-games, with Silent Mode on the main Settings page and volumes under Settings > Sounds"),
+            new("changelog.r1013.31",
+                "Moved Show in Group Pose into General settings"),
+            new("changelog.r1013.32",
+                "Row and post menus and destructive confirmations now open as bottom sheets"),
+            new("changelog.r1013.33",
+                "Lists and feeds now run edge to edge with hairline separators and one shared row layout"),
+            new("changelog.r1013.45",
+                "Linkpearl's icons are larger and its chat lists now run bezel to bezel, in step with the rest of the phone"),
+            new("changelog.r1013.34",
+                "Buttons now shrink while held and fire when you release, and toasts always appear on the phone"),
+            new("changelog.r1013.35",
+                "Improved the animation when the phone turns into landscape"),
+            new("changelog.r1013.36",
+                "External links in Music now ask before they open your browser"),
+            new("changelog.r1013.37",
+                "Improved rendering, memory use and text heavy screens across the phone, so long chats and feeds scroll more smoothly"),
+            new("changelog.r1013.38",
+                "Fixed a fresh install holding on the boot screen, and text resizing the first time an app drew a new icon"),
+            new("changelog.r1013.39",
+                "Fixed the clock, status icons and home bar drawing almost white on light app backgrounds"),
+            new("changelog.r1013.40",
+                "Fixed the other side's chat bubbles being nearly invisible in light mode"),
+            new("changelog.r1013.41",
+                "Fixed the glossy highlight on panels ending in a hard line short of their rounded corners"),
+            new("changelog.r1013.42",
+                "Gil figures and viewer counts now follow your language's number formatting"),
+            new("changelog.r1013.43",
+                "Chats sealed to a key you no longer have now come back on their own, handed over by the people you were talking to"),
+            new("changelog.r1013.44",
+                "Fixed the older key notice staying up in a chat after those messages had already come back"),
+            new("changelog.r1013.48",
+                "Fixed the compose button covering the scrollbar beside it in Aethergram, Chirper, Velvet, Photos, Muster and Message, so that bar can be dragged again, contributed by Farroness"),
         };
 
         public static readonly LocString[] Release1012 =
@@ -3052,8 +3129,8 @@ internal static class L
         public static readonly LocString LocalStoreUnavailable = new("encryption.localStoreUnavailable", "This PC can't use the system's secure key store, so your encryption key is saved with basic protection instead. Your chats keep working normally on this device.");
         public static readonly LocString LockedBody = new("encryption.lockedBody", "This device doesn't have the encryption key for this account, so messages here can't be read yet. This usually happens after switching to a different computer. Your messages are safe: open Aetherphone on the computer that already has your key, or create a new key here. If you create a new key, older messages become readable again once your chat partners come online.");
         public static readonly LocString NewKeyButton = new("encryption.newKeyButton", "Create a new key on this device…");
-        public static readonly LocString LockedNoRecoveryBody = new("encryption.lockedNoRecoveryBody", "This device doesn't hold an encryption key for this account, and no recovery code was set up, so the old key can't be restored here. You can create a new key to keep chatting, but messages encrypted with the old key will remain unreadable.");
-        public static readonly LocString ForgotNoRecoveryBody = new("encryption.forgotNoRecoveryBody", "A new key will be created. The key it replaces stays on this PC, so older messages keep opening here, but without a recovery code they cannot be opened anywhere else.");
+        public static readonly LocString LockedNoRecoveryBody = new("encryption.lockedNoRecoveryBody", "This device doesn't hold an encryption key for this account, and no recovery code was set up, so the old key can't be restored here. Create a new key anyway: everyone you talk to still holds the key to the chats you share, and their phone hands it to your new key the next time they open Aetherphone. Only a chat where everyone lost their key stays closed.");
+        public static readonly LocString ForgotNoRecoveryBody = new("encryption.forgotNoRecoveryBody", "A new key will be created. The key it replaces stays on this PC, so older messages keep opening here, and the people you chat with hand the key to your shared chats back to the new one when they next open Aetherphone. Save a recovery code afterwards so this PC is never the only way in.");
         public static readonly LocString LockedRecoverBody = new("encryption.lockedRecoverBody", "This device doesn't have your encryption key yet. Enter the recovery code you saved to restore your chats here, with your full history.");
         public static readonly LocString LockedBanner = new("encryption.lockedBanner", "Chats are locked on this device. Tap to unlock.");
         public static readonly LocString RecoveryNudgeBanner = new("encryption.recoveryNudgeBanner", "Protect your chat history: set up a recovery code");
@@ -3069,17 +3146,19 @@ internal static class L
         public static readonly LocString RecoveryCodeLabel = new("encryption.recoveryCodeLabel", "Recovery code");
         public static readonly LocString RecoveryUnlockButton = new("encryption.recoveryUnlockButton", "Unlock my chats");
         public static readonly LocString RecoveryWrongCode = new("encryption.recoveryWrongCode", "That code didn't work. Check it and try again.");
+        public static readonly LocString RecoveryOlderCode = new("encryption.recoveryOlderCode", "That code is from before your key changed, so it can't unlock current chats, but the older chats it protects were unlocked on this PC. To unlock everything, use your newest code, your other PC, or create a new key.");
         public static readonly LocString RecoveryKeyChanged = new("encryption.recoveryKeyChanged", "Your encryption key changed on another device, so this device can't create a recovery code right now. Wait a moment for this device to update, then try again.");
         public static readonly LocString RestoreOlderTitle = new("encryption.restoreOlderTitle", "Older chats");
-        public static readonly LocString RestoreOlderBody = new("encryption.restoreOlderBody", "Keys replaced on this PC are tried automatically. Messages sealed to a key that was never here can be unlocked with the recovery code you had at the time.");
+        public static readonly LocString RestoreOlderBody = new("encryption.restoreOlderBody", "Keys replaced on this PC are tried automatically, and the people you chat with hand their copy of the conversation key back to your new key the next time they open Aetherphone. Messages sealed to a key that was never here can also be unlocked with the recovery code you had at the time.");
         public static readonly LocString OlderKeysHeldHere = new("encryption.olderKeysHeldHere", "Older keys kept on this PC: {0}");
         public static readonly LocString RestoreOlderButton = new("encryption.restoreOlderButton", "Restore older chats…");
         public static readonly LocString RestoreOlderConfirm = new("encryption.restoreOlderConfirm", "Unlock older chats");
         public static readonly LocString RestoreOlderDone = new("encryption.restoreOlderDone", "Keys restored: {0}. Older messages are now readable on this device.");
         public static readonly LocString RestoreOlderNoMatch = new("encryption.restoreOlderNoMatch", "That code didn't match any older keys.");
-        public static readonly LocString ForgotBody = new("encryption.forgotBody", "A new key will be created. The key it replaces stays on this PC, so older messages keep opening here. Keep your current recovery code: it is what opens them on another PC.");
-        public static readonly LocString LockedNoRecoveryBanner = new("encryption.lockedNoRecoveryBanner", "Your old chats can't be opened on this PC. Tap to see what happened.");
-        public static readonly LocString UnreadableKeyBody = new("encryption.unreadableKeyBody", "Windows could not open the encryption key saved on this PC. This usually means the game is running as a different Windows user, or Windows was reinstalled. Your key is still here and untouched: start the game the way you normally do and it should unlock. Creating a new key would leave your old messages unreadable.");
+        public static readonly LocString RestoreOlderRetry = new("encryption.restoreOlderRetry", "Your chats are unlocked, but checking for older keys failed. Open Older chats and enter the same code to try again.");
+        public static readonly LocString ForgotBody = new("encryption.forgotBody", "A new key will be created. The key it replaces stays on this PC, so older messages keep opening here, and the people you chat with hand the key to your shared chats back to the new one when they next open Aetherphone. Keep your current recovery code: it is what opens your older messages on another PC.");
+        public static readonly LocString LockedNoRecoveryBanner = new("encryption.lockedNoRecoveryBanner", "Your old chats can't be opened on this PC yet. Tap to fix it.");
+        public static readonly LocString UnreadableKeyBody = new("encryption.unreadableKeyBody", "Windows could not open the encryption key saved on this PC. This usually means the game is running as a different Windows user, or Windows was reinstalled. Your key is still here and untouched: start the game the way you normally do and it should unlock. Try that before creating a new key, since nothing has actually been lost.");
         public static readonly LocString SaveCodeBanner = new("encryption.saveCodeBanner", "Save your recovery code so you never lose these chats");
         public static readonly LocString SaveCodeIntro = new("encryption.saveCodeIntro", "Encryption is set up on this device and your chats are protected. Save this code now: it is the only way to open your chats on another PC, or if this one is reset.");
         public static readonly LocString ForgotConfirm = new("encryption.forgotConfirm", "Reset key");
@@ -3092,7 +3171,7 @@ internal static class L
         public static readonly LocString DecryptingPlaceholder = new("encryption.decryptingPlaceholder", "Decrypting…");
         public static readonly LocString LockedPlaceholder = new("encryption.lockedPlaceholder", "Locked on this device");
         public static readonly LocString OlderKeyPlaceholder = new("encryption.olderKeyPlaceholder", "Sent to an earlier key");
-        public static readonly LocString OlderKeyBanner = new("encryption.olderKeyBanner", "Some messages here were sent to an earlier key. Tap to restore them.");
+        public static readonly LocString OlderKeyBanner = new("encryption.olderKeyBanner", "Some messages here were sent to an earlier key. They unlock when the other person next opens Aetherphone. Tap for details.");
         public static readonly LocString LinkButton = new("encryption.linkButton", "Unlock from my other PC");
         public static readonly LocString LinkBody = new("encryption.linkBody", "If Aetherphone still works on your other computer, it can unlock this one for you. No code to type, and your full history comes with it.");
         public static readonly LocString LinkWaitingTitle = new("encryption.linkWaitingTitle", "Waiting for your other PC");
@@ -3118,22 +3197,23 @@ internal static class L
         public static readonly LocString HelpDecryptingTitle = new("encryption.helpDecryptingTitle", "It says Decrypting");
         public static readonly LocString HelpDecryptingBody = new("encryption.helpDecryptingBody", "Nothing is wrong. The keys for that chat are still loading and the messages appear within a few seconds. If it stays like this, reopen the phone.");
         public static readonly LocString HelpLockedTitle = new("encryption.helpLockedTitle", "It says Locked on this device");
-        public static readonly LocString HelpLockedBody = new("encryption.helpLockedBody", "This PC does not hold your key. If your other computer still works, use Unlock from my other PC above and approve it there. Otherwise enter your recovery code. Do not create a new key first: that is what makes old messages unreadable for good.");
+        public static readonly LocString HelpLockedBody = new("encryption.helpLockedBody", "This PC does not hold your key. If your other computer still works, use Unlock from my other PC above and approve it there: that is instant and brings everything. Otherwise enter your recovery code. If you have neither, create a new key: the people you chat with hand the key to your shared conversations back to it when they next open Aetherphone, and those chats open again.");
         public static readonly LocString HelpOlderKeyTitle = new("encryption.helpOlderKeyTitle", "It says Sent to an earlier key");
-        public static readonly LocString HelpOlderKeyBody = new("encryption.helpOlderKeyBody", "Those messages were written before your key changed. Keys replaced on this PC are tried automatically, so this usually clears on its own within a few seconds. If it stays, that key was never on this PC: open Older chats below and enter the recovery code you had at the time. Each code only opens the key it was made for, so try the older ones too.");
+        public static readonly LocString HelpOlderKeyBody = new("encryption.helpOlderKeyBody", "Those messages were written before your key changed. Keys replaced on this PC are tried automatically, and everyone you chat with still holds the conversation key: their phone hands it back to your new key the next time they open Aetherphone, so most of these clear on their own with nothing for you to do. A chat that stays locked means that person has not been online since your key changed, or lost their own key too. The recovery code you had at the time still opens it: see Older chats below.");
         public static readonly LocString HelpUnreadableTitle = new("encryption.helpUnreadableTitle", "Windows will not open the key");
         public static readonly LocString HelpUnreadableBody = new("encryption.helpUnreadableBody", "The key is still saved here, Windows just refuses to open it. This happens when the game runs as a different Windows user, as administrator when it usually is not, or after Windows was reinstalled. Start the game the way you normally do and it should unlock itself.");
         public static readonly LocString HelpDamagedTitle = new("encryption.helpDamagedTitle", "It says This message is damaged");
         public static readonly LocString HelpDamagedBody = new("encryption.helpDamagedBody", "That single message did not arrive intact. It cannot be repaired, but it does not affect the rest of the chat or your key.");
         public static readonly LocString HelpEyebrow = new("encryption.helpEyebrow", "Encrypted chats");
-        public static readonly LocString HelpNeverTitle = new("encryption.helpNeverTitle", "Never do this first");
-        public static readonly LocString HelpNeverBody = new("encryption.helpNeverBody", "Creating a new key is still the last resort. This PC keeps the key it replaces, so older messages usually keep opening here, but on any other PC they need the recovery code from before. Try unlocking from another PC or with a code first.");
+        public static readonly LocString HelpNeverTitle = new("encryption.helpNeverTitle", "What to try, in order");
+        public static readonly LocString HelpNeverBody = new("encryption.helpNeverBody", "Unlocking from another PC is the best route: it is instant and brings everything back. A recovery code is next. A new key comes last, but it is no longer a dead end: this PC keeps the key it replaces, and everyone you chat with hands back the key to each conversation you share once they open Aetherphone again. The one thing a new key cannot bring back is a chat where every other person lost their key too.");
         public static readonly LocString HelpPreventTitle = new("encryption.helpPreventTitle", "So this never happens again");
-        public static readonly LocString HelpPreventBody = new("encryption.helpPreventBody", "Keep a recovery code saved, and keep every code you have ever generated: each one opens only the key it was made for. This PC also holds on to the keys it replaces, so a reset here does not cost you your history, and messages you have already read stay readable even if the key is lost.");
+        public static readonly LocString HelpPreventBody = new("encryption.helpPreventBody", "Keep a recovery code saved, and keep every code you have ever generated: each one opens only the key it was made for. This PC also holds on to the keys it replaces, the people you chat with hand their copy of a shared conversation key back to whatever key you have now, and messages you have already read stay readable even if the key is lost. A code is still worth keeping: it is what works when nobody else is around to hand a key back.");
         public static readonly LocString DamagedPlaceholder = new("encryption.damagedPlaceholder", "This message is damaged");
         public static readonly LocString SafetyChanged = new("encryption.safetyChanged", "{0}'s security key changed.");
         public static readonly LocString EncryptedIndicator = new("encryption.encryptedIndicator", "End-to-end encrypted");
         public static readonly LocString PlaintextIndicator = new("encryption.plaintextIndicator", "Not encrypted");
+        public static readonly LocString ComposerBlocked = new("encryption.composerBlocked", "This chat is encrypted and this device can't open its key. Tap to fix.");
         public static readonly LocString ReportDisclosure = new("encryption.reportDisclosure", "This message and up to 5 previous messages, including photos and voice notes, will be shared with the moderators, decrypted.");
         public static readonly LocString ReportMessageAction = new("encryption.reportMessageAction", "Report message");
         public static readonly LocString CopyTextAction = new("encryption.copyTextAction", "Copy text");
@@ -3359,6 +3439,24 @@ internal static class L
         public static readonly LocString ChannelReadOnly = new("linkpearl.channelReadOnly", "You can't send here");
         public static readonly LocString NotDelivered = new("linkpearl.notDelivered", "Not delivered");
         public static readonly LocString Retry = new("linkpearl.retry", "Retry");
+        public static readonly LocString ComposerSection = new("linkpearl.composerSection", "Composer");
+        public static readonly LocString ComposerMultiline = new("linkpearl.composerMultiline", "Multiline input");
+        public static readonly LocString ComposerMultilineHint = new("linkpearl.composerMultilineHint", "Enter sends the line. Hold Shift and press Enter to start a new one.");
+        public static readonly LocString ComposerMaxLines = new("linkpearl.composerMaxLines", "Lines before scrolling");
+        public static readonly LocString ComposerDoubleEnter = new("linkpearl.composerDoubleEnter", "Press Enter twice to send");
+        public static readonly LocString ComposerDoubleEnterHint = new("linkpearl.composerDoubleEnterHint", "One press does nothing, so a stray Enter never sends a half written line.");
+        public static readonly LocString ComposerHint = new("linkpearl.composerHint", "A line that starts with a slash runs as a game command instead of going out as chat.");
+        public static readonly LocString SplitSection = new("linkpearl.splitSection", "Long messages");
+        public static readonly LocString SplitLongMessages = new("linkpearl.splitLongMessages", "Split long messages");
+        public static readonly LocString SplitIndicator = new("linkpearl.splitIndicator", "Continuation mark");
+        public static readonly LocString SplitInterval = new("linkpearl.splitInterval", "Pause between parts");
+        public static readonly LocString SplitIntervalValue = new("linkpearl.splitIntervalValue", "{0}s");
+        public static readonly LocString SplitHint = new("linkpearl.splitHint", "Anything over the channel limit goes out as several lines, split between words.");
+        public static readonly LocString DraftAutosave = new("linkpearl.draftAutosave", "Keep unsent drafts");
+        public static readonly LocString DraftHint = new("linkpearl.draftHint", "An unsent line waits for you the next time you open that chat, in the app and in a pop-out alike.");
+        public static readonly LocString RecentSent = new("linkpearl.recentSent", "Sent messages");
+        public static readonly LocString RecentSentEmpty = new("linkpearl.recentSentEmpty", "The last messages you send are kept here, so you can copy one back if it never arrived.");
+        public static readonly LocString RecentSentClear = new("linkpearl.recentSentClear", "Clear sent messages");
         public static readonly LocString EmptyTitle = new("linkpearl.emptyTitle", "No chats yet");
         public static readonly LocString EmptyHint = new("linkpearl.emptyHint", "Make a tab from the channels you actually read. You can change it any time.");
         public static readonly LocString MarkRead = new("linkpearl.markRead", "Mark as read");
@@ -3371,6 +3469,24 @@ internal static class L
         public static readonly LocString TabName = new("linkpearl.tabName", "Name");
         public static readonly LocString TabTint = new("linkpearl.tabTint", "Color");
         public static readonly LocString TabSettings = new("linkpearl.tabSettings", "Tab settings");
+        public static readonly LocString ChannelStyleSection = new("linkpearl.channelStyleSection", "Channel colors and rules");
+        public static readonly LocString ChannelStyleHint = new("linkpearl.channelStyleHint", "Give a game channel its own colors, or its own rules. Channels you never touch keep the theme.");
+        public static readonly LocString ChannelCustom = new("linkpearl.channelCustom", "Custom");
+        public static readonly LocString InkIncomingName = new("linkpearl.inkIncomingName", "Sender name");
+        public static readonly LocString InkIncomingBody = new("linkpearl.inkIncomingBody", "Message text");
+        public static readonly LocString InkOutgoingName = new("linkpearl.inkOutgoingName", "Your name");
+        public static readonly LocString InkOutgoingBody = new("linkpearl.inkOutgoingBody", "Your text");
+        public static readonly LocString InkHint = new("linkpearl.inkHint", "The first swatch keeps the theme color, the last one opens a hex field.");
+        public static readonly LocString CustomColor = new("linkpearl.customColor", "Custom color");
+        public static readonly LocString NeverUnread = new("linkpearl.neverUnread", "Never count as unread");
+        public static readonly LocString NeverUnreadHint = new("linkpearl.neverUnreadHint", "Lines from this channel never raise an unread count or an app badge.");
+        public static readonly LocString HideOwnLines = new("linkpearl.hideOwnLines", "Hide my own lines");
+        public static readonly LocString HideOwnLinesHint = new("linkpearl.hideOwnLinesHint", "Your messages are still captured and kept in history, they are just not drawn here.");
+        public static readonly LocString HideFromGameChat = new("linkpearl.hideFromGameChat", "Hide from the game chat log");
+        public static readonly LocString HideFromGameChatHint = new("linkpearl.hideFromGameChatHint", "Only lines the phone captured for this channel are hidden. System messages are never hidden.");
+        public static readonly LocString HideHandled = new("linkpearl.hideHandled", "Let channels hide game chat");
+        public static readonly LocString HideHandledHint = new("linkpearl.hideHandledHint", "Master switch. With it off, no channel touches the game's own chat log.");
+        public static readonly LocString ResetChannel = new("linkpearl.resetChannel", "Reset this channel");
         public static readonly LocString Channels = new("linkpearl.channels", "Channels");
         public static readonly LocString NoChannels = new("linkpearl.noChannels", "Pick at least one channel.");
         public static readonly LocString EmptySlot = new("linkpearl.emptySlot", "Empty slot");
@@ -3389,6 +3505,10 @@ internal static class L
         public static readonly LocString AlertsMentions = new("linkpearl.alertsMentions", "Mentions only");
         public static readonly LocString AlertsOff = new("linkpearl.alertsOff", "Off");
         public static readonly LocString StoredOnThisPc = new("linkpearl.storedOnThisPc", "History is kept on this PC only.");
+        public static readonly LocString SendFriendRequest = new("linkpearl.sendFriendRequest", "Send friend request");
+        public static readonly LocString AdventurerPlate = new("linkpearl.adventurerPlate", "Adventurer plate");
+        public static readonly LocString TargetPlayer = new("linkpearl.targetPlayer", "Target player");
+        public static readonly LocString AddToBlacklist = new("linkpearl.addToBlacklist", "Add to blacklist");
         public static readonly LocString SendTell = new("linkpearl.sendTell", "Send a tell");
         public static readonly LocString LookUp = new("linkpearl.lookUp", "Look up character");
         public static readonly LocString InviteToParty = new("linkpearl.inviteToParty", "Invite to party");
@@ -3405,6 +3525,11 @@ internal static class L
         public static readonly LocString ScopeEveryone = new("linkpearl.scopeEveryone", "Everyone");
         public static readonly LocString NoMatches = new("linkpearl.noMatches", "No one matches that name.");
         public static readonly LocString SearchHint = new("linkpearl.searchHint", "Search messages and people");
+        public static readonly LocString EmojiRecent = new("linkpearl.emojiRecent", "Recently used");
+        public static readonly LocString EmojiSection = new("linkpearl.emojiSection", "Emoji");
+        public static readonly LocString EmojiShortcodes = new("linkpearl.emojiShortcodes", "Draw shortcodes as emoji");
+        public static readonly LocString EmojiShortcodesHint = new("linkpearl.emojiShortcodesHint", "A code like :smile: is drawn as the picture on your screen. Everyone else still reads the code, because the game cannot carry emoji.");
+        public static readonly LocString EmojiPickerRow = new("linkpearl.emojiPickerRow", "Show the emoji button");
         public static readonly LocString NewMessages = new("linkpearl.newMessages", "New messages");
         public static readonly LocString ClearHistory = new("linkpearl.clearHistory", "Clear history");
         public static readonly LocString ClearHistoryConfirm = new("linkpearl.clearHistoryConfirm", "Clear the stored history for this conversation? This only affects your phone.");
@@ -3418,6 +3543,24 @@ internal static class L
         public static readonly LocString StartChat = new("linkpearl.startChat", "Start a chat");
         public static readonly LocString ChatSettings = new("linkpearl.chatSettings", "Chat settings");
         public static readonly LocString MarkAllRead = new("linkpearl.markAllRead", "Mark all as read");
+        public static readonly LocString BehaviorSection = new("linkpearl.behaviorSection", "Behavior");
+        public static readonly LocString PresenceSection = new("linkpearl.presenceSection", "Hide while busy");
+        public static readonly LocString HideInCombat = new("linkpearl.hideInCombat", "Hide in combat");
+        public static readonly LocString HideInDuty = new("linkpearl.hideInDuty", "Hide in duties");
+        public static readonly LocString FieldOperationsStayOpen = new("linkpearl.fieldOperationsStayOpen", "Field operations stay open");
+        public static readonly LocString FieldOperationsHint = new("linkpearl.fieldOperationsHint", "Eureka, Bozja and the Occult Crescent do not count as duties.");
+        public static readonly LocString ReopenAfterCombat = new("linkpearl.reopenAfterCombat", "Bring back afterwards");
+        public static readonly LocString ReopenAfterCombatHint = new("linkpearl.reopenAfterCombatHint", "A pop-out that missed a message returns the moment the fight ends.");
+        public static readonly LocString PresenceHint = new("linkpearl.presenceHint", "A hidden pop-out keeps its conversation, its place on screen and its unread count.");
+        public static readonly LocString OpenChatSection = new("linkpearl.openChatSection", "Open a chat");
+        public static readonly LocString HotkeyEnabled = new("linkpearl.hotkeyEnabled", "Use a hotkey");
+        public static readonly LocString HotkeyModifier = new("linkpearl.hotkeyModifier", "Modifier");
+        public static readonly LocString HotkeyKey = new("linkpearl.hotkeyKey", "Key");
+        public static readonly LocString HotkeyNoModifier = new("linkpearl.hotkeyNoModifier", "None");
+        public static readonly LocString HotkeyHint = new("linkpearl.hotkeyHint", "Press the chord to pop out your latest chat, press it again to walk down the recent list.");
+        public static readonly LocString PlayerContextMenu = new("linkpearl.playerContextMenu", "Add to the player menu");
+        public static readonly LocString PlayerContextMenuHint = new("linkpearl.playerContextMenuHint", "Right click a player in the game to start a chat with them.");
+        public static readonly LocString ContextMenuEntry = new("linkpearl.contextMenuEntry", "Open a Linkpearl chat");
         public static readonly LocString FilterAll = new("linkpearl.filterAll", "All");
         public static readonly LocString FilterTells = new("linkpearl.filterTells", "Tells");
         public static readonly LocString FilterTabs = new("linkpearl.filterTabs", "Tabs");
@@ -3452,6 +3595,22 @@ internal static class L
         public static readonly LocString HistoryDefault = new("linkpearl.historyDefault", "Keep history by default");
         public static readonly LocString ClearAllHistory = new("linkpearl.clearAllHistory", "Clear all history");
         public static readonly LocString ClearAllHistoryConfirm = new("linkpearl.clearAllHistoryConfirm", "Delete every stored conversation on this PC? Your tabs and settings stay.");
+        public static readonly LocString Collapse = new("linkpearl.collapse", "Collapse");
+        public static readonly LocString Expand = new("linkpearl.expand", "Expand");
+        public static readonly LocString CollapseAllPopouts = new("linkpearl.collapseAllPopouts", "Collapse all pop-outs ({0})");
+        public static readonly LocString ExpandAllPopouts = new("linkpearl.expandAllPopouts", "Expand all pop-outs ({0})");
+        public static readonly LocString PopoutTabs = new("linkpearl.popoutTabs", "Group chats as tabs");
+        public static readonly LocString PopoutTabsHint = new("linkpearl.popoutTabsHint", "Drag a pop-out onto another to merge them into one window.");
+        public static readonly LocString PopoutOutgoingTells = new("linkpearl.popoutOutgoingTells", "Pop up tells you send too");
+        public static readonly LocString PopoutCloseOnLogout = new("linkpearl.popoutCloseOnLogout", "Close pop-outs when you log out");
+        public static readonly LocString PopoutFlash = new("linkpearl.popoutFlash", "Flash the bar on a new message");
+        public static readonly LocString PopoutFade = new("linkpearl.popoutFade", "Fade while you are away from it");
+        public static readonly LocString PopoutIdleOpacity = new("linkpearl.popoutIdleOpacity", "Idle opacity");
+        public static readonly LocString WindowTabs = new("linkpearl.windowTabs", "Tabs in this window");
+        public static readonly LocString AddTab = new("linkpearl.addTab", "Add a conversation");
+        public static readonly LocString MoveTabOut = new("linkpearl.moveTabOut", "Move to its own window");
+        public static readonly LocString CloseTab = new("linkpearl.closeTab", "Close this tab");
+        public static readonly LocString PopoutTabLimit = new("linkpearl.popoutTabLimit", "A pop-out holds up to {0} conversations.");
     }
 
     internal static class Character
@@ -3614,7 +3773,6 @@ internal static class L
         public static readonly LocString ChangeBanner = new("chirper.changeBanner", "Change banner");
         public static readonly LocPlural Reposts = new("chirper.reposts", "{0} repost", "{0} reposts");
         public static readonly LocPlural RepliesCount = new("chirper.repliesCount", "{0} reply", "{0} replies");
-        public static readonly LocString ReplyingTo = new("chirper.replyingTo", "Replying to");
         public static readonly LocString Trending = new("chirper.trending", "Trending");
         public static readonly LocPlural ChirpsToday = new("chirper.chirpsToday", "{0} chirp today", "{0} chirps today");
         public static readonly LocString SearchHint = new("chirper.searchHint", "Search people or #tags");
@@ -4872,6 +5030,26 @@ internal static class L
         public static readonly LocString OnlineEightScratchLoss = new("games.onlineEightScratchLoss", "{0} wins, the eight fell on a foul");
     }
 
+    internal static class Minimized
+    {
+        public static readonly LocString Title = new("minimized.title", "Minimized phone");
+        public static readonly LocString Hint = new("minimized.hint", "Pick what the small phone shows and the order it stacks in. Now playing, calls and alerts only take up room while something is happening.");
+        public static readonly LocString Reset = new("minimized.reset", "Reset to default");
+        public static readonly LocString Clock = new("minimized.clock", "Clock");
+        public static readonly LocString Date = new("minimized.date", "Date");
+        public static readonly LocString NowPlaying = new("minimized.nowPlaying", "Now playing");
+        public static readonly LocString Calls = new("minimized.calls", "Calls");
+        public static readonly LocString Alerts = new("minimized.alerts", "Notification cards");
+        public static readonly LocString Badge = new("minimized.badge", "Unread badge");
+        public static readonly LocString EorzeaClock = new("minimized.eorzeaClock", "Eorzea time");
+        public static readonly LocString Weather = new("minimized.weather", "Weather");
+        public static readonly LocString Resets = new("minimized.resets", "Next reset");
+        public static readonly LocString Gil = new("minimized.gil", "Gil");
+        public static readonly LocString Coin = new("minimized.coin", "Aether Coin");
+        public static readonly LocString Ventures = new("minimized.ventures", "Ventures");
+        public static readonly LocString Rings = new("minimized.rings", "Activity rings");
+    }
+
     internal static class Time
     {
         public static readonly LocString Now = new("time.now", "now");
@@ -5176,6 +5354,9 @@ internal static class L
         public static readonly LocString SlotsScatterNote = new("casino.slots.scatterNote", "3, 4, or 5 discs anywhere pay {0}, {1}, or {2} and start {3}, {4}, or {5} free spins.");
         public static readonly LocString SlotsBonusNote = new("casino.slots.bonusNote", "Free spin wins pay double. More discs add {0} spins, up to {1} in one round.");
         public static readonly LocString SlotsCapRule = new("casino.slots.capRule", "One round never pays more than {0}x the stake.");
+        public static readonly LocString SlotsPaylinesNote = new("casino.slots.paylinesNote", "All {0} lines are always in play. A line pays when {1} or more matching symbols run along it from the leftmost reel with no gap, and it pays its best match once. Wins on different lines add up, and the machine traces each winning line in gold after the reels stop.");
+        public static readonly LocString SlotsJackpotName = new("casino.slots.jackpotName", "House jackpot");
+        public static readonly LocString SlotsJackpotNote = new("casino.slots.jackpotNote", "Every paid spin also draws for the floor-wide pot, and the reels do not need to match. Each chip you stake is one ticket, so at {0} a spin the pot hits about once in {1} spins. A hit pays the whole pot on top of your line wins.");
         public static readonly LocString CabinetNoChipsTitle = new("casino.cabinet.noChipsTitle", "You have no chips");
         public static readonly LocString CabinetNoChipsHint = new("casino.cabinet.noChipsHint", "Buy chips at the cashier and play them at any game on the floor.");
         public static readonly LocString SlotsLowStack = new("casino.slots.lowStack", "Not enough chips for that stake. Top up at the cashier.");
@@ -5474,10 +5655,10 @@ internal static class L
         public static readonly LocString ReasonBoundElsewhere = new("casino.reasonBoundElsewhere", "This seat is being played on another device. Take it over to play here.");
         public static readonly LocString ReasonNoTables = new("casino.reasonNoTables", "No table has room right now. Try again in a moment.");
         public static readonly LocString JackpotEyebrow = new("casino.jackpot.eyebrow", "JACKPOT");
-        public static readonly LocString JackpotUnit = new("casino.jackpot.unit", "coin");
+        public static readonly LocString JackpotUnit = new("casino.jackpot.unit", "coins");
         public static readonly LocString JackpotHint = new("casino.jackpot.hint", "Every chip you stake is a ticket for the whole pot");
         public static readonly LocString JackpotWon = new("casino.jackpot.won", "JACKPOT");
-        public static readonly LocString JackpotWonAmount = new("casino.jackpot.wonAmount", "{0} coin, the whole pot");
+        public static readonly LocString JackpotWonAmount = new("casino.jackpot.wonAmount", "{0} coins, the whole pot");
         public static readonly LocString JackpotMeter = new("casino.jackpot.meter", "Every spin on the floor feeds it");
         public static readonly LocString TabLobby = new("casino.tabLobby", "Lobby");
         public static readonly LocString TabGames = new("casino.tabGames", "Games");
@@ -5514,9 +5695,10 @@ internal static class L
         public static readonly LocString PitchBlackjack = new("casino.pitch.blackjack", "Beat the dealer to twenty one at a seated table");
         public static readonly LocString PitchBarkeep = new("casino.pitch.barkeep", "Serve the bar right and the tips are yours");
         public static readonly LocString RulesSlotsStep1 = new("casino.rules.slots1", "Pick a stake, then spin the reels.");
-        public static readonly LocString RulesSlotsStep2 = new("casino.rules.slots2", "Three or more matching symbols along a payline pays out.");
-        public static readonly LocString RulesSlotsStep3 = new("casino.rules.slots3", "Three scatters anywhere in the window award free spins.");
-        public static readonly LocString RulesSlotsStep4 = new("casino.rules.slots4", "Five scatters on one spin take the whole house jackpot.");
+        public static readonly LocString RulesSlotsStep2 = new("casino.rules.slots2", "Ten fixed paylines are always in play: the three rows plus seven shapes that bend across them. The Payouts sheet on the machine maps every line.");
+        public static readonly LocString RulesSlotsStep3 = new("casino.rules.slots3", "A line pays when three or more matching symbols run along it from the leftmost reel with no gap. Each line pays its best match once, and wins on different lines add up.");
+        public static readonly LocString RulesSlotsStep4 = new("casino.rules.slots4", "Three or more discs anywhere in the window start free spins, and free spin wins pay double.");
+        public static readonly LocString RulesSlotsStep5 = new("casino.rules.slots5", "Every paid spin also draws for the house jackpot. Each chip you stake is one ticket, and a hit pays the whole pot on top of your line wins.");
         public static readonly LocString RulesScratchStep1 = new("casino.rules.scratch1", "Pick a card price. A dearer card carries dearer prizes.");
         public static readonly LocString RulesScratchStep2 = new("casino.rules.scratch2", "Rub the panels off, or reveal them all at once.");
         public static readonly LocString RulesScratchStep3 = new("casino.rules.scratch3", "Three of the same symbol pays that symbol's prize.");

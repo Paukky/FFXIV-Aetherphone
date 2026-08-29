@@ -34,7 +34,6 @@ internal readonly struct GameChatTarget
 internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
 {
     private const long GroupWindowSeconds = 240;
-    private const float ComposerHeight = 52f;
     private const float FailureHeight = 26f;
     private const float SearchBarHeight = 40f;
     private const float JumpPillHeight = 26f;
@@ -50,6 +49,8 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
     private readonly List<ChatEntry> ghostEntries = new(4);
     private TranscriptMessage[] mapped = Array.Empty<TranscriptMessage>();
     private int mappedCount;
+    private int mappedRequired = -1;
+    private int mappedStyleRevision = -1;
     private long mappedRevision = -1;
     private GameChatTarget target;
     private string activeChannel = string.Empty;
@@ -79,7 +80,12 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
 
     public void Gate() => composer.Gate();
 
+    public void CloseMenus() => composer.CloseMenus();
+
     public bool SearchOpen => searchOpen;
+
+    public bool IsOpenFor(string key) =>
+        target.Streams is not null && string.Equals(target.Key, key, StringComparison.Ordinal);
 
     public void ToggleSearch()
     {
@@ -112,7 +118,7 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
 
         target = next;
         activeChannel = next.SendChannelKey;
-        composer.Reset();
+        composer.Bind(next.Key);
         followBottom = true;
         snapToBottom = revealId is null;
         mappedRevision = -1;
@@ -120,7 +126,7 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
 
     public void Close()
     {
-        composer.Reset();
+        composer.Unbind();
         if (searchOpen)
         {
             ToggleSearch();
@@ -141,8 +147,18 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
         view.Target(target.Streams);
         view.Sync();
         send.Tick();
+        ChatDrafts.Tick();
         SyncGhosts();
-        var composerBar = new Rect(new Vector2(area.Min.X, area.Max.Y - ComposerHeight * scale), area.Max);
+        var model = new GameComposerModel
+        {
+            Theme = theme,
+            Screen = area,
+            Channels = target.SendChannels,
+            ActiveChannel = activeChannel.Length > 0 ? activeChannel : target.SendChannelKey,
+            SendTarget = target.SendTarget,
+        };
+        var composerBar = new Rect(new Vector2(area.Min.X, area.Max.Y - composer.Measure(area.Width, model)),
+            area.Max);
         var failure = FirstFailure();
         var failureBlock = failure is null ? 0f : FailureHeight * scale;
         var searchHeight = searchOpen ? SearchBarHeight * scale : 0f;
@@ -169,26 +185,46 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
                 new Vector2(area.Max.X, composerBar.Min.Y)), theme, failure);
         }
 
-        var model = new GameComposerModel
-        {
-            Theme = theme,
-            Screen = area,
-            Channels = target.SendChannels,
-            ActiveChannel = activeChannel.Length > 0 ? activeChannel : target.SendChannelKey,
-            SendTarget = target.SendTarget,
-        };
         var result = composer.Draw(composerBar, model);
         activeChannel = result.ChannelKey;
-        if (!result.Submitted || !GameChannels.TryByKey(activeChannel, out var channel))
+        if (!result.Submitted)
         {
             return;
         }
 
-        if (send.Send(channel, target.SendTarget, result.Text))
+        if (result.IsCommand)
         {
-            composer.Clear();
-            snapToBottom = true;
+            if (ChatSender.TrySend(result.Text))
+            {
+                composer.Clear();
+            }
+
+            return;
         }
+
+        if (!GameChannels.TryByKey(activeChannel, out var channel) || !Submit(channel, result.Text))
+        {
+            return;
+        }
+
+        composer.Clear();
+        snapToBottom = true;
+    }
+
+    private bool Submit(GameChannel channel, string text)
+    {
+        var configuration = Plugin.Cfg;
+        var sent = configuration is null || configuration.LinkpearlSplitLongMessages
+            ? send.SendSplit(channel, target.SendTarget, text,
+                configuration?.LinkpearlSplitIndicator ?? string.Empty,
+                configuration?.LinkpearlSplitIntervalMilliseconds ?? ChatSend.MinimumIntervalMilliseconds)
+            : send.Send(channel, target.SendTarget, text);
+        if (sent)
+        {
+            ChatDrafts.Record(channel.Key, target.SendTarget, text);
+        }
+
+        return sent;
     }
 
     public void OnMessageContext(string messageId)
@@ -252,7 +288,7 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
         var entries = view.Entries;
         entrance.Sync(target.Key, entries.Count, entries.Count > 0 ? entries[entries.Count - 1].Id : null,
             ImGui.GetIO().DeltaTime, false);
-        using (AppSurface.Begin(listRect))
+        using (AppSurface.BeginEdgeToEdge(listRect))
         {
             if (entries.Count == 0 && ghostEntries.Count == 0)
             {
@@ -263,10 +299,15 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
 
             SyncFollow();
             ImGui.Dummy(new Vector2(0f, Metrics.Space.Sm * scale));
+            ChatEntry? previous = null;
             for (var index = 0; index < entries.Count; index++)
             {
                 var entry = entries[index];
-                var previous = index > 0 ? entries[index - 1] : null;
+                if (Hidden(entry))
+                {
+                    continue;
+                }
+
                 if (previous is null || !TimeText.SameLocalDay(Seconds(previous.At), Seconds(entry.At)))
                 {
                     DrawDaySeparator(entry.At, theme);
@@ -294,6 +335,8 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
                     revealId = null;
                     followBottom = false;
                 }
+
+                previous = entry;
             }
 
             for (var index = 0; index < ghostEntries.Count; index++)
@@ -345,8 +388,8 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
         var downCenter = new Vector2(bar.Max.X - 22f * scale, bar.Center.Y);
         var enabled = matches.Count > 0;
         var ink = enabled ? theme.Accent : theme.TextMuted;
-        AppSkin.Icon(drawList, upCenter, IconGlyph.Of(FontAwesomeIcon.ChevronUp), ink, 0.7f);
-        AppSkin.Icon(drawList, downCenter, IconGlyph.Of(FontAwesomeIcon.ChevronDown), ink, 0.7f);
+        AppSkin.Icon(drawList, upCenter, IconGlyph.Of(FontAwesomeIcon.ChevronUp), ink, 0.9f);
+        AppSkin.Icon(drawList, downCenter, IconGlyph.Of(FontAwesomeIcon.ChevronDown), ink, 0.9f);
         if (!enabled)
         {
             return;
@@ -432,7 +475,7 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
         Squircle.Stroke(drawList, min, max, height * 0.5f,
             ImGui.GetColorU32(Palette.WithAlpha(theme.TextMuted, 0.35f)), 1f);
         AppSkin.Icon(drawList, new Vector2(min.X + 13f * scale, min.Y + height * 0.5f),
-            IconGlyph.Of(FontAwesomeIcon.ArrowDown), theme.Accent, 0.62f);
+            IconGlyph.Of(FontAwesomeIcon.ArrowDown), theme.Accent, 0.78f);
         Typography.Draw(drawList, new Vector2(min.X + 22f * scale, min.Y + height * 0.5f - size.Y * 0.5f), label,
             theme.TextStrong, TextStyles.Caption1);
         if (UiInteract.HoverClick(min, max))
@@ -457,6 +500,7 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
             EmptyText = Loc.T(L.Messages.Empty),
             LoadingText = Loc.T(L.Messages.Empty),
             IsGroup = target.Streams.Length > 1 || target.SendTarget.Length == 0,
+            LabelsOwnMessages = target.Streams.Length > 1 || target.SendTarget.Length == 0,
             Interactions = this,
         };
         if (snapToBottom)
@@ -478,29 +522,43 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
     {
         var entries = view.Entries;
         var required = entries.Count + ghostEntries.Count;
-        if (mappedRevision == view.Revision && mappedCount == required)
+        var styleRevision = ChannelStyles.Shared.Revision;
+        if (mappedRevision == view.Revision && mappedRequired == required &&
+            mappedStyleRevision == styleRevision)
         {
             return;
         }
 
         mappedRevision = view.Revision;
+        mappedRequired = required;
+        mappedStyleRevision = styleRevision;
         if (mapped.Length < required)
         {
             mapped = new TranscriptMessage[Math.Max(required, 64)];
         }
 
+        var written = 0;
         for (var index = 0; index < entries.Count; index++)
         {
-            mapped[index] = Map(entries[index], theme, 0);
+            var entry = entries[index];
+            if (Hidden(entry))
+            {
+                continue;
+            }
+
+            mapped[written++] = Map(entry, theme, 0);
         }
 
         for (var index = 0; index < ghostEntries.Count; index++)
         {
-            mapped[entries.Count + index] = Map(ghostEntries[index], theme, TranscriptFlags.Placeholder);
+            mapped[written++] = Map(ghostEntries[index], theme, TranscriptFlags.Placeholder);
         }
 
-        mappedCount = required;
+        mappedCount = written;
     }
+
+    private static bool Hidden(ChatEntry entry) =>
+        entry.IsSelf && ChannelStyles.Shared.HidesOutgoing(entry.ChannelKey);
 
     private TranscriptMessage Map(ChatEntry entry, PhoneTheme theme, byte flags)
     {
@@ -513,9 +571,17 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
         }
 
         var runs = ChatRuns.For(entry);
+        var overrides = ChannelStyles.Shared.For(entry.ChannelKey);
+        var packedName = overrides is null ? 0u : entry.IsSelf ? overrides.OutgoingName : overrides.IncomingName;
+        var packedBody = overrides is null ? 0u : entry.IsSelf ? overrides.OutgoingBody : overrides.IncomingBody;
+        var senderTint = packedName != 0u
+            ? ChannelInk.Unpack(packedName)
+            : entry.IsSelf ? theme.Accent : SenderTint.Of(entry.AuthorName);
+        var bodyInk = packedBody != 0u ? ChannelInk.Unpack(packedBody) : default;
         return new TranscriptMessage(entry.Id, entry.IsSelf ? SelfId : entry.SenderKey, entry.Text, 0,
-            Seconds(entry.At), 0, 0, null, entry.AuthorName, SenderTint.Of(entry.AuthorName), flags,
-            channelTag: tag, channelTint: tagTint, runs: runs.HasLinks ? runs.Runs : null);
+            Seconds(entry.At), 0, 0, null, entry.AuthorName, senderTint, flags,
+            channelTag: tag, channelTint: tagTint, runs: runs.HasLinks || runs.HasEmoji ? runs.Runs : null,
+            bodyInk: bodyInk);
     }
 
     private void SyncGhosts()
@@ -628,7 +694,7 @@ internal sealed class GameChatThread : IChatTranscriptInteractions, IDisposable
         var chipMin = new Vector2(origin.X + (available - textSize.X - 20f * scale) * 0.5f, origin.Y + 4f * scale);
         var chipMax = chipMin + new Vector2(textSize.X + 20f * scale, textSize.Y + 8f * scale);
         Squircle.Fill(drawList, chipMin, chipMax, (chipMax.Y - chipMin.Y) * 0.5f,
-            ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.08f)));
+            ImGui.GetColorU32(ChatInk.Wash(theme, 0.08f)));
         Typography.DrawCentered(drawList, (chipMin + chipMax) * 0.5f, label, theme.TextMuted, TextStyles.Caption1);
         ImGui.SetCursorScreenPos(new Vector2(origin.X, chipMax.Y + 8f * scale));
     }

@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using Aetherphone.Core;
+using Aetherphone.Core.Animation;
+using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.GameChat;
 using Aetherphone.Core.Localization;
@@ -23,7 +25,7 @@ internal sealed class LinkpearlPopoutWindow : Window
                                                  ImGuiWindowFlags.NoBackground | ImGuiWindowFlags.NoSavedSettings |
                                                  ImGuiWindowFlags.NoFocusOnAppearing;
 
-    private const int ScaledStyleVarCount = 6;
+    private const int ScaledStyleVarCount = 7;
     private const int GripColorCount = 3;
     private const float MinWidth = 250f;
     private const float MinHeight = 210f;
@@ -39,10 +41,25 @@ internal sealed class LinkpearlPopoutWindow : Window
     private const float StaggerStep = 28f;
     private const float ViewportMargin = 24f;
     private const float GripArm = 9f;
+    private const float MinBodyHeight = 96f;
+    private const float FlashStrength = 0.72f;
+    private const float TabRailInset = 8f;
+    private const float TabRailGap = 4f;
+    private const float DragThreshold = 2f;
+    private const float MinIdleOpacity = 0.15f;
+    private const float DropHighlightFill = 0.16f;
+    private const float DropHighlightStroke = 0.85f;
     private const int SwitchMenuLimit = 14;
+    private const byte MenuActivateTab = 0;
+    private const byte MenuAddTab = 1;
+    private const byte MenuAddTarget = 2;
+    private const byte MenuDetachTab = 3;
+    private const byte MenuCloseTab = 4;
+    private const byte MenuSwitchTo = 5;
 
     private static readonly Vector4 White = new(1f, 1f, 1f, 1f);
     private static readonly Vector4 GripInk = new(1f, 1f, 1f, 0.22f);
+    private static readonly Vector4 FlashInk = new(1f, 0.839f, 0.039f, 1f);
 
     private readonly LinkpearlPopouts owner;
     private readonly int slot;
@@ -54,25 +71,49 @@ internal sealed class LinkpearlPopoutWindow : Window
     private readonly NotificationService notifications;
     private readonly GameChatThread thread;
     private readonly GameChatMenu chatMenu;
+    private readonly ConfirmService confirm;
+    private readonly ConfirmOverlay confirmOverlay;
+    private readonly int confirmHost = ConfirmHosts.Reserve();
     private readonly DropdownMenu switchMenu = new();
     private readonly List<DropdownMenu.Item> switchItems = new(SwitchMenuLimit);
     private readonly List<string> switchKeys = new(SwitchMenuLimit);
+    private readonly List<byte> switchActions = new(SwitchMenuLimit);
+    private readonly List<string> keys = new(PopoutTabs.MaxTabs);
+    private readonly string[] tabLabels = new string[PopoutTabs.MaxTabs];
+    private readonly string[] tabTitles = new string[PopoutTabs.MaxTabs];
+    private readonly int[] tabUnread = new int[PopoutTabs.MaxTabs];
+    private readonly bool[] tabSelected = new bool[PopoutTabs.MaxTabs];
+    private readonly ChipRail tabRail = new();
+    private readonly AppSkin railSkin = new(AppPalettes.Linkpearl(PhoneTheme.Default));
     private readonly string switchMenuId;
+    private readonly string addMenuId;
     private readonly string closeButtonId;
     private readonly string phoneButtonId;
     private readonly string bellButtonId;
-    private string key = string.Empty;
+    private readonly string collapseButtonId;
+    private int active;
     private string threadKey = string.Empty;
     private bool attended;
     private bool placePending;
+    private bool collapsed;
+    private bool suppressed;
+    private bool positionForced;
+    private bool dragging;
+    private bool focusedLastFrame;
+    private Spring collapseSpring;
+    private Spring fadeSpring;
     private LinkpearlPopoutState? savedPlacement;
+    private LinkpearlPopoutWindow? dropTarget;
     private Vector2 pendingPosition;
     private Vector2 pendingSize;
+    private Vector2 expandedSize;
+    private Vector2 lastPosition;
+    private Rect titleAnchor;
     private Rect frame;
 
     public LinkpearlPopoutWindow(LinkpearlPopouts owner, int slot, Configuration configuration, ChatInbox inbox,
         TabStore tabs, ChatLog log, ChatSend send, GameData gameData, ThemeProvider themes,
-        LodestoneService lodestone, NotificationService notifications)
+        LodestoneService lodestone, NotificationService notifications, ConfirmService confirm)
         : base($"{AepConstants.Name}##LinkpearlPopout{slot}", PopoutFlags)
     {
         this.owner = owner;
@@ -83,11 +124,15 @@ internal sealed class LinkpearlPopoutWindow : Window
         this.themes = themes;
         this.lodestone = lodestone;
         this.notifications = notifications;
+        this.confirm = confirm;
+        confirmOverlay = new ConfirmOverlay(confirm, confirmHost);
         var slotText = slot.ToString(Loc.Culture);
         switchMenuId = "linkpearl.popout.switch." + slotText;
+        addMenuId = "linkpearl.popout.add." + slotText;
         closeButtonId = "linkpearl.popout.close." + slotText;
         phoneButtonId = "linkpearl.popout.phone." + slotText;
         bellButtonId = "linkpearl.popout.bell." + slotText;
+        collapseButtonId = "linkpearl.popout.collapse." + slotText;
         chatMenu = new GameChatMenu("linkpearl.popout.menu." + slotText)
         {
             SendTell = owner.OpenTell,
@@ -100,26 +145,141 @@ internal sealed class LinkpearlPopoutWindow : Window
             Link = chatMenu.OpenLink,
         };
         RespectCloseHotkey = false;
-        SizeConstraints = new WindowSizeConstraints
-        {
-            MinimumSize = new Vector2(MinWidth, MinHeight),
-            MaximumSize = new Vector2(MaxSide, MaxSide),
-        };
     }
 
-    public string Key => key;
+    public string Key => active < keys.Count ? keys[active] : string.Empty;
 
-    public bool Bound => key.Length > 0;
+    public bool Bound => keys.Count > 0;
+
+    public bool IsCollapsed => collapsed;
+
+    public int TabCount => keys.Count;
+
+    public long LastActiveTick { get; private set; }
+
+    public Rect Frame => frame;
+
+    public string KeyAt(int index) => index >= 0 && index < keys.Count ? keys[index] : string.Empty;
+
+    public int IndexOfTab(string conversationKey) => PopoutTabs.IndexOf(keys, conversationKey);
+
+    public bool Holds(string conversationKey) => IndexOfTab(conversationKey) >= 0;
 
     public void Bind(string conversationKey, LinkpearlPopoutState? saved)
     {
-        key = conversationKey;
+        keys.Clear();
+        active = 0;
+        if (saved is not null)
+        {
+            for (var index = 0; index < saved.Keys.Count; index++)
+            {
+                PopoutTabs.Add(keys, saved.Keys[index]);
+            }
+
+            active = keys.Count == 0 ? 0 : Math.Clamp(saved.Active, 0, keys.Count - 1);
+        }
+
+        if (keys.Count == 0)
+        {
+            PopoutTabs.Add(keys, conversationKey);
+        }
+
         threadKey = string.Empty;
         attended = false;
         savedPlacement = saved;
         placePending = true;
-        IsOpen = true;
+        fadeSpring.SnapTo(1f);
+        Touch();
+        IsOpen = !suppressed && Bound;
         BringToFront();
+    }
+
+    public bool AddTab(string conversationKey, bool activate)
+    {
+        if (!Bound || conversationKey.Length == 0)
+        {
+            return false;
+        }
+
+        var existing = PopoutTabs.IndexOf(keys, conversationKey);
+        if (existing >= 0)
+        {
+            if (activate)
+            {
+                SetActive(existing);
+            }
+
+            return true;
+        }
+
+        if (!PopoutTabs.Add(keys, conversationKey))
+        {
+            return false;
+        }
+
+        if (activate)
+        {
+            SetActive(keys.Count - 1);
+            return true;
+        }
+
+        Touch();
+        return true;
+    }
+
+    public bool RemoveTab(int index)
+    {
+        if (index < 0 || index >= keys.Count)
+        {
+            return false;
+        }
+
+        inbox.SetAttended(keys[index], false);
+        var wasActive = index == active;
+        active = PopoutTabs.Remove(keys, active, index);
+        if (keys.Count == 0)
+        {
+            Unbind();
+            return true;
+        }
+
+        if (wasActive)
+        {
+            attended = false;
+            threadKey = string.Empty;
+            chatMenu.Close();
+        }
+
+        switchMenu.Close();
+        Touch();
+        return true;
+    }
+
+    public void FocusTab(string conversationKey)
+    {
+        SetActive(PopoutTabs.IndexOf(keys, conversationKey));
+        Focus();
+    }
+
+    public void SetSuppressed(bool value)
+    {
+        if (suppressed == value)
+        {
+            return;
+        }
+
+        suppressed = value;
+        if (value)
+        {
+            confirm.CancelHost(confirmHost);
+        }
+
+        if (!Bound)
+        {
+            return;
+        }
+
+        IsOpen = !value;
     }
 
     private void ResolvePlacement()
@@ -127,60 +287,170 @@ internal sealed class LinkpearlPopoutWindow : Window
         var zoom = OwnZoom();
         var saved = savedPlacement;
         savedPlacement = null;
-        pendingSize = saved is { Width: > 0f, Height: > 0f }
+        expandedSize = saved is { Width: > 0f, Height: > 0f }
             ? new Vector2(saved.Width, saved.Height)
             : new Vector2(DefaultWidth * zoom, DefaultHeight * zoom);
+        collapsed = saved?.Collapsed ?? false;
+        collapseSpring.SnapTo(collapsed ? 1f : 0f);
+        pendingSize = new Vector2(expandedSize.X, HeightFor(zoom));
         pendingPosition = saved is not null
             ? new Vector2(saved.X, saved.Y)
             : DefaultPosition(pendingSize * UiScale.Global);
     }
 
+    private float HeightFor(float zoom)
+    {
+        var collapsedHeight = TitleHeight * zoom;
+        return expandedSize.Y + (collapsedHeight - expandedSize.Y) * collapseSpring.Value;
+    }
+
+    private void StepCollapse(float zoom, float delta)
+    {
+        var target = collapsed ? 1f : 0f;
+        Position = null;
+        if (collapseSpring.IsResting(target, TransitionTiming.RestPositionEpsilon,
+                TransitionTiming.RestVelocityEpsilon))
+        {
+            var settling = collapseSpring.Value != target;
+            collapseSpring.SnapTo(target);
+            if (collapsed)
+            {
+                Size = new Vector2(expandedSize.X, TitleHeight * zoom);
+                SizeCondition = ImGuiCond.Always;
+                return;
+            }
+
+            if (settling)
+            {
+                Size = expandedSize;
+                SizeCondition = ImGuiCond.Always;
+                return;
+            }
+
+            Size = null;
+            return;
+        }
+
+        collapseSpring.Step(target, TransitionTiming.PushSmoothTime, delta);
+        Size = new Vector2(expandedSize.X, HeightFor(zoom));
+        SizeCondition = ImGuiCond.Always;
+    }
+
+    public bool SetCollapsed(bool value)
+    {
+        if (collapsed == value || !Bound)
+        {
+            return false;
+        }
+
+        collapsed = value;
+        if (!value)
+        {
+            return true;
+        }
+
+        CloseMenus();
+        confirm.CancelHost(confirmHost);
+        return true;
+    }
+
+    private void CloseMenus()
+    {
+        switchMenu.Close();
+        chatMenu.Close();
+        thread.CloseMenus();
+    }
+
+    private void ToggleCollapsed(bool value)
+    {
+        if (SetCollapsed(value))
+        {
+            owner.OnCollapseChanged();
+        }
+    }
+
     public void Rebind(string conversationKey)
     {
-        if (string.Equals(key, conversationKey, StringComparison.Ordinal))
+        if (!Bound || string.Equals(Key, conversationKey, StringComparison.Ordinal))
         {
             return;
         }
 
-        inbox.SetAttended(key, false);
-        key = conversationKey;
+        var existing = PopoutTabs.IndexOf(keys, conversationKey);
+        if (existing >= 0)
+        {
+            SetActive(existing);
+            return;
+        }
+
+        inbox.SetAttended(Key, false);
+        keys[active] = conversationKey;
         threadKey = string.Empty;
         attended = false;
         thread.Close();
         chatMenu.Close();
+        Touch();
     }
 
     public void Unbind()
     {
-        if (!Bound)
+        for (var index = 0; index < keys.Count; index++)
+        {
+            inbox.SetAttended(keys[index], false);
+        }
+
+        keys.Clear();
+        active = 0;
+        threadKey = string.Empty;
+        attended = false;
+        dragging = false;
+        dropTarget = null;
+        thread.Close();
+        chatMenu.Close();
+        switchMenu.Close();
+        confirm.CancelHost(confirmHost);
+        IsOpen = false;
+    }
+
+    public void Focus()
+    {
+        ToggleCollapsed(false);
+        fadeSpring.SnapTo(1f);
+        Touch();
+        BringToFront();
+    }
+
+    public void ReopenThread() => threadKey = string.Empty;
+
+    public LinkpearlPopoutState Snapshot()
+    {
+        var state = new LinkpearlPopoutState
+        {
+            Key = Key,
+            Active = active,
+            X = frame.Min.X,
+            Y = frame.Min.Y,
+            Width = expandedSize.X,
+            Height = expandedSize.Y,
+            Collapsed = collapsed,
+        };
+        for (var index = 0; index < keys.Count; index++)
+        {
+            state.Keys.Add(keys[index]);
+        }
+
+        return state;
+    }
+
+    public override void OnClose()
+    {
+        if (suppressed)
         {
             return;
         }
 
-        inbox.SetAttended(key, false);
-        key = string.Empty;
-        threadKey = string.Empty;
-        attended = false;
-        thread.Close();
-        chatMenu.Close();
-        switchMenu.Close();
-        IsOpen = false;
+        owner.OnWindowClosed(this);
     }
-
-    public void Focus() => BringToFront();
-
-    public void ReopenThread() => threadKey = string.Empty;
-
-    public LinkpearlPopoutState Snapshot() => new()
-    {
-        Key = key,
-        X = frame.Min.X,
-        Y = frame.Min.Y,
-        Width = frame.Width / UiScale.Global,
-        Height = frame.Height / UiScale.Global,
-    };
-
-    public override void OnClose() => owner.OnWindowClosed(this);
 
     public override void PreDraw()
     {
@@ -188,6 +458,7 @@ internal sealed class LinkpearlPopoutWindow : Window
         UiScale.SetPhone(zoom);
         Plugin.Fonts.SetPhoneZoom(zoom);
         DragScrollHost.Enabled = false;
+        positionForced = false;
         if (placePending)
         {
             ResolvePlacement();
@@ -196,14 +467,22 @@ internal sealed class LinkpearlPopoutWindow : Window
             Size = pendingSize;
             SizeCondition = ImGuiCond.Always;
             placePending = false;
+            positionForced = true;
         }
         else
         {
-            Position = null;
-            Size = null;
+            StepCollapse(zoom, MathF.Min(ImGui.GetIO().DeltaTime, TransitionTiming.MaxFrameSeconds));
         }
 
+        var resizable = !collapsed && collapseSpring.Value <= 0f;
+        Flags = resizable ? PopoutFlags : PopoutFlags | ImGuiWindowFlags.NoResize;
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(MinWidth, resizable ? MinHeight : MathF.Min(MinHeight, HeightFor(zoom))),
+            MaximumSize = new Vector2(MaxSide, MaxSide),
+        };
         var style = ImGui.GetStyle();
+        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, style.Alpha * IdleAlpha());
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
         ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, style.FramePadding * zoom);
         ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, style.ItemSpacing * zoom);
@@ -234,43 +513,214 @@ internal sealed class LinkpearlPopoutWindow : Window
         var hoveredWindow = ImGui.IsWindowHovered(ImGuiHoveredFlags.ChildWindows |
                                                   ImGuiHoveredFlags.AllowWhenBlockedByActiveItem);
         var focusedWindow = ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+        if (TryFinishDrag(position, focusedWindow))
+        {
+            return;
+        }
+
         UiInteract.SetWindowHovered(hoveredWindow);
         UiInteract.SetWindowFocused(focusedWindow);
         inbox.Sync();
-        var row = inbox.Find(key);
-        UpdateAttention(row, hoveredWindow || focusedWindow);
+        var row = inbox.Find(Key);
+        var lively = hoveredWindow || focusedWindow;
+        if (focusedWindow)
+        {
+            Touch();
+        }
+
+        UpdateAttention(row, !collapsed && lively);
+        if (focusedLastFrame && !focusedWindow)
+        {
+            CloseMenus();
+        }
+
+        focusedLastFrame = focusedWindow;
         chatMenu.Gate();
         switchMenu.Gate();
         thread.Gate();
-        var delta = MathF.Min(ImGui.GetIO().DeltaTime, 0.1f);
+        var delta = MathF.Min(ImGui.GetIO().DeltaTime, TransitionTiming.MaxFrameSeconds);
+        fadeSpring.Step(lively || !configuration.LinkpearlPopoutFade ? 1f : 0f,
+            TransitionTiming.PresentSmoothTime, delta);
+        var confirming = confirmOverlay.CapturesPointer;
+        if (confirming && focusedWindow)
+        {
+            HandleConfirmEscape();
+        }
+
+        using (ConfirmHosts.Enter(confirmHost))
         using (Plugin.Fonts.Push(1f))
         {
             var theme = themes.ForApp(true);
             var scale = UiScale.Current;
-            DrawSurface(theme, scale, hoveredWindow || focusedWindow);
-            var titleBar = new Rect(frame.Min, new Vector2(frame.Max.X, frame.Min.Y + TitleHeight * scale));
-            DrawTitleBar(titleBar, row, theme, scale, delta);
-            var inset = BodyInset * scale;
-            var body = new Rect(new Vector2(frame.Min.X + inset, titleBar.Max.Y),
-                new Vector2(frame.Max.X - inset, frame.Max.Y - inset));
-            if (row is null)
+            var barHeight = MathF.Min(TitleHeight * scale, frame.Height);
+            var railHeight = TabbedNow ? (ChipRail.RowHeight + TabRailGap * 2f) * scale : 0f;
+            var bodyOpen = frame.Height - barHeight - railHeight >= MinBodyHeight * scale;
+            if (!collapsed && collapseSpring.Value <= 0f)
             {
-                Typography.DrawCentered(ImGui.GetWindowDrawList(), body.Center, Loc.T(L.Messages.Empty),
-                    theme.TextMuted, TextStyles.Callout);
-            }
-            else
-            {
-                OpenThread(row);
-                thread.Draw(body, theme);
+                expandedSize = frame.Size / UiScale.Global;
             }
 
-            DrawGrip(scale);
-            DrawSwitchMenu(theme);
-            chatMenu.Draw(frame, theme);
+            using (InputShield.Engage(confirming))
+            {
+                var flashing = configuration.LinkpearlPopoutFlash && TitleUnread(row) > 0;
+                DrawSurface(theme, scale, lively, barHeight + (bodyOpen ? railHeight : 0f), flashing);
+                var titleBar = new Rect(frame.Min, new Vector2(frame.Max.X, frame.Min.Y + barHeight));
+                DrawTitleBar(titleBar, row, theme, scale, delta, flashing);
+                if (bodyOpen)
+                {
+                    var bodyTop = DrawTabRail(titleBar.Max.Y, theme, scale);
+                    var inset = BodyInset * scale;
+                    var body = new Rect(new Vector2(frame.Min.X + inset, bodyTop),
+                        new Vector2(frame.Max.X - inset, frame.Max.Y - inset));
+                    if (row is null)
+                    {
+                        Typography.DrawCentered(ImGui.GetWindowDrawList(), body.Center, Loc.T(L.Messages.Empty),
+                            theme.TextMuted, TextStyles.Callout);
+                    }
+                    else
+                    {
+                        OpenThread(row);
+                        thread.Draw(body, theme);
+                    }
+
+                    DrawGrip(scale);
+                }
+
+                DrawSwitchMenu(theme);
+                chatMenu.Draw(frame, theme);
+            }
+
             ShellToast.DrawSecondary(frame, theme);
+            confirmOverlay.Draw(frame, theme);
+            DrawDropHighlight(theme, scale);
         }
 
         HoverTooltip.Flush();
+    }
+
+    private void HandleConfirmEscape()
+    {
+        ImGui.SetNextFrameWantCaptureKeyboard(true);
+        if (!ImGui.IsKeyPressed(ImGuiKey.Escape))
+        {
+            return;
+        }
+
+        confirmOverlay.CancelActive();
+    }
+
+    private bool TabbedNow => keys.Count > 1;
+
+    private void Touch() => LastActiveTick = Environment.TickCount64;
+
+    private float IdleAlpha()
+    {
+        if (!configuration.LinkpearlPopoutFade)
+        {
+            return 1f;
+        }
+
+        var idle = Math.Clamp(configuration.LinkpearlPopoutIdleOpacity, MinIdleOpacity, 1f);
+        return idle + (1f - idle) * Math.Clamp(fadeSpring.Value, 0f, 1f);
+    }
+
+    private bool TryFinishDrag(Vector2 position, bool focusedWindow)
+    {
+        var travel = MathF.Abs(position.X - lastPosition.X) + MathF.Abs(position.Y - lastPosition.Y);
+        lastPosition = position;
+        var target = dropTarget;
+        if (dragging && target is { Bound: true } && ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        {
+            dragging = false;
+            dropTarget = null;
+            owner.Merge(this, target);
+            return true;
+        }
+
+        if (positionForced || !focusedWindow || !ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            dragging = false;
+            dropTarget = null;
+            return false;
+        }
+
+        dragging = dragging || travel > DragThreshold * UiScale.Global;
+        dropTarget = dragging ? owner.DropTargetAt(this, ImGui.GetMousePos()) : null;
+        return false;
+    }
+
+    private void DrawDropHighlight(PhoneTheme theme, float scale)
+    {
+        if (dropTarget is not { Bound: true } target)
+        {
+            return;
+        }
+
+        var drawList = ImGui.GetForegroundDrawList();
+        var rounding = Rounding * scale;
+        Squircle.Fill(drawList, target.Frame.Min, target.Frame.Max, rounding,
+            ImGui.GetColorU32(Palette.WithAlpha(theme.Accent, DropHighlightFill)));
+        Squircle.Stroke(drawList, target.Frame.Min, target.Frame.Max, rounding,
+            ImGui.GetColorU32(Palette.WithAlpha(theme.Accent, DropHighlightStroke)), Metrics.Stroke.Ring * scale);
+    }
+
+    private float DrawTabRail(float top, PhoneTheme theme, float scale)
+    {
+        if (!TabbedNow)
+        {
+            return top;
+        }
+
+        BuildTabLabels();
+        railSkin.Palette = AppPalettes.Linkpearl(theme);
+        railSkin.Theme = theme;
+        var inset = TabRailInset * scale;
+        var rail = new Rect(new Vector2(frame.Min.X + inset, top + TabRailGap * scale),
+            new Vector2(frame.Max.X - inset, top + (TabRailGap + ChipRail.RowHeight) * scale));
+        var tapped = tabRail.Draw(rail, railSkin, tabLabels.AsSpan(0, keys.Count),
+            tabSelected.AsSpan(0, keys.Count), false, null, ChipRail.CompactLabelPadding);
+        if (tapped >= 0)
+        {
+            SetActive(tapped);
+        }
+
+        return rail.Max.Y + TabRailGap * scale;
+    }
+
+    private void BuildTabLabels()
+    {
+        for (var index = 0; index < keys.Count; index++)
+        {
+            var row = inbox.Find(keys[index]);
+            var title = row?.Title ?? FallbackTitleFor(keys[index]);
+            var unread = row is { HasBadge: true } && index != active ? row.Unread : 0;
+            if (!string.Equals(tabTitles[index], title, StringComparison.Ordinal) || tabUnread[index] != unread)
+            {
+                tabTitles[index] = title;
+                tabUnread[index] = unread;
+                tabLabels[index] = unread > 0 ? UnreadLabel(title, unread) : title;
+            }
+
+            tabSelected[index] = index == active;
+        }
+    }
+
+    private static string UnreadLabel(string title, int unread) =>
+        string.Concat(title, " · ", unread > 99 ? "99+" : unread.ToString(Loc.Culture));
+
+    private void SetActive(int index)
+    {
+        if (index < 0 || index >= keys.Count || index == active)
+        {
+            return;
+        }
+
+        inbox.SetAttended(Key, false);
+        attended = false;
+        active = index;
+        threadKey = string.Empty;
+        chatMenu.Close();
+        Touch();
     }
 
     private float OwnZoom()
@@ -303,7 +753,7 @@ internal sealed class LinkpearlPopoutWindow : Window
         }
 
         attended = attending;
-        inbox.SetAttended(key, attending);
+        inbox.SetAttended(Key, attending);
         if (!attending)
         {
             inbox.FlushSeen();
@@ -315,12 +765,12 @@ internal sealed class LinkpearlPopoutWindow : Window
             inbox.MarkRead(row);
         }
 
-        notifications.RemoveGroup(key);
+        notifications.RemoveGroup(Key);
     }
 
     private void OpenThread(InboxRow row)
     {
-        if (string.Equals(threadKey, row.Key, StringComparison.Ordinal))
+        if (string.Equals(threadKey, row.Key, StringComparison.Ordinal) && thread.IsOpenFor(row.Key))
         {
             return;
         }
@@ -329,7 +779,7 @@ internal sealed class LinkpearlPopoutWindow : Window
         thread.Open(GameChatTargets.For(row));
     }
 
-    private void DrawSurface(PhoneTheme theme, float scale, bool lively)
+    private void DrawSurface(PhoneTheme theme, float scale, bool lively, float stripHeight, bool flashing)
     {
         var drawList = ImGui.GetWindowDrawList();
         var rounding = Rounding * scale;
@@ -337,17 +787,25 @@ internal sealed class LinkpearlPopoutWindow : Window
         Elevation.Floating(drawList, frame.Min, frame.Max, rounding, scale, lively ? 1f : 0.7f);
         var surface = ImGui.GetColorU32(Palette.WithAlpha(theme.AppBackground, opacity));
         Squircle.FillVerticalGradient(drawList, frame.Min, frame.Max, rounding, surface, surface);
-        var titleBottom = frame.Min.Y + TitleHeight * scale;
-        var strip = ImGui.GetColorU32(Palette.WithAlpha(theme.GroupedCard, opacity));
+        var titleBottom = MathF.Min(frame.Min.Y + stripHeight, frame.Max.Y);
+        var stripInk = flashing
+            ? Vector4.Lerp(theme.GroupedCard, FlashInk, Pulse.Wave() * FlashStrength)
+            : theme.GroupedCard;
+        var strip = ImGui.GetColorU32(Palette.WithAlpha(stripInk, opacity));
         drawList.PushClipRect(frame.Min, new Vector2(frame.Max.X, titleBottom), true);
         Squircle.FillVerticalGradient(drawList, frame.Min, frame.Max, rounding, strip, strip);
         drawList.PopClipRect();
-        drawList.AddLine(new Vector2(frame.Min.X, titleBottom), new Vector2(frame.Max.X, titleBottom),
-            ImGui.GetColorU32(Palette.WithAlpha(theme.Separator, theme.Separator.W * opacity)), Metrics.Stroke.Hairline);
+        if (titleBottom < frame.Max.Y)
+        {
+            drawList.AddLine(new Vector2(frame.Min.X, titleBottom), new Vector2(frame.Max.X, titleBottom),
+                ImGui.GetColorU32(Palette.WithAlpha(theme.Separator, theme.Separator.W * opacity)),
+                Metrics.Stroke.Hairline);
+        }
+
         Material.EdgeSquircle(drawList, frame.Min, frame.Max, rounding, scale, lively ? 1f : 0.6f);
     }
 
-    private void DrawTitleBar(Rect bar, InboxRow? row, PhoneTheme theme, float scale, float delta)
+    private void DrawTitleBar(Rect bar, InboxRow? row, PhoneTheme theme, float scale, float delta, bool flashing)
     {
         var drawList = ImGui.GetWindowDrawList();
         var centerY = bar.Center.Y;
@@ -355,18 +813,19 @@ internal sealed class LinkpearlPopoutWindow : Window
         var closeCenter = new Vector2(bar.Max.X - EdgeInset * scale - radius * 0.5f, centerY);
         var phoneCenter = new Vector2(closeCenter.X - ButtonPitch * scale, centerY);
         var bellCenter = new Vector2(phoneCenter.X - ButtonPitch * scale, centerY);
+        var collapseCenter = new Vector2(bellCenter.X - ButtonPitch * scale, centerY);
         var muted = row?.Muted ?? false;
         if (HoverButton.Circle(drawList, closeButtonId, closeCenter, radius, FontAwesomeIcon.Times,
                 AppSkin.Transparent, theme.TextMuted, delta, 1f, true, Loc.T(L.Common.Close)))
         {
-            owner.Close(key);
+            owner.Close(Key);
             return;
         }
 
         if (HoverButton.Circle(drawList, phoneButtonId, phoneCenter, radius, FontAwesomeIcon.MobileAlt,
                 AppSkin.Transparent, theme.TextMuted, delta, 1f, true, Loc.T(L.Linkpearl.OpenInPhone)))
         {
-            owner.OpenInPhone?.Invoke(key);
+            owner.OpenInPhone?.Invoke(Key);
         }
 
         if (row is not null && HoverButton.Circle(drawList, bellButtonId, bellCenter, radius,
@@ -377,13 +836,20 @@ internal sealed class LinkpearlPopoutWindow : Window
             inbox.ToggleMuted(row);
         }
 
+        if (HoverButton.Circle(drawList, collapseButtonId, collapseCenter, radius,
+                collapsed ? FontAwesomeIcon.ChevronDown : FontAwesomeIcon.ChevronUp, AppSkin.Transparent,
+                theme.TextMuted, delta, 1f, true, Loc.T(collapsed ? L.Linkpearl.Expand : L.Linkpearl.Collapse)))
+        {
+            ToggleCollapsed(!collapsed);
+        }
+
         var avatarRadius = AvatarRadius * scale;
         var avatarCenter = new Vector2(bar.Min.X + EdgeInset * scale + avatarRadius, centerY);
         DrawAvatar(drawList, avatarCenter, avatarRadius, row, theme);
         var textLeft = avatarCenter.X + avatarRadius + Metrics.Space.Sm * scale;
-        var textLimit = bellCenter.X - radius - Metrics.Space.Sm * scale;
-        var title = row?.Title ?? FallbackTitle();
-        var unread = row is { HasBadge: true } && !attended ? row.Unread : 0;
+        var textLimit = collapseCenter.X - radius - Metrics.Space.Sm * scale;
+        var title = row?.Title ?? FallbackTitleFor(Key);
+        var unread = flashing ? 0 : TitleUnread(row);
         var badgeWidth = 0f;
         if (unread > 0)
         {
@@ -415,11 +881,61 @@ internal sealed class LinkpearlPopoutWindow : Window
                 theme, scale);
         }
 
-        HoverTooltip.Show(new Rect(hitMin, hitMax), Loc.T(L.Linkpearl.SwitchConversation), HoverLabelSide.Below);
+        titleAnchor = new Rect(hitMin, hitMax);
+        HoverTooltip.Show(titleAnchor, Loc.T(collapsed ? L.Linkpearl.Expand : L.Linkpearl.SwitchConversation),
+            HoverLabelSide.Below);
         if (UiInteract.Click(hitMin, hitMax, titleHovered))
         {
-            OpenSwitchMenu(new Rect(hitMin, hitMax));
+            if (collapsed)
+            {
+                ToggleCollapsed(false);
+            }
+            else
+            {
+                OpenSwitchMenu(titleAnchor);
+            }
         }
+
+        if (BarDoubleClicked(bar, titleAnchor, collapseCenter.X - radius))
+        {
+            ToggleCollapsed(!collapsed);
+        }
+    }
+
+    private int TitleUnread(InboxRow? row)
+    {
+        if (collapsed)
+        {
+            return GroupUnread();
+        }
+
+        return row is { HasBadge: true } && !attended ? row.Unread : 0;
+    }
+
+    private int GroupUnread()
+    {
+        var total = 0;
+        for (var index = 0; index < keys.Count; index++)
+        {
+            var row = inbox.Find(keys[index]);
+            if (row is { HasBadge: true })
+            {
+                total += row.Unread;
+            }
+        }
+
+        return total;
+    }
+
+    private static bool BarDoubleClicked(in Rect bar, in Rect titleHit, float buttonsLeft)
+    {
+        if (!UiInteract.Hover(bar.Min, bar.Max) || !ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+        {
+            return false;
+        }
+
+        var mouse = ImGui.GetMousePos();
+        return mouse.X < buttonsLeft && !titleHit.Contains(mouse);
     }
 
     private void DrawAvatar(ImDrawListPtr drawList, Vector2 center, float radius, InboxRow? row, PhoneTheme theme)
@@ -443,14 +959,14 @@ internal sealed class LinkpearlPopoutWindow : Window
         Typography.DrawCentered(drawList, center, Initials.Of(row.Title), row.Tint, TextStyles.Caption2);
     }
 
-    private string FallbackTitle()
+    private string FallbackTitleFor(string conversationKey)
     {
-        if (key.StartsWith("tab:", StringComparison.Ordinal))
+        if (conversationKey.StartsWith("tab:", StringComparison.Ordinal))
         {
-            return tabs.Find(key["tab:".Length..])?.Name ?? Loc.T(L.Apps.Linkpearl);
+            return tabs.Find(conversationKey["tab:".Length..])?.Name ?? Loc.T(L.Apps.Linkpearl);
         }
 
-        var target = ChatStreams.TellTarget(key);
+        var target = ChatStreams.TellTarget(conversationKey);
         var at = target.IndexOf('@');
         var name = at >= 0 ? target[..at] : target;
         return name.Length > 0 ? Loc.Culture.TextInfo.ToTitleCase(name) : Loc.T(L.Apps.Linkpearl);
@@ -491,15 +1007,64 @@ internal sealed class LinkpearlPopoutWindow : Window
     {
         switchItems.Clear();
         switchKeys.Clear();
-        AddSwitchRows(inbox.Pinned);
-        AddSwitchRows(inbox.Rows);
+        switchActions.Clear();
+        var grouped = TabbedNow;
+        if (grouped)
+        {
+            for (var index = 0; index < keys.Count; index++)
+            {
+                var row = inbox.Find(keys[index]);
+                AddMenuRow(MenuActivateTab, keys[index], TabMenuLabel(index, row), RowGlyph(row), index == active,
+                    false);
+            }
+        }
+
+        if (configuration.LinkpearlPopoutTabs && keys.Count < PopoutTabs.MaxTabs && HasAddCandidates())
+        {
+            AddMenuRow(MenuAddTab, string.Empty, Loc.T(L.Linkpearl.AddTab), IconGlyph.Of(FontAwesomeIcon.Plus), false,
+                false);
+        }
+
+        if (grouped)
+        {
+            if (owner.CanDetach)
+            {
+                AddMenuRow(MenuDetachTab, string.Empty, Loc.T(L.Linkpearl.MoveTabOut),
+                    IconGlyph.Of(FontAwesomeIcon.ExternalLinkAlt), false, false);
+            }
+
+            AddMenuRow(MenuCloseTab, string.Empty, Loc.T(L.Linkpearl.CloseTab), IconGlyph.Of(FontAwesomeIcon.Times),
+                false, true);
+        }
+        else
+        {
+            AddSwitchRows(inbox.Pinned);
+            AddSwitchRows(inbox.Rows);
+        }
+
         if (switchItems.Count == 0)
         {
             return;
         }
 
-        switchMenu.Header = Loc.T(L.Linkpearl.SwitchConversation);
+        switchMenu.Header = Loc.T(grouped ? L.Linkpearl.WindowTabs : L.Linkpearl.SwitchConversation);
         switchMenu.Toggle(switchMenuId, anchor);
+    }
+
+    private void OpenAddMenu()
+    {
+        switchItems.Clear();
+        switchKeys.Clear();
+        switchActions.Clear();
+        AddCandidateRows(inbox.Pinned);
+        AddCandidateRows(inbox.Rows);
+        if (switchItems.Count == 0)
+        {
+            return;
+        }
+
+        switchMenu.Header = Loc.T(L.Linkpearl.AddTab);
+        switchMenu.Toggle(addMenuId, titleAnchor);
     }
 
     private void AddSwitchRows(IReadOnlyList<InboxRow> rows)
@@ -507,19 +1072,62 @@ internal sealed class LinkpearlPopoutWindow : Window
         for (var index = 0; index < rows.Count && switchItems.Count < SwitchMenuLimit; index++)
         {
             var row = rows[index];
-            var label = row.HasBadge
-                ? string.Concat(row.Title, " · ", row.Unread.ToString(Loc.Culture))
-                : row.Title;
-            var glyph = row.IsTell ? IconGlyph.Of(FontAwesomeIcon.User) : IconGlyph.Of(FontAwesomeIcon.Hashtag);
-            switchItems.Add(new DropdownMenu.Item(label, glyph, false,
-                string.Equals(row.Key, key, StringComparison.Ordinal)));
-            switchKeys.Add(row.Key);
+            AddMenuRow(MenuSwitchTo, row.Key, RowLabel(row), RowGlyph(row),
+                string.Equals(row.Key, Key, StringComparison.Ordinal), false);
         }
+    }
+
+    private bool HasAddCandidates() => HasCandidateIn(inbox.Pinned) || HasCandidateIn(inbox.Rows);
+
+    private bool HasCandidateIn(IReadOnlyList<InboxRow> rows)
+    {
+        for (var index = 0; index < rows.Count; index++)
+        {
+            if (!Holds(rows[index].Key))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void AddCandidateRows(IReadOnlyList<InboxRow> rows)
+    {
+        for (var index = 0; index < rows.Count && switchItems.Count < SwitchMenuLimit; index++)
+        {
+            var row = rows[index];
+            if (Holds(row.Key))
+            {
+                continue;
+            }
+
+            AddMenuRow(MenuAddTarget, row.Key, RowLabel(row), RowGlyph(row), false, false);
+        }
+    }
+
+    private void AddMenuRow(byte action, string conversationKey, string label, string glyph, bool selected,
+        bool danger)
+    {
+        switchItems.Add(new DropdownMenu.Item(label, glyph, danger, selected));
+        switchKeys.Add(conversationKey);
+        switchActions.Add(action);
+    }
+
+    private static string RowGlyph(InboxRow? row) =>
+        row is null || row.IsTell ? IconGlyph.Of(FontAwesomeIcon.User) : IconGlyph.Of(FontAwesomeIcon.Hashtag);
+
+    private static string RowLabel(InboxRow row) => row.HasBadge ? UnreadLabel(row.Title, row.Unread) : row.Title;
+
+    private string TabMenuLabel(int index, InboxRow? row)
+    {
+        var title = row?.Title ?? FallbackTitleFor(keys[index]);
+        return row is { HasBadge: true } ? UnreadLabel(title, row.Unread) : title;
     }
 
     private void DrawSwitchMenu(PhoneTheme theme)
     {
-        if (!switchMenu.IsOpenFor(switchMenuId))
+        if (!switchMenu.IsOpenFor(addMenuId) && !switchMenu.IsOpenFor(switchMenuId))
         {
             return;
         }
@@ -530,6 +1138,31 @@ internal sealed class LinkpearlPopoutWindow : Window
             return;
         }
 
-        owner.Switch(this, switchKeys[picked]);
+        RunMenuAction(switchActions[picked], switchKeys[picked]);
+    }
+
+    private void RunMenuAction(byte action, string conversationKey)
+    {
+        switch (action)
+        {
+            case MenuActivateTab:
+                SetActive(PopoutTabs.IndexOf(keys, conversationKey));
+                return;
+            case MenuAddTab:
+                OpenAddMenu();
+                return;
+            case MenuAddTarget:
+                owner.AddTab(this, conversationKey);
+                return;
+            case MenuDetachTab:
+                owner.Detach(this, active);
+                return;
+            case MenuCloseTab:
+                owner.CloseTab(this, active);
+                return;
+            case MenuSwitchTo:
+                owner.Switch(this, conversationKey);
+                return;
+        }
     }
 }

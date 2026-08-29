@@ -53,6 +53,7 @@ internal sealed partial class LinkpearlApp : IResumableApp
     private readonly ViewRouter<LinkpearlRoute> router;
     private readonly RouterDraw<LinkpearlRoute> drawView;
     private readonly Action backToList;
+    private readonly Action backToSettings;
     private readonly Action leaveTabEditor;
     private readonly GameChatThread chatThread;
     private readonly GameChatMenu chatMenu = new("linkpearl.chat.menu");
@@ -116,6 +117,11 @@ internal sealed partial class LinkpearlApp : IResumableApp
             chatMenu.Close();
             inbox.Viewing = string.Empty;
             threadKey = string.Empty;
+            router.Pop();
+        };
+        backToSettings = () =>
+        {
+            settingsMenu.Close();
             router.Pop();
         };
         leaveTabEditor = LeaveTabEditor;
@@ -230,6 +236,9 @@ internal sealed partial class LinkpearlApp : IResumableApp
             case LinkpearlScreen.Settings:
                 DrawSettings(area);
                 break;
+            case LinkpearlScreen.SettingsSection:
+                DrawSettingsSection(area, route.Section);
+                break;
             case LinkpearlScreen.FriendDetail when route.Friend is { } friend:
                 DrawFriendDetail(area, friend);
                 break;
@@ -287,7 +296,8 @@ internal sealed partial class LinkpearlApp : IResumableApp
         {
             UiAnchors.Report("contacts.refresh", actions.Bounds(0));
             if (ui.IconButton(actions.Slot(0), actions.Radius, IconGlyph.Of(FontAwesomeIcon.Sync),
-                    frameTheme.TextStrong, AppSkin.Transparent, 1f, Loc.T(L.Common.Refresh), HoverLabelSide.Below))
+                    frameTheme.TextStrong, AppSkin.Transparent, HeaderActions.GlyphScale, Loc.T(L.Common.Refresh),
+                    HoverLabelSide.Below))
             {
                 RequestRefresh();
             }
@@ -297,13 +307,15 @@ internal sealed partial class LinkpearlApp : IResumableApp
 
         UiAnchors.Report("messages.new", actions.Bounds(0));
         if (ui.IconButton(actions.Slot(0), actions.Radius, IconGlyph.Of(FontAwesomeIcon.Plus), frameTheme.Accent,
-                Palette.WithAlpha(frameTheme.Accent, 0.16f), 1.05f, Loc.T(L.Linkpearl.NewChat), HoverLabelSide.Below))
+                Palette.WithAlpha(frameTheme.Accent, 0.16f), HeaderActions.GlyphScale, Loc.T(L.Linkpearl.NewChat),
+                HoverLabelSide.Below))
         {
             OpenNewChat();
         }
 
-        if (ui.IconButton(actions.Slot(1), actions.Radius, IconGlyph.Of(FontAwesomeIcon.EllipsisH),
-                frameTheme.TextStrong, AppSkin.Transparent, 1f, Loc.T(L.Linkpearl.More), HoverLabelSide.Below))
+        if (ui.IconButton(actions.Slot(1), actions.Radius, IconGlyph.Of(FontAwesomeIcon.Cog),
+                frameTheme.TextStrong, AppSkin.Transparent, HeaderActions.GlyphScale, Loc.T(L.Linkpearl.More),
+                HoverLabelSide.Below))
         {
             OpenMoreMenu(actions.Bounds(1));
         }

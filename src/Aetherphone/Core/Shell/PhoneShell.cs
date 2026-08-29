@@ -87,7 +87,7 @@ internal sealed class PhoneShell : IDisposable
         var router = new NotificationRouter(navigation, notifications, services.SocialNotifications,
             services.LinkpearlLauncher, services.VelvetLauncher, services.DmLauncher, services.GramDmLauncher,
             services.SocialLauncher, services.MusterLauncher, services.YellowPagesLauncher,
-            services.AnnouncementsLauncher, services.SafetyLauncher, services.RadioLauncher,
+            services.AnnouncementsLauncher, services.SafetyLauncher, services.EncryptionSetup, services.RadioLauncher,
             services.CasinoLauncher, services.AetherStreamLauncher, services.HuntsLauncher);
         MusterChatBridge.Bind(services.Musters, services.MusterLauncher, navigation);
         AdChatBridge.Bind(services.YellowPages, services.YellowPagesLauncher, navigation);
@@ -100,7 +100,7 @@ internal sealed class PhoneShell : IDisposable
         coinFloats = new CoinEarnFloats(services.Coins);
         var controlCenter = new ControlCenter(configuration, themes, services.Playback, calls, navigation,
             notifications, router, services.Coins, services.AethernetSession);
-        minimizedPhone = new MinimizedPhone(services.Playback, calls, notifications, router, navigation, configuration);
+        minimizedPhone = new MinimizedPhone(services, router, navigation, services.MinimizedLayout);
         var spotlightIndex = new Spotlight.SpotlightIndex(apps, services.Installer, bundle.Contacts,
             services.DmLauncher, services.ChatInbox, services.ChatLog, services.LinkpearlLauncher,
             services.MarketIndex, services.MarketLauncher, services.Shortcuts, services.ShortcutRunner,
@@ -416,8 +416,9 @@ internal sealed class PhoneShell : IDisposable
         using (ImRaii.Child("chrome", screen.Size, false, ChromeFlags))
         {
             DeviceChrome.MaskScreenCorners(ImGui.GetWindowDrawList(), chassis, theme, UiScale.Current);
-            StatusBar.Draw(screen, theme, screen.IsLandscape());
-            DrawHomeIndicator(screen, theme);
+            var ink = painter.SurfaceTheme(theme);
+            StatusBar.Draw(screen, ink, screen.IsLandscape());
+            DrawHomeIndicator(screen, ink);
             if (turn.Turning)
             {
                 DeviceChrome.DrawBrightnessVeil(ImGui.GetWindowDrawList(), chassis, configuration.ScreenBrightness);

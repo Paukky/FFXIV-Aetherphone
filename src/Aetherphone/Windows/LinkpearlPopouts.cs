@@ -1,11 +1,14 @@
 using Aetherphone.Core;
+using Aetherphone.Core.Confirm;
 using Aetherphone.Core.Game;
 using Aetherphone.Core.GameChat;
 using Aetherphone.Core.Home;
+using Aetherphone.Core.Localization;
 using Aetherphone.Core.Lodestone;
 using Aetherphone.Core.Notifications;
 using Aetherphone.Core.Runtime;
 using Aetherphone.Core.Theme;
+using Aetherphone.Windows.Components;
 
 namespace Aetherphone.Windows;
 
@@ -23,11 +26,13 @@ internal sealed class LinkpearlPopouts : IDisposable
     private readonly PhoneVisibility visibility;
     private readonly AppGate installed;
     private readonly List<LinkpearlPopoutState> restoreQueue = new(MaxWindows);
+    private readonly int[] tabCounts = new int[MaxWindows];
+    private readonly long[] lastActive = new long[MaxWindows];
 
     public LinkpearlPopouts(Configuration configuration, ChatInbox inbox, ChatLog log, ChatSend send, TabStore tabs,
         TellPreferences tellPreferences, LinkpearlNotificationGate gate, PhoneVisibility visibility,
         AppGate installed, GameData gameData, ThemeProvider themes, LodestoneService lodestone,
-        NotificationService notifications)
+        NotificationService notifications, ConfirmService confirm)
     {
         this.configuration = configuration;
         this.inbox = inbox;
@@ -41,13 +46,13 @@ internal sealed class LinkpearlPopouts : IDisposable
         for (var slot = 0; slot < MaxWindows; slot++)
         {
             windows[slot] = new LinkpearlPopoutWindow(this, slot, configuration, inbox, tabs, log, send, gameData,
-                themes, lodestone, notifications);
+                themes, lodestone, notifications, confirm);
         }
 
         var saved = configuration.LinkpearlPopouts;
         for (var index = 0; index < saved.Count && index < MaxWindows; index++)
         {
-            if (saved[index].Key.Length > 0)
+            if (PopoutTabs.Migrate(saved[index]))
             {
                 restoreQueue.Add(saved[index]);
             }
@@ -55,6 +60,7 @@ internal sealed class LinkpearlPopouts : IDisposable
 
         log.Appended += OnAppended;
         tabs.Changed += ReopenThreads;
+        Plugin.ClientState.Logout += OnLogout;
     }
 
     public IReadOnlyList<LinkpearlPopoutWindow> Windows => windows;
@@ -65,7 +71,9 @@ internal sealed class LinkpearlPopouts : IDisposable
 
     public Action<uint>? OpenMarketInPhone { get; set; }
 
-    public bool CanOpenMore => Free() is not null;
+    public bool CanOpenMore => Free() is not null || Roomiest() is not null;
+
+    public bool CanDetach => Free() is not null;
 
     public int OpenCount
     {
@@ -84,6 +92,22 @@ internal sealed class LinkpearlPopouts : IDisposable
         }
     }
 
+    public bool AnyExpanded
+    {
+        get
+        {
+            for (var index = 0; index < windows.Length; index++)
+            {
+                if (windows[index].Bound && !windows[index].IsCollapsed)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     public void Restore()
     {
         for (var index = 0; index < restoreQueue.Count; index++)
@@ -95,13 +119,13 @@ internal sealed class LinkpearlPopouts : IDisposable
                 break;
             }
 
-            window.Bind(state.Key, state);
+            window.Bind(state.Keys[state.Active], state);
         }
 
         restoreQueue.Clear();
     }
 
-    public bool IsOpen(string key) => Bound(key) is not null;
+    public bool IsOpen(string key) => Holder(key) is not null;
 
     public bool Open(string key)
     {
@@ -110,32 +134,40 @@ internal sealed class LinkpearlPopouts : IDisposable
             return false;
         }
 
-        if (Bound(key) is { } existing)
+        if (Holder(key) is { } existing)
         {
-            existing.Focus();
+            existing.FocusTab(key);
             return true;
         }
 
         var window = Free();
-        if (window is null)
+        if (window is not null)
+        {
+            window.Bind(key, null);
+            Persist();
+            return true;
+        }
+
+        var host = Roomiest();
+        if (host is null)
         {
             return false;
         }
 
-        window.Bind(key, null);
+        host.AddTab(key, true);
         Persist();
         return true;
     }
 
     public void Close(string key)
     {
-        var window = Bound(key);
+        var window = Holder(key);
         if (window is null)
         {
             return;
         }
 
-        window.Unbind();
+        window.RemoveTab(window.IndexOfTab(key));
         Persist();
     }
 
@@ -160,6 +192,38 @@ internal sealed class LinkpearlPopouts : IDisposable
         Persist();
     }
 
+    public void SetAllCollapsed(bool collapsed)
+    {
+        var changed = false;
+        for (var index = 0; index < windows.Length; index++)
+        {
+            changed |= windows[index].SetCollapsed(collapsed);
+        }
+
+        if (changed)
+        {
+            Persist();
+        }
+    }
+
+    public void OnCollapseChanged() => Persist();
+
+    public bool Suppressed { get; private set; }
+
+    public void SetSuppressed(bool suppressed)
+    {
+        if (Suppressed == suppressed)
+        {
+            return;
+        }
+
+        Suppressed = suppressed;
+        for (var index = 0; index < windows.Length; index++)
+        {
+            windows[index].SetSuppressed(suppressed);
+        }
+    }
+
     public void OpenTell(string name, string world)
     {
         if (name.Length == 0)
@@ -173,14 +237,103 @@ internal sealed class LinkpearlPopouts : IDisposable
 
     public void Switch(LinkpearlPopoutWindow window, string key)
     {
-        if (Bound(key) is { } other && !ReferenceEquals(other, window))
+        if (Holder(key) is { } other && !ReferenceEquals(other, window))
         {
-            other.Focus();
+            other.FocusTab(key);
             return;
         }
 
         window.Rebind(key);
         Persist();
+    }
+
+    public bool AddTab(LinkpearlPopoutWindow window, string key)
+    {
+        if (Holder(key) is { } other && !ReferenceEquals(other, window))
+        {
+            other.FocusTab(key);
+            return false;
+        }
+
+        if (!window.AddTab(key, true))
+        {
+            ShellToast.Show(Loc.T(L.Linkpearl.PopoutTabLimit, PopoutTabs.MaxTabs));
+            return false;
+        }
+
+        Persist();
+        return true;
+    }
+
+    public void CloseTab(LinkpearlPopoutWindow window, int index)
+    {
+        if (!window.RemoveTab(index))
+        {
+            return;
+        }
+
+        Persist();
+    }
+
+    public bool Detach(LinkpearlPopoutWindow window, int index)
+    {
+        if (window.TabCount <= 1)
+        {
+            return false;
+        }
+
+        var free = Free();
+        if (free is null)
+        {
+            ShellToast.Show(Loc.T(L.Linkpearl.PopoutLimit, MaxWindows));
+            return false;
+        }
+
+        var key = window.KeyAt(index);
+        window.RemoveTab(index);
+        free.Bind(key, null);
+        Persist();
+        return true;
+    }
+
+    public void Merge(LinkpearlPopoutWindow source, LinkpearlPopoutWindow target)
+    {
+        while (source.TabCount > 0 && target.AddTab(source.KeyAt(0), false))
+        {
+            source.RemoveTab(0);
+        }
+
+        if (source.Bound)
+        {
+            ShellToast.Show(Loc.T(L.Linkpearl.PopoutTabLimit, PopoutTabs.MaxTabs));
+        }
+
+        target.Focus();
+        Persist();
+    }
+
+    public LinkpearlPopoutWindow? DropTargetAt(LinkpearlPopoutWindow source, Vector2 point)
+    {
+        if (!configuration.LinkpearlPopoutTabs)
+        {
+            return null;
+        }
+
+        for (var index = 0; index < windows.Length; index++)
+        {
+            var window = windows[index];
+            if (ReferenceEquals(window, source) || !window.Bound || window.TabCount >= PopoutTabs.MaxTabs)
+            {
+                continue;
+            }
+
+            if (window.Frame.Contains(point))
+            {
+                return window;
+            }
+        }
+
+        return null;
     }
 
     public void OnWindowClosed(LinkpearlPopoutWindow window)
@@ -208,6 +361,7 @@ internal sealed class LinkpearlPopouts : IDisposable
     {
         log.Appended -= OnAppended;
         tabs.Changed -= ReopenThreads;
+        Plugin.ClientState.Logout -= OnLogout;
         Persist();
         configuration.SaveNow();
     }
@@ -223,11 +377,21 @@ internal sealed class LinkpearlPopouts : IDisposable
         }
     }
 
-    private LinkpearlPopoutWindow? Bound(string key)
+    private void OnLogout(int type, int code)
+    {
+        if (!configuration.LinkpearlPopoutCloseOnLogout)
+        {
+            return;
+        }
+
+        CloseAll();
+    }
+
+    private LinkpearlPopoutWindow? Holder(string key)
     {
         for (var index = 0; index < windows.Length; index++)
         {
-            if (windows[index].Bound && string.Equals(windows[index].Key, key, StringComparison.Ordinal))
+            if (windows[index].Bound && windows[index].Holds(key))
             {
                 return windows[index];
             }
@@ -249,9 +413,31 @@ internal sealed class LinkpearlPopouts : IDisposable
         return null;
     }
 
+    private LinkpearlPopoutWindow? Roomiest()
+    {
+        if (!configuration.LinkpearlPopoutTabs)
+        {
+            return null;
+        }
+
+        for (var index = 0; index < windows.Length; index++)
+        {
+            tabCounts[index] = windows[index].Bound ? windows[index].TabCount : 0;
+            lastActive[index] = windows[index].LastActiveTick;
+        }
+
+        var slot = PopoutTabs.LeastRecentlyActive(tabCounts, lastActive);
+        return slot < 0 ? null : windows[slot];
+    }
+
     private void OnAppended(ChatEntry entry)
     {
-        if (!configuration.LinkpearlPopoutTells || entry.IsSelf || !ChatStreams.IsTell(entry.StreamKey))
+        if (!configuration.LinkpearlPopoutTells || !ChatStreams.IsTell(entry.StreamKey))
+        {
+            return;
+        }
+
+        if (entry.IsSelf && !configuration.LinkpearlPopoutOutgoingTells)
         {
             return;
         }
