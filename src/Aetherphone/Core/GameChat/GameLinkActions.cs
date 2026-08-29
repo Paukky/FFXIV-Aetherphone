@@ -76,15 +76,4 @@ internal static unsafe class GameLinkActions
             AepLog.Warning(exception, "[GameLinkActions] open map failed");
         }
     }
-
-    public static bool InviteToParty(string name, string world)
-    {
-        if (name.Length == 0)
-        {
-            return false;
-        }
-
-        var target = world.Length > 0 ? string.Concat(name, "@", world) : name;
-        return ChatSender.TrySend(string.Concat("/invite ", target));
-    }
 }

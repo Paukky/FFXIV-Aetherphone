@@ -2,6 +2,7 @@ using Aetherphone.Core.Localization;
 using Aetherphone.Core.Shell;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.GameFonts;
 using Dalamud.Interface.ManagedFontAtlas;
 using Dalamud.Plugin;
 
@@ -449,26 +450,55 @@ internal sealed class FontService : IDisposable
     {
         var asset = SharedAssets[sourceIndex];
         var source = default(ImFontPtr);
+        IFontAtlasBuildToolkitPostBuild? postBuild = null;
         return atlas.NewDelegateFontHandle(e =>
         {
-            e.OnPreBuild(tk => source = tk.AddDalamudAssetFont(asset,
-                new SafeFontConfig { SizePx = sharedSize, GlyphRanges = sharedRanges, }));
-            e.OnPostBuild(tk =>
+            e.OnPreBuild(tk =>
             {
-                for (var weightIndex = 0; weightIndex < WeightFiles.Length; weightIndex++)
-                {
-                    if (SharedSourceFor(weightIndex) != sourceIndex)
-                    {
-                        continue;
-                    }
+                postBuild = null;
+                source = tk.AddDalamudAssetFont(asset,
+                    new SafeFontConfig { SizePx = sharedSize, GlyphRanges = sharedRanges, });
+                MergeGameSymbols(tk, source);
 
-                    for (var sizeIndex = 0; sizeIndex < SizeMultipliers.Length; sizeIndex++)
-                    {
-                        tk.CopyGlyphsAcrossFonts(source, textFonts[weightIndex, sizeIndex], true, true);
-                    }
-                }
+                // Dalamud pours the merged game glyphs into the shared font from its own substance, which runs
+                // after every handle's post build callback, so the spread has to wait in the later queue.
+                tk.RegisterPostBuild(() => SpreadSharedGlyphs(postBuild, source, sourceIndex));
             });
+            e.OnPostBuild(tk => postBuild = tk);
         });
+    }
+
+    private void SpreadSharedGlyphs(IFontAtlasBuildToolkitPostBuild? toolkit, ImFontPtr source, int sourceIndex)
+    {
+        if (toolkit is null)
+        {
+            return;
+        }
+
+        for (var weightIndex = 0; weightIndex < WeightFiles.Length; weightIndex++)
+        {
+            if (SharedSourceFor(weightIndex) != sourceIndex)
+            {
+                continue;
+            }
+
+            for (var sizeIndex = 0; sizeIndex < SizeMultipliers.Length; sizeIndex++)
+            {
+                toolkit.CopyGlyphsAcrossFonts(source, textFonts[weightIndex, sizeIndex], true, true);
+            }
+        }
+    }
+
+    private void MergeGameSymbols(IFontAtlasBuildToolkitPreBuild toolkit, ImFontPtr primary)
+    {
+        try
+        {
+            toolkit.AddGameGlyphs(new GameFontStyle(GameFontFamily.Axis, sharedSize), GlyphPlan.GameSymbols, primary);
+        }
+        catch (Exception exception)
+        {
+            AepLog.Warning(exception, "[Fonts] skipped merging the game symbol glyphs.");
+        }
     }
 
     private static int SharedSourceFor(int weightIndex) => weightIndex == 0 ? 0 : 1;

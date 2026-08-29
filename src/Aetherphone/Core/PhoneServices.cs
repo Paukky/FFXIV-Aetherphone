@@ -181,6 +181,7 @@ internal sealed class PhoneServices : IDisposable
     public required Hunts.HuntZoneCatalog HuntZoneCatalog { get; init; }
     public required Hunts.HuntMobRewardCatalog HuntMobRewardCatalog { get; init; }
     public required Hunts.HuntsLauncher HuntsLauncher { get; init; }
+    public required Shell.MinimizedLayoutService MinimizedLayout { get; init; }
 
     public static PhoneServices Build(Configuration configuration, IChatGui chatGui, IDataManager dataManager,
         IObjectTable objectTable, IClientState clientState, IFramework framework, IDutyState dutyState,
@@ -241,6 +242,9 @@ internal sealed class PhoneServices : IDisposable
         var imageDisk = new DiskCache(imageRoot, 128L * 1024 * 1024);
         var remoteImages = new RemoteImageCache(http, imageDisk);
         var pluginCatalog = new PluginCatalog(remoteImages, http, imageDisk);
+        var wallpaperImages = new WallpaperImageCache();
+        var shortcutIconDirectory = new DirectoryInfo(Path.Combine(configDirectory.FullName, "ShortcutIcons"));
+        var shortcutIcons = new ShortcutIconLibrary(shortcutIconDirectory, configuration, wallpaperImages);
         var lodestone = new LodestoneService(configuration, gameData, http, media, cacheRoot);
         var lookup = new LookupService(lodestone);
         var availability = new AppAvailability(http, aethernetSession, configuration, gameData);
@@ -264,8 +268,9 @@ internal sealed class PhoneServices : IDisposable
         var casinoPlay = new Casino.CasinoPlayStore(configuration, aethernetSession, casinoApi.Casino, casino);
         var casinoHistory = new Casino.CasinoHistoryStore(aethernetSession, casinoApi.Casino);
         var casinoSpin = new Casino.CasinoSpinStore(aethernetSession, casinoApi.Casino, coins);
+        var realtimeSignals = new RealtimeSignalBus();
         var peerKeys = new PeerKeyDirectory(configuration, aethernet.Keys);
-        var conversationKeys = new ConversationKeyStore(aethernet.Keys, keyVault);
+        var conversationKeys = new ConversationKeyStore(aethernet.Keys, keyVault, realtimeSignals);
         var translation = new TranslationService(aethernetSession, aethernet.Translation, configuration);
         var marketIndex = new MarketItemIndex(dataManager);
         var market = new MarketboardService(http);
@@ -300,7 +305,6 @@ internal sealed class PhoneServices : IDisposable
         var activity = new ActivityTracker(framework, clientState, dutyState, gameData, configDirectory, characterGate);
         var ringNotifier = new ActivityRingNotifier(framework, activity, configuration, notifications, characterGate);
         var health = new HealthTracker(framework, characterWatch, notifications, configDirectory);
-        var realtimeSignals = new RealtimeSignalBus();
         var visibility = new PhoneVisibility();
         var housingCacheRoot = new DirectoryInfo(Path.Combine(cacheRoot.FullName, "housing"));
         var housingGate = installer.Gate(HousingService.AppId);
@@ -364,6 +368,7 @@ internal sealed class PhoneServices : IDisposable
         {
             Installer = installer,
             Configuration = configuration,
+            MinimizedLayout = new Shell.MinimizedLayoutService(configuration),
             Themes = themes,
             GameData = gameData,
             CharacterWatch = characterWatch,
@@ -419,7 +424,7 @@ internal sealed class PhoneServices : IDisposable
             GameRooms = gameRooms,
             AetherStreamLauncher = new Video.AetherStreamLauncher(),
             PluginCatalog = pluginCatalog,
-            Shortcuts = new ShortcutStore(configuration, pluginCatalog),
+            Shortcuts = new ShortcutStore(configuration, pluginCatalog, shortcutIcons),
             ShortcutRunner = new ShortcutRunner(clientState, condition),
             Lodestone = lodestone,
             Lookup = lookup,
@@ -476,7 +481,7 @@ internal sealed class PhoneServices : IDisposable
             Share = new ShareService(installer),
             Conduct = new ConductGateService(configuration),
             Wallpapers = wallpapers,
-            WallpaperImages = new WallpaperImageCache(),
+            WallpaperImages = wallpaperImages,
             Hunts = hunts,
             HuntMobCatalog = huntMobCatalog,
             HuntZoneCatalog = huntZoneCatalog,

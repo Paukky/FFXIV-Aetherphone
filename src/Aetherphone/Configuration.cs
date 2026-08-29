@@ -17,6 +17,7 @@ using Aetherphone.Core.Jobs;
 using Aetherphone.Core.Market;
 using Aetherphone.Core.Notifications;
 using Aetherphone.Core.Radio;
+using Aetherphone.Core.Shell;
 using Aetherphone.Core.Shortcuts;
 using Aetherphone.Core.Social;
 using Aetherphone.Core.Songs;
@@ -59,7 +60,8 @@ internal sealed class VideoLocalFileMapRecord
 }
 
 [Serializable]
-internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, IControlConfiguration
+internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, IControlConfiguration,
+    IMinimizedConfiguration
 {
     public int Version { get; set; } = 1;
     public bool OpenOnStartup { get; set; } = true;
@@ -72,6 +74,8 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public bool ShowInGpose { get; set; } = true;
     public Vector2? MaximizedPosition { get; set; }
     public Vector2? MinimizedPosition { get; set; }
+    public Vector2? LandscapePosition { get; set; }
+    public MinimizedLayout? MinimizedLayout { get; set; }
     public bool DoNotDisturb { get; set; }
     public bool QuietWhileBusy { get; set; } = true;
     public bool Vibration { get; set; } = true;
@@ -296,6 +300,34 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public float LinkpearlPopoutOpacity { get; set; } = 0.96f;
     public float LinkpearlPopoutTextScale { get; set; } = 1f;
     public List<LinkpearlPopoutState> LinkpearlPopouts { get; set; } = new();
+    public bool LinkpearlPopoutTabs { get; set; } = true;
+    public bool LinkpearlPopoutFade { get; set; } = true;
+    public float LinkpearlPopoutIdleOpacity { get; set; } = 0.62f;
+    public bool LinkpearlPopoutOutgoingTells { get; set; } = true;
+    public bool LinkpearlPopoutCloseOnLogout { get; set; }
+    public bool LinkpearlPopoutFlash { get; set; } = true;
+    public bool LinkpearlPopoutHideInCombat { get; set; } = true;
+    public bool LinkpearlPopoutHideInDuty { get; set; }
+    public bool LinkpearlPopoutFieldOperationsExempt { get; set; } = true;
+    public bool LinkpearlPopoutReopenAfterCombat { get; set; } = true;
+    public bool LinkpearlHotkeyEnabled { get; set; }
+    public int LinkpearlHotkeyModifier { get; set; }
+    public int LinkpearlHotkeyKey { get; set; }
+    public bool LinkpearlPlayerContextMenu { get; set; } = true;
+    public bool LinkpearlComposerMultiline { get; set; } = true;
+    public int LinkpearlComposerMaxLines { get; set; } = 4;
+    public bool LinkpearlDoubleEnterSend { get; set; }
+    public bool LinkpearlSplitLongMessages { get; set; } = true;
+    public int LinkpearlSplitIntervalMilliseconds { get; set; } = 1000;
+    public string LinkpearlSplitIndicator { get; set; } = ">>";
+    public bool LinkpearlDraftAutosave { get; set; } = true;
+    public Dictionary<string, string> LinkpearlDrafts { get; set; } = new();
+    public List<SentMessage> LinkpearlRecentSent { get; set; } = new();
+    public Dictionary<string, ChannelStyle> LinkpearlChannelStyles { get; set; } = new();
+    public bool LinkpearlHideHandledFromGameChat { get; set; }
+    public bool LinkpearlEmojiShortcodes { get; set; } = true;
+    public bool LinkpearlEmojiPicker { get; set; } = true;
+    public List<string> LinkpearlEmojiFavorites { get; set; } = new();
     public long DevChatLastSeenUnix { get; set; }
     public long AnnouncementsSeenUnix { get; set; }
     public long AnnouncementsNotifiedUnix { get; set; }
@@ -309,6 +341,7 @@ internal sealed class Configuration : IPluginConfiguration, IHomeConfiguration, 
     public List<CalendarCustomEvent> CalendarCustomEvents { get; set; } = new();
     public List<PhoneNote> Notes { get; set; } = new();
     public List<ShortcutEntry> Shortcuts { get; set; } = new();
+    public List<string> CustomShortcutIconIds { get; set; } = new();
     public List<ReminderItem> Reminders { get; set; } = new();
     public List<WorldClockEntry> WorldClocks { get; set; } = new();
     public List<AlarmEntry> Alarms { get; set; } = new();
