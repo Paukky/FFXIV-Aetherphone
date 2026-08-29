@@ -60,12 +60,14 @@ internal sealed partial class KindKupoApp : IPhoneApp
     {
         router.Reset();
         draft = string.Empty;
+        replyDraft = string.Empty;
         conduct.NotifyAppOpened(Id);
     }
 
     public void OnClosed()
     {
         router.Reset();
+        replyDraft = string.Empty;
         draft = string.Empty;
     }
 
